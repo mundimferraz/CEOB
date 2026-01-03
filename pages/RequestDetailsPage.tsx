@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
-import { MapPin, Calendar, User as UserIcon, FileText, Camera, Download, Trash2, CheckCircle, AlertTriangle, Crosshair, ImageIcon } from 'lucide-react';
+import { MapPin, Calendar, User as UserIcon, FileText, Camera, Download, Trash2, CheckCircle, AlertTriangle, Crosshair, ImageIcon, Edit2, X, Save, ExternalLink } from 'lucide-react';
 import { useApp } from '../App';
 import { RequestStatus } from '../types';
 import { STATUS_COLORS } from '../constants';
@@ -10,10 +10,13 @@ import { STATUS_COLORS } from '../constants';
 const RequestDetailsPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { requests, updateRequest, users, getZonalName, getRoleLabel } = useApp();
+  const { requests, updateRequest, users, getZonalName, getRoleLabel, notify } = useApp();
   
   const request = requests.find(r => r.id === id);
   const tech = users.find(u => u.id === request?.technicianId);
+
+  const [isEditingAddress, setIsEditingAddress] = useState(false);
+  const [editedAddress, setEditedAddress] = useState(request?.location.address || '');
 
   if (!request) {
     return (
@@ -29,13 +32,24 @@ const RequestDetailsPage: React.FC = () => {
     updateRequest({ ...request, status: newStatus });
   };
 
+  const handleSaveAddress = () => {
+    updateRequest({
+      ...request,
+      location: {
+        ...request.location,
+        address: editedAddress
+      }
+    });
+    setIsEditingAddress(false);
+    notify('Endereço atualizado com sucesso!');
+  };
+
   const generatePDF = () => {
     const doc = new jsPDF();
     const margin = 20;
     let y = 30;
 
-    // Cabeçalho Institucional
-    doc.setFillColor(15, 23, 42); // slate-900
+    doc.setFillColor(15, 23, 42);
     doc.rect(0, 0, 210, 25, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(14);
@@ -45,7 +59,6 @@ const RequestDetailsPage: React.FC = () => {
     doc.setTextColor(15, 23, 42);
     y = 40;
 
-    // Dados de Identificação
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.text('1. DADOS DE IDENTIFICAÇÃO', margin, y);
@@ -59,7 +72,6 @@ const RequestDetailsPage: React.FC = () => {
     doc.text(`Zonal/Unidade: ${getZonalName(request.zonal)}`, margin + 90, y);
     y += 15;
 
-    // Localização
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.text('2. LOCALIZAÇÃO E GEORREFERENCIAMENTO', margin, y);
@@ -71,7 +83,6 @@ const RequestDetailsPage: React.FC = () => {
     doc.text(`Coordenadas: ${request.location.latitude.toFixed(6)}, ${request.location.longitude.toFixed(6)}`, margin, y);
     y += 15;
 
-    // Parecer Técnico
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.text('3. PARECER TÉCNICO', margin, y);
@@ -82,18 +93,13 @@ const RequestDetailsPage: React.FC = () => {
     doc.text(descLines, margin, y);
     y += (descLines.length * 5) + 15;
 
-    // FOTOGRAFIAS (A seção solicitada)
     if (request.photoBefore) {
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
       doc.text('4. EVIDÊNCIAS FOTOGRÁFICAS (ANTES)', margin, y);
       y += 10;
-
-      // Adicionar Imagem
-      // Calculando tamanho para caber proporcionalmente
       const imgWidth = 80;
       const imgHeight = 60;
-      
       try {
         doc.addImage(request.photoBefore, 'JPEG', margin, y, imgWidth, imgHeight);
         y += imgHeight + 8;
@@ -107,9 +113,7 @@ const RequestDetailsPage: React.FC = () => {
       }
     }
 
-    // Responsabilidade
     if (y > 240) { doc.addPage(); y = 30; }
-    
     const roleName = tech ? getRoleLabel(tech.role) : 'Técnico';
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
@@ -125,6 +129,8 @@ const RequestDetailsPage: React.FC = () => {
 
     doc.save(`Laudo_Tecnico_${request.protocol}.pdf`);
   };
+
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${request.location.latitude},${request.location.longitude}`;
 
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto w-full space-y-8 pb-24">
@@ -182,25 +188,63 @@ const RequestDetailsPage: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-5 bg-slate-900 rounded-2xl border border-slate-800 flex items-start gap-4">
-                   <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white flex-shrink-0">
+                {/* Link Direto para o Google Maps */}
+                <a 
+                  href={mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-5 bg-slate-900 rounded-2xl border border-slate-800 flex items-start gap-4 transition-all hover:bg-slate-800 group"
+                >
+                   <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white flex-shrink-0 shadow-lg group-hover:scale-110 transition-transform">
                       <Crosshair size={24} />
                    </div>
-                   <div>
-                      <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Coordenadas GPS</p>
+                   <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Coordenadas GPS</p>
+                        <ExternalLink size={12} className="text-emerald-400 opacity-50" />
+                      </div>
                       <p className="font-bold text-white text-sm tracking-widest">
                         {request.location.latitude.toFixed(6)}, {request.location.longitude.toFixed(6)}
                       </p>
+                      <p className="text-[8px] text-emerald-600 font-bold uppercase mt-1">Clique para abrir no Maps</p>
                    </div>
-                </div>
+                </a>
 
+                {/* Logradouro Editável */}
                 <div className="p-5 bg-blue-50 rounded-2xl border border-blue-100 flex items-start gap-4">
                    <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white flex-shrink-0">
                       <MapPin size={24} />
                    </div>
-                   <div>
-                      <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Logradouro</p>
-                      <p className="font-bold text-blue-900 text-sm leading-snug">{request.location.address}</p>
+                   <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Logradouro</p>
+                        {!isEditingAddress ? (
+                          <button 
+                            onClick={() => setIsEditingAddress(true)}
+                            className="text-blue-600 hover:text-blue-800 p-1"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                        ) : (
+                          <div className="flex gap-2">
+                             <button onClick={handleSaveAddress} className="text-emerald-600 hover:text-emerald-800"><Save size={14} /></button>
+                             <button onClick={() => {setIsEditingAddress(false); setEditedAddress(request.location.address);}} className="text-rose-600 hover:text-rose-800"><X size={14} /></button>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {isEditingAddress ? (
+                        <textarea 
+                          className="w-full text-sm font-bold text-blue-900 bg-white border border-blue-200 rounded-lg p-2 outline-none focus:ring-2 focus:ring-blue-500"
+                          value={editedAddress}
+                          onChange={(e) => setEditedAddress(e.target.value)}
+                          rows={2}
+                        />
+                      ) : (
+                        <p className="font-bold text-blue-900 text-sm leading-snug break-words">
+                          {request.location.address}
+                        </p>
+                      )}
                    </div>
                 </div>
               </div>
@@ -212,7 +256,6 @@ const RequestDetailsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Seção Visual de Evidências na Tela */}
               <div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Evidência Fotográfica Principal</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -228,7 +271,6 @@ const RequestDetailsPage: React.FC = () => {
                      )}
                    </div>
                    
-                   {/* Espaço para foto do depois se existir */}
                    {request.photoAfter && (
                      <div className="relative group rounded-3xl overflow-hidden border border-slate-200">
                         <div className="absolute top-4 left-4 bg-emerald-600 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase z-10">Conclusão (Depois)</div>
