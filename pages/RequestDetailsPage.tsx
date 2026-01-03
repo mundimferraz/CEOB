@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
-import { MapPin, Calendar, User as UserIcon, FileText, Camera, Download, Trash2, CheckCircle, AlertTriangle, Crosshair, ImageIcon, Edit2, X, Save, ExternalLink, Loader2 } from 'lucide-react';
+import { MapPin, Calendar, User as UserIcon, FileText, Camera, Download, Trash2, CheckCircle, AlertTriangle, Crosshair, ImageIcon, Edit2, X, Save, ExternalLink, Loader2, ShieldCheck, UserCheck } from 'lucide-react';
 import { useApp } from '../App';
 import { RequestStatus } from '../types';
 import { STATUS_COLORS } from '../constants';
@@ -10,10 +10,12 @@ import { STATUS_COLORS } from '../constants';
 const RequestDetailsPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { requests, updateRequest, deleteRequest, users, getZonalName, getRoleLabel, notify } = useApp();
+  const { requests, updateRequest, deleteRequest, users, zonals, getZonalName, getRoleLabel, notify } = useApp();
   
   const request = requests.find(r => r.id === id);
   const tech = users.find(u => u.id === request?.technicianId);
+  const zonalMeta = zonals.find(z => z.id === request?.zonal);
+  const engineer = users.find(u => u.id === zonalMeta?.managerId);
 
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [editedAddress, setEditedAddress] = useState(request?.location.address || '');
@@ -76,6 +78,7 @@ const RequestDetailsPage: React.FC = () => {
     const margin = 20;
     let y = 30;
 
+    // Header background
     doc.setFillColor(15, 23, 42);
     doc.rect(0, 0, 210, 25, 'F');
     doc.setTextColor(255, 255, 255);
@@ -86,6 +89,7 @@ const RequestDetailsPage: React.FC = () => {
     doc.setTextColor(15, 23, 42);
     y = 40;
 
+    // Seção 1: Identificação
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.text('1. DADOS DE IDENTIFICAÇÃO', margin, y);
@@ -97,8 +101,11 @@ const RequestDetailsPage: React.FC = () => {
     y += 7;
     doc.text(`Contrato: ${request.contract}`, margin, y);
     doc.text(`Zonal/Unidade: ${getZonalName(request.zonal)}`, margin + 90, y);
+    y += 7;
+    doc.text(`Responsável Técnico (Zonal): ${engineer?.name || 'Não atribuído'}`, margin, y);
     y += 15;
 
+    // Seção 2: Localização
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.text('2. LOCALIZAÇÃO E GEORREFERENCIAMENTO', margin, y);
@@ -110,6 +117,7 @@ const RequestDetailsPage: React.FC = () => {
     doc.text(`Coordenadas: ${request.location.latitude.toFixed(6)}, ${request.location.longitude.toFixed(6)}`, margin, y);
     y += 15;
 
+    // Seção 3: Parecer
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.text('3. PARECER TÉCNICO', margin, y);
@@ -121,13 +129,13 @@ const RequestDetailsPage: React.FC = () => {
     y += (descLines.length * 5) + 15;
 
     const addImageToDoc = (title: string, data: string) => {
-      if (y > 200) { doc.addPage(); y = 30; }
+      if (y > 180) { doc.addPage(); y = 30; }
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
       doc.text(title, margin, y);
       y += 10;
-      const imgWidth = 80;
-      const imgHeight = 60;
+      const imgWidth = 90;
+      const imgHeight = 65;
       try {
         doc.addImage(data, 'JPEG', margin, y, imgWidth, imgHeight);
         y += imgHeight + 15;
@@ -140,19 +148,42 @@ const RequestDetailsPage: React.FC = () => {
     if (request.photoBefore) addImageToDoc('4. EVIDÊNCIA INICIAL (ANTES)', request.photoBefore);
     if (request.photoAfter) addImageToDoc('5. EVIDÊNCIA DE CONCLUSÃO (DEPOIS)', request.photoAfter);
 
-    if (y > 240) { doc.addPage(); y = 30; }
-    const roleName = tech ? getRoleLabel(tech.role) : 'Técnico';
+    // Seção Final: Assinaturas
+    if (y > 230) { doc.addPage(); y = 30; }
+    
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text('RECONHECIMENTO', margin, y);
-    y += 10;
-    doc.setFontSize(10);
+    doc.text('6. QUADRO TÉCNICO RESPONSÁVEL', margin, y);
+    y += 20;
+
+    // Assinatura Técnico
+    doc.line(margin, y, margin + 70, y);
+    y += 5;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${tech?.name}`, margin, y);
+    y += 4;
     doc.setFont('helvetica', 'normal');
-    doc.text(`Vistoriador: ${tech?.name}`, margin, y);
-    y += 7;
-    doc.text(`Cargo/Função: ${roleName}`, margin, y);
-    y += 7;
-    doc.text(`Data da Emissão: ${new Date().toLocaleDateString('pt-BR')}`, margin, y);
+    doc.text(`Vistoriador - ${getRoleLabel(tech?.role || '')}`, margin, y);
+    y += 4;
+    doc.text(`Matrícula: ${tech?.registrationNumber || '---'}`, margin, y);
+
+    // Assinatura Engenheiro (lado direito)
+    let yEng = y - 13;
+    doc.line(margin + 90, yEng, margin + 160, yEng);
+    yEng += 5;
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${engineer?.name || '__________________________'}`, margin + 90, yEng);
+    yEng += 4;
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Responsável Técnico - Engenheiro`, margin + 90, yEng);
+    yEng += 4;
+    doc.text(`Unidade: ${getZonalName(request.zonal)}`, margin + 90, yEng);
+
+    y += 15;
+    doc.setFontSize(8);
+    doc.setTextColor(150);
+    doc.text(`Emitido em: ${new Date().toLocaleString('pt-BR')} - Sistema SGR-Vias`, margin, y);
 
     doc.save(`Laudo_Tecnico_${request.protocol}.pdf`);
   };
@@ -335,16 +366,36 @@ const RequestDetailsPage: React.FC = () => {
 
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-            <h2 className="font-black text-slate-900 uppercase tracking-tight mb-6">Equipe Responsável</h2>
-            <div className="flex items-center gap-4 p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
-              <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-lg">
-                {tech?.name.charAt(0)}
-              </div>
-              <div>
-                <p className="font-black text-slate-900 leading-tight">{tech?.name}</p>
-                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{tech ? getRoleLabel(tech.role) : 'Técnico'}</span>
+            <h2 className="font-black text-slate-900 uppercase tracking-tight mb-6">Equipe Técnica</h2>
+            
+            {/* Engenheiro Responsável */}
+            <div className="space-y-4 mb-8">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Engenheiro Titular (Unidade)</p>
+              <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+                  <ShieldCheck size={24} />
+                </div>
+                <div>
+                  <p className="font-black text-slate-900 leading-tight">{engineer?.name || 'Não definido'}</p>
+                  <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Responsável Técnico</span>
+                </div>
               </div>
             </div>
+
+            {/* Técnico Vistoriador */}
+            <div className="space-y-4">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Técnico Vistoriador (Registro)</p>
+              <div className="flex items-center gap-4 p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
+                <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-lg">
+                  {tech?.name.charAt(0)}
+                </div>
+                <div>
+                  <p className="font-black text-slate-900 leading-tight">{tech?.name}</p>
+                  <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{tech ? getRoleLabel(tech.role) : 'Técnico'}</span>
+                </div>
+              </div>
+            </div>
+
             <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col gap-3">
               <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
                 <span className="text-slate-400">Data da Vistoria</span>
