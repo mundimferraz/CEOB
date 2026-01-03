@@ -1,16 +1,15 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, MapPin, Save, X, Loader2 } from 'lucide-react';
+import { Camera, MapPin, Save, Loader2 } from 'lucide-react';
 import { useApp } from '../App';
-import { RequestStatus, Zonal, RepairRequest } from '../types';
-import { ZONALS } from '../constants';
+import { RequestStatus, ZonalType, RepairRequest } from '../types';
+import { ZONALS_LIST } from '../constants';
 
 const NewRequestPage: React.FC = () => {
-  const { addRequest, users } = useApp();
+  const { addRequest, users, getZonalName } = useApp();
   const navigate = useNavigate();
   
-  const [loading, setLoading] = useState(false);
   const [locating, setLocating] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -18,7 +17,7 @@ const NewRequestPage: React.FC = () => {
     seiNumber: '',
     contract: '',
     description: '',
-    zonal: Zonal.NORTH,
+    zonal: ZonalType.NORTH,
     technicianId: '',
     visitDate: new Date().toISOString().split('T')[0],
     latitude: 0,
@@ -40,13 +39,12 @@ const NewRequestPage: React.FC = () => {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
-        // Mock reverse geocoding for demo
+        // Simulação de geocodificação reversa
         const mockAddress = `Rua Simulada, ${Math.floor(Math.random() * 1000)}, Bairro Exemplo, São Paulo - SP`;
         setFormData(prev => ({ ...prev, latitude, longitude, address: mockAddress }));
         setLocating(false);
       },
-      (error) => {
-        console.error(error);
+      () => {
         alert("Erro ao obter localização. Verifique as permissões de GPS.");
         setLocating(false);
       }
@@ -69,7 +67,7 @@ const NewRequestPage: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.latitude || !formData.photoBefore) {
-      alert("Localização e Foto são obrigatórios.");
+      alert("Localização e Foto são obrigatórios para comprovação de campo.");
       return;
     }
 
@@ -86,7 +84,7 @@ const NewRequestPage: React.FC = () => {
       },
       visitDate: formData.visitDate,
       status: RequestStatus.OPEN,
-      technicianId: formData.technicianId || users[0]?.id,
+      technicianId: formData.technicianId,
       zonal: formData.zonal,
       photoBefore: formData.photoBefore,
       createdAt: new Date().toISOString(),
@@ -96,33 +94,28 @@ const NewRequestPage: React.FC = () => {
     navigate('/requests');
   };
 
+  // Filtra apenas colaboradores/estagiários da zonal selecionada
+  const filteredPersonnel = users.filter(u => u.zonal === formData.zonal);
+
   return (
     <div className="p-4 md:p-8 max-w-3xl mx-auto w-full">
       <header className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">Nova Visita Técnica</h1>
-        <p className="text-slate-500">Preencha os dados da solicitação coletados em campo.</p>
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Nova Visita Técnica</h1>
+        <p className="text-slate-500 font-medium">Registro de vistoria oficial em campo.</p>
       </header>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Identity & Basic Info */}
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-          <h2 className="text-lg font-semibold border-b pb-2">Informações Gerais</h2>
+      <form onSubmit={handleSubmit} className="space-y-6 pb-24">
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          <h2 className="text-lg font-bold text-slate-900 border-b pb-2 flex items-center gap-2">
+            <div className="w-1.5 h-5 bg-blue-600 rounded-full"></div>
+            Protocolo
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Protocolo</label>
+              <label className="block text-sm font-bold text-slate-700 mb-1">Número SEI</label>
               <input 
                 type="text" 
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                placeholder="Ex: 2024.123456"
-                value={formData.protocol}
-                onChange={e => setFormData({...formData, protocol: e.target.value})}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Número SEI</label>
-              <input 
-                type="text" 
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                className="w-full h-12 px-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                 placeholder="00.000.000/0000-00"
                 value={formData.seiNumber}
                 onChange={e => setFormData({...formData, seiNumber: e.target.value})}
@@ -130,130 +123,121 @@ const NewRequestPage: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Contrato</label>
+              <label className="block text-sm font-bold text-slate-700 mb-1">Contrato</label>
               <input 
                 type="text" 
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                placeholder="CTR-00/202X"
+                className="w-full h-12 px-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                placeholder="Ex: CTR-05/2023"
                 value={formData.contract}
                 onChange={e => setFormData({...formData, contract: e.target.value})}
                 required
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Data da Visita</label>
-              <input 
-                type="date" 
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                value={formData.visitDate}
-                onChange={e => setFormData({...formData, visitDate: e.target.value})}
-                required
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Descrição do Problema</label>
-            <textarea 
-              rows={3}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              placeholder="Descreva o que foi observado..."
-              value={formData.description}
-              onChange={e => setFormData({...formData, description: e.target.value})}
-              required
-            />
           </div>
         </div>
 
-        {/* Responsible & Zonal */}
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-          <h2 className="text-lg font-semibold border-b pb-2">Equipe Responsável</h2>
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          <h2 className="text-lg font-bold text-slate-900 border-b pb-2 flex items-center gap-2">
+             <div className="w-1.5 h-5 bg-indigo-600 rounded-full"></div>
+             Atribuição
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Zonal</label>
+              <label className="block text-sm font-bold text-slate-700 mb-1">Unidade Operativa</label>
               <select 
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                className="w-full h-12 px-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none bg-slate-50"
                 value={formData.zonal}
-                onChange={e => setFormData({...formData, zonal: e.target.value as Zonal})}
+                onChange={e => setFormData({...formData, zonal: e.target.value as ZonalType, technicianId: ''})}
               >
-                {ZONALS.map(z => <option key={z} value={z}>{z}</option>)}
+                {ZONALS_LIST.map(z => <option key={z} value={z}>{getZonalName(z)}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Responsável pela Visita</label>
+              <label className="block text-sm font-bold text-slate-700 mb-1">Responsável</label>
               <select 
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                className="w-full h-12 px-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none bg-slate-50"
                 value={formData.technicianId}
                 onChange={e => setFormData({...formData, technicianId: e.target.value})}
                 required
               >
                 <option value="">Selecione...</option>
-                {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
+                {filteredPersonnel.map(u => (
+                  <option key={u.id} value={u.id}>{u.name} ({u.role === 'Intern' ? 'Estagiário' : 'Colaborador'})</option>
+                ))}
               </select>
             </div>
           </div>
         </div>
 
-        {/* Location & GPS */}
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-          <h2 className="text-lg font-semibold border-b pb-2">Localização (GPS)</h2>
-          <div className="flex flex-col gap-4">
-            <button 
-              type="button"
-              onClick={handleCaptureLocation}
-              disabled={locating}
-              className="flex items-center justify-center gap-2 w-full py-4 bg-blue-50 text-blue-700 border-2 border-dashed border-blue-200 rounded-xl hover:bg-blue-100 transition-colors font-medium"
-            >
-              {locating ? <Loader2 className="animate-spin" /> : <MapPin size={24} />}
-              {formData.latitude ? 'Localização Atualizada' : 'Capturar Localização Atual'}
-            </button>
-            {formData.latitude !== 0 && (
-              <div className="p-3 bg-slate-50 rounded-lg text-sm text-slate-600 border border-slate-100">
-                <p><strong>Lat/Long:</strong> {formData.latitude.toFixed(6)}, {formData.longitude.toFixed(6)}</p>
-                <p><strong>Endereço:</strong> {formData.address}</p>
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+           <h2 className="text-lg font-bold text-slate-900 border-b pb-2 flex items-center gap-2">
+             <div className="w-1.5 h-5 bg-emerald-600 rounded-full"></div>
+             Evidência GPS
+          </h2>
+          <button 
+            type="button"
+            onClick={handleCaptureLocation}
+            disabled={locating}
+            className="flex items-center justify-center gap-2 w-full py-4 bg-emerald-50 text-emerald-700 border-2 border-dashed border-emerald-200 rounded-2xl hover:bg-emerald-100 transition-all font-black text-sm uppercase tracking-wider"
+          >
+            {locating ? <Loader2 className="animate-spin" /> : <MapPin size={24} />}
+            {formData.latitude ? 'Localização Capturada ✓' : 'Capturar GPS Atual'}
+          </button>
+          {formData.address && (
+            <div className="p-4 bg-slate-50 rounded-xl text-xs font-medium text-slate-600 border border-slate-200">
+              <p className="flex items-center gap-2">
+                 <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                 {formData.address}
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+           <h2 className="text-lg font-bold text-slate-900 border-b pb-2 flex items-center gap-2">
+             <div className="w-1.5 h-5 bg-rose-600 rounded-full"></div>
+             Evidência Visual
+          </h2>
+          <label className="flex flex-col items-center justify-center w-full h-56 border-2 border-slate-300 border-dashed rounded-3xl cursor-pointer bg-slate-50 hover:bg-slate-100 overflow-hidden relative group">
+            {imagePreview ? (
+              <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+            ) : (
+              <div className="flex flex-col items-center justify-center p-6 text-center">
+                <Camera className="w-12 h-12 mb-3 text-slate-300 group-hover:text-blue-500 transition-colors" />
+                <p className="text-sm text-slate-900 font-black uppercase tracking-widest">Foto do "Antes"</p>
+                <p className="text-xs text-slate-400 mt-2 font-medium">Toque para capturar a imagem do estado atual da via</p>
               </div>
             )}
-          </div>
+            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+          </label>
         </div>
 
-        {/* Photos */}
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-          <h2 className="text-lg font-semibold border-b pb-2">Registro Fotográfico</h2>
-          <div className="space-y-4">
-            <label className="block">
-              <span className="block text-sm font-medium text-slate-700 mb-2">Foto do Antes</span>
-              <div className="flex flex-col items-center justify-center w-full">
-                <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-slate-300 border-dashed rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100 overflow-hidden">
-                  {imagePreview ? (
-                    <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <Camera className="w-10 h-10 mb-3 text-slate-400" />
-                      <p className="mb-2 text-sm text-slate-500"><span className="font-semibold">Clique para tirar foto</span></p>
-                      <p className="text-xs text-slate-400">Captura direta da câmera</p>
-                    </div>
-                  )}
-                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
-                </label>
-              </div>
-            </label>
-          </div>
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+           <label className="block text-sm font-bold text-slate-700 mb-1">Descrição Técnica da Ocorrência</label>
+            <textarea 
+              rows={4}
+              className="w-full px-4 py-3 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-slate-400 font-medium"
+              placeholder="Descreva detalhadamente o problema observado..."
+              value={formData.description}
+              onChange={e => setFormData({...formData, description: e.target.value})}
+              required
+            />
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-4 pt-4 sticky bottom-4">
+        <div className="fixed bottom-0 left-0 right-0 md:relative p-4 md:p-0 bg-white md:bg-transparent border-t md:border-t-0 flex gap-4 z-40 safe-bottom">
           <button 
             type="button" 
             onClick={() => navigate(-1)}
-            className="flex-1 px-6 py-4 bg-white border border-slate-300 rounded-xl font-semibold text-slate-700 hover:bg-slate-50"
+            className="flex-1 px-6 py-4 bg-white border border-slate-300 rounded-2xl font-black uppercase tracking-widest text-slate-700 active:scale-95 transition-transform"
           >
-            Cancelar
+            Voltar
           </button>
           <button 
             type="submit"
-            className="flex-1 px-6 py-4 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 flex items-center justify-center gap-2 shadow-lg shadow-blue-200"
+            className="flex-1 px-6 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest active:scale-95 transition-transform shadow-xl shadow-blue-200 flex items-center justify-center gap-2"
           >
             <Save size={20} />
-            Salvar Registro
+            Salvar
           </button>
         </div>
       </form>

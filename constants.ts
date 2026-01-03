@@ -1,12 +1,18 @@
 
-import { Zonal, RequestStatus, User, RepairRequest } from './types';
+import { ZonalType, RequestStatus, User, RepairRequest, ZonalMetadata } from './types';
 
-export const ZONALS: Zonal[] = [
-  Zonal.NORTH,
-  Zonal.SOUTH,
-  Zonal.EAST,
-  Zonal.WEST
+export const ZONALS_LIST: ZonalType[] = [
+  ZonalType.NORTH,
+  ZonalType.SOUTH,
+  ZonalType.EAST,
+  ZonalType.WEST
 ];
+
+export const INITIAL_ZONAL_METADATA: ZonalMetadata[] = ZONALS_LIST.map(z => ({
+  id: z,
+  name: z,
+  managerId: z === ZonalType.NORTH ? 'u1' : z === ZonalType.SOUTH ? 'u4' : undefined
+}));
 
 export const STATUS_COLORS = {
   [RequestStatus.OPEN]: 'bg-blue-100 text-blue-700 border-blue-200',
@@ -16,10 +22,10 @@ export const STATUS_COLORS = {
 };
 
 export const MOCK_USERS: User[] = [
-  { id: 'u1', name: 'Eng. Ricardo Souza', role: 'Manager', zonal: Zonal.NORTH },
-  { id: 'u2', name: 'Ana Oliveira', role: 'Collaborator', zonal: Zonal.NORTH },
-  { id: 'u3', name: 'Carlos Santos', role: 'Intern', zonal: Zonal.NORTH },
-  { id: 'u4', name: 'Juliana Lima', role: 'Manager', zonal: Zonal.SOUTH },
+  { id: 'u1', name: 'Eng. Ricardo Souza', role: 'Manager', zonal: ZonalType.NORTH, registrationNumber: '12345-6' },
+  { id: 'u2', name: 'Ana Oliveira', role: 'Collaborator', zonal: ZonalType.NORTH, registrationNumber: '88772-1' },
+  { id: 'u3', name: 'Carlos Santos', role: 'Intern', zonal: ZonalType.NORTH, registrationNumber: 'EST-990' },
+  { id: 'u4', name: 'Juliana Lima', role: 'Manager', zonal: ZonalType.SOUTH, registrationNumber: '55443-2' },
 ];
 
 export const MOCK_REQUESTS: RepairRequest[] = [
@@ -37,27 +43,8 @@ export const MOCK_REQUESTS: RepairRequest[] = [
     visitDate: '2024-05-15',
     status: RequestStatus.IN_PROGRESS,
     technicianId: 'u2',
-    zonal: Zonal.NORTH,
+    zonal: ZonalType.NORTH,
     createdAt: '2024-05-10',
     photoBefore: 'https://picsum.photos/seed/pothole1/400/300'
-  },
-  {
-    id: 'req_002',
-    protocol: '2024.987654',
-    seiNumber: '00.987.654/2024',
-    contract: 'CTR-08/2023',
-    description: 'Manutenção de calçada danificada por raízes de árvore.',
-    location: {
-      latitude: -23.5612,
-      longitude: -46.6543,
-      address: 'Rua Augusta, 1500 - São Paulo, SP'
-    },
-    visitDate: '2024-05-12',
-    status: RequestStatus.COMPLETED,
-    technicianId: 'u2',
-    zonal: Zonal.NORTH,
-    createdAt: '2024-05-08',
-    photoBefore: 'https://picsum.photos/seed/pothole2/400/300',
-    photoAfter: 'https://picsum.photos/seed/pothole3/400/300'
   }
 ];

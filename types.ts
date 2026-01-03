@@ -6,18 +6,22 @@ export enum RequestStatus {
   CANCELED = 'Cancelada'
 }
 
-export enum Zonal {
+export enum ZonalType {
   NORTH = 'Zonal Norte',
   SOUTH = 'Zonal Sul',
   EAST = 'Zonal Leste',
   WEST = 'Zonal Oeste'
 }
 
+export type UserRole = 'Manager' | 'Collaborator' | 'Intern';
+
 export interface User {
   id: string;
   name: string;
-  role: 'Manager' | 'Collaborator' | 'Intern';
-  zonal: Zonal;
+  role: UserRole;
+  zonal: ZonalType;
+  email?: string;
+  registrationNumber?: string; // Matrícula
 }
 
 export interface LocationData {
@@ -36,14 +40,15 @@ export interface RepairRequest {
   visitDate: string;
   status: RequestStatus;
   technicianId: string;
-  zonal: Zonal;
+  zonal: ZonalType;
   photoBefore?: string;
   photoAfter?: string;
   createdAt: string;
 }
 
-export interface ZonalInfo {
-  id: Zonal;
-  manager: string;
-  totalTeam: number;
+export interface ZonalMetadata {
+  id: ZonalType;
+  name: string;
+  managerId?: string; // ID do Engenheiro Responsável
+  description?: string;
 }
