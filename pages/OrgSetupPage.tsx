@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useApp } from '../App';
 import { ZonalType, User, UserRole, ZonalMetadata } from '../types';
 import { ZONALS_LIST } from '../constants';
-import { UserPlus, Settings, Shield, Map as MapIcon, Edit2, Trash2, X, Save, Search, UserCheck, Briefcase, Plus, AlertCircle } from 'lucide-react';
+import { UserPlus, Settings, Shield, Map as MapIcon, Edit2, Trash2, X, Save, Search, UserCheck, Briefcase, Plus, AlertCircle, Users } from 'lucide-react';
 
 const OrgSetupPage: React.FC = () => {
   const { 
@@ -29,10 +29,12 @@ const OrgSetupPage: React.FC = () => {
     const zonalRequests = requests.filter(r => r.zonal === zonalId);
     const zonalMeta = zonals.find(z => z.id === zonalId);
     const manager = users.find(u => u.id === zonalMeta?.managerId);
+    const assistant = users.find(u => u.id === zonalMeta?.assistantId);
     
     return {
       displayName: zonalMeta?.name || zonalId,
       managerName: manager?.name || 'Não definido',
+      assistantName: assistant?.name || 'Não definido',
       teamCount: zonalUsers.length,
       requestCount: zonalRequests.length
     };
@@ -44,7 +46,6 @@ const OrgSetupPage: React.FC = () => {
     const selectedRole = formData.get('role') as UserRole;
     const selectedZonal = formData.get('zonal') as ZonalType;
 
-    // REGRA DE NEGÓCIO: Validar se já existe um Engenheiro (Manager) nesta Zonal
     if (selectedRole === 'Manager') {
       const existingManager = users.find(u => 
         u.zonal === selectedZonal && 
@@ -83,6 +84,7 @@ const OrgSetupPage: React.FC = () => {
       ...editingZonal!,
       name: formData.get('name') as string,
       managerId: formData.get('managerId') as string,
+      assistantId: formData.get('assistantId') as string,
     };
 
     updateZonal(zonalData);
@@ -150,7 +152,7 @@ const OrgSetupPage: React.FC = () => {
                     <Settings size={20} />
                   </button>
                 </div>
-                <div className="p-6 space-y-5 flex-1">
+                <div className="p-6 space-y-4 flex-1">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{getRoleLabel('Manager')} Responsável</span>
                     <span className="text-sm font-bold text-slate-900 flex items-center gap-2">
@@ -159,12 +161,18 @@ const OrgSetupPage: React.FC = () => {
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Equipe de Campo</span>
-                    <span className="text-sm font-bold text-slate-900">{stats.teamCount} colaboradores</span>
+                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Estagiário/Responsável</span>
+                    <span className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <Users size={16} className="text-indigo-500" />
+                      {stats.assistantName}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Ações Pendentes</span>
-                    <span className="text-sm font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full">{stats.requestCount} Chamados</span>
+                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Equipe / Demandas</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">{stats.teamCount} Técnicos</span>
+                      <span className="text-sm font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full">{stats.requestCount} Chamados</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -452,19 +460,38 @@ const OrgSetupPage: React.FC = () => {
                   className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900 mb-6"
                 />
                 
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Engenheiro Responsável</label>
-                <select 
-                  name="managerId"
-                  defaultValue={editingZonal.managerId}
-                  className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900 appearance-none bg-slate-50"
-                >
-                  <option value="">Nenhum atribuído</option>
-                  {users.filter(u => u.role === 'Manager').map(u => (
-                    <option key={u.id} value={u.id}>{u.name}</option>
-                  ))}
-                </select>
-                <p className="text-[9px] text-slate-400 mt-2 font-bold uppercase tracking-tight">
-                  Nota: Apenas usuários cadastrados com o cargo 'Engenheiro' na gestão de pessoal aparecerão nesta lista.
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Engenheiro Responsável</label>
+                    <select 
+                      name="managerId"
+                      defaultValue={editingZonal.managerId}
+                      className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900 appearance-none bg-slate-50"
+                    >
+                      <option value="">Nenhum atribuído</option>
+                      {users.filter(u => u.role === 'Manager').map(u => (
+                        <option key={u.id} value={u.id}>{u.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Estagiário / Responsável</label>
+                    <select 
+                      name="assistantId"
+                      defaultValue={editingZonal.assistantId}
+                      className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900 appearance-none bg-slate-50"
+                    >
+                      <option value="">Nenhum atribuído</option>
+                      {users.filter(u => u.role !== 'Manager').map(u => (
+                        <option key={u.id} value={u.id}>{u.name} ({getRoleLabel(u.role)})</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <p className="text-[9px] text-slate-400 mt-4 font-bold uppercase tracking-tight">
+                  Nota: Apenas usuários cadastrados na gestão de pessoal aparecerão nestas listas.
                 </p>
               </div>
 

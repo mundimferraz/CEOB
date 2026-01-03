@@ -14,7 +14,6 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- 2. Regra de Unicidade: Apenas 1 Engenheiro (Manager) por Zonal
--- Este bloco verifica se o índice já existe antes de criá-lo
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = 'unique_manager_per_zonal') THEN
@@ -27,9 +26,18 @@ CREATE TABLE IF NOT EXISTS zonals (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     manager_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    assistant_id TEXT REFERENCES users(id) ON DELETE SET NULL,
     description TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- Adicionar coluna assistant_id caso a tabela já exista
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='zonals' AND column_name='assistant_id') THEN
+        ALTER TABLE zonals ADD COLUMN assistant_id TEXT REFERENCES users(id) ON DELETE SET NULL;
+    END IF;
+END $$;
 
 -- 4. Tabela de Vistorias (Se não existir)
 CREATE TABLE IF NOT EXISTS repair_requests (

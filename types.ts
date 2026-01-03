@@ -51,5 +51,6 @@ export interface ZonalMetadata {
   id: ZonalType;
   name: string;
   managerId?: string; // ID do Engenheiro Responsável
+  assistantId?: string; // ID do Estagiário/Responsável da Unidade
   description?: string;
 }

@@ -141,6 +141,7 @@ export const dbApi = {
       id: z.id,
       name: z.name,
       managerId: z.manager_id,
+      assistantId: z.assistant_id,
       description: z.description
     }));
   },
@@ -152,6 +153,7 @@ export const dbApi = {
         id: zonal.id,
         name: zonal.name,
         manager_id: zonal.managerId || null,
+        assistant_id: zonal.assistantId || null,
         description: zonal.description || null
       }], { onConflict: 'id' });
     
