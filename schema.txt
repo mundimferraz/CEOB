@@ -1,0 +1,41 @@
+
+-- COPIE E COLE NO SQL EDITOR DO SUPABASE --
+
+CREATE TABLE users (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    role TEXT NOT NULL,
+    zonal TEXT NOT NULL,
+    registration_number TEXT,
+    email TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE TABLE zonals (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    manager_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE TABLE repair_requests (
+    id TEXT PRIMARY KEY,
+    protocol TEXT NOT NULL,
+    sei_number TEXT NOT NULL,
+    contract TEXT NOT NULL,
+    description TEXT,
+    latitude DOUBLE PRECISION NOT NULL,
+    longitude DOUBLE PRECISION NOT NULL,
+    address TEXT,
+    visit_date DATE NOT NULL,
+    status TEXT NOT NULL,
+    technician_id TEXT REFERENCES users(id),
+    zonal TEXT NOT NULL,
+    photo_before TEXT,
+    photo_after TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- DADOS INICIAIS (OPCIONAL) --
+-- INSERT INTO zonals (id, name) VALUES ('Zonal Norte', 'Zonal Norte'), ('Zonal Sul', 'Zonal Sul'), ('Zonal Leste', 'Zonal Leste'), ('Zonal Oeste', 'Zonal Oeste');

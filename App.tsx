@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, ClipboardList, PlusCircle, Users, Menu, X, ChevronRight, Plus, CheckCircle, Info, AlertCircle } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, PlusCircle, Users, Menu, X, ChevronRight, Plus, CheckCircle, Info, AlertCircle, Loader2 } from 'lucide-react';
 import { RepairRequest, User, ZonalType, RequestStatus, ZonalMetadata, UserRole } from './types';
 import { MOCK_REQUESTS, MOCK_USERS, INITIAL_ZONAL_METADATA } from './constants';
 import DashboardPage from './pages/DashboardPage';
@@ -9,6 +9,7 @@ import RequestListPage from './pages/RequestListPage';
 import NewRequestPage from './pages/NewRequestPage';
 import RequestDetailsPage from './pages/RequestDetailsPage';
 import OrgSetupPage from './pages/OrgSetupPage';
+import { dbApi } from './services/api';
 
 interface Toast {
   id: string;
@@ -21,12 +22,13 @@ interface AppContextType {
   users: User[];
   zonals: ZonalMetadata[];
   roleLabels: Record<string, string>;
-  addRequest: (req: RepairRequest) => void;
-  updateRequest: (req: RepairRequest) => void;
-  addUser: (user: User) => void;
-  updateUser: (user: User) => void;
-  deleteUser: (id: string) => void;
-  updateZonal: (zonal: ZonalMetadata) => void;
+  loading: boolean;
+  addRequest: (req: RepairRequest) => Promise<void>;
+  updateRequest: (req: RepairRequest) => Promise<void>;
+  addUser: (user: User) => Promise<void>;
+  updateUser: (user: User) => Promise<void>;
+  deleteUser: (id: string) => Promise<void>;
+  updateZonal: (zonal: ZonalMetadata) => Promise<void>;
   updateRoleLabel: (roleKey: string, label: string) => void;
   addRole: (label: string) => void;
   removeRole: (roleKey: string) => void;
@@ -95,7 +97,7 @@ const Navigation = () => {
         <div className="p-6">
           <div className="bg-slate-800/50 rounded-2xl p-4 border border-slate-700">
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Ambiente de Operação</p>
-            <p className="text-xs font-medium text-white">Prefeitura Municipal</p>
+            <p className="text-xs font-medium text-white">Supabase Cloud SQL</p>
           </div>
         </div>
       </aside>
@@ -135,21 +137,11 @@ const Navigation = () => {
 };
 
 const App: React.FC = () => {
-  const [requests, setRequests] = useState<RepairRequest[]>(() => {
-    const saved = localStorage.getItem('sgr_requests');
-    return saved ? JSON.parse(saved) : MOCK_REQUESTS;
-  });
-
-  const [users, setUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem('sgr_users');
-    return saved ? JSON.parse(saved) : MOCK_USERS;
-  });
-
-  const [zonals, setZonals] = useState<ZonalMetadata[]>(() => {
-    const saved = localStorage.getItem('sgr_zonals');
-    return saved ? JSON.parse(saved) : INITIAL_ZONAL_METADATA;
-  });
-
+  const [requests, setRequests] = useState<RepairRequest[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [zonals, setZonals] = useState<ZonalMetadata[]>(INITIAL_ZONAL_METADATA);
+  const [loading, setLoading] = useState(true);
+  
   const [roleLabels, setRoleLabels] = useState<Record<string, string>>(() => {
     const saved = localStorage.getItem('sgr_role_labels');
     return saved ? JSON.parse(saved) : {
@@ -161,11 +153,6 @@ const App: React.FC = () => {
 
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  useEffect(() => localStorage.setItem('sgr_requests', JSON.stringify(requests)), [requests]);
-  useEffect(() => localStorage.setItem('sgr_users', JSON.stringify(users)), [users]);
-  useEffect(() => localStorage.setItem('sgr_zonals', JSON.stringify(zonals)), [zonals]);
-  useEffect(() => localStorage.setItem('sgr_role_labels', JSON.stringify(roleLabels)), [roleLabels]);
-
   const notify = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
     const id = Date.now().toString();
     setToasts(prev => [...prev, { id, message, type }]);
@@ -174,34 +161,90 @@ const App: React.FC = () => {
     }, 3000);
   }, []);
 
-  const addRequest = (req: RepairRequest) => {
-    setRequests(prev => [req, ...prev]);
-    notify('Solicitação registrada com sucesso!');
+  const initData = async () => {
+    try {
+      setLoading(true);
+      const [dbRequests, dbUsers, dbZonals] = await Promise.all([
+        dbApi.getRequests(),
+        dbApi.getUsers(),
+        dbApi.getZonals()
+      ]);
+      
+      setRequests(dbRequests);
+      setUsers(dbUsers);
+      if (dbZonals.length > 0) setZonals(dbZonals);
+    } catch (error) {
+      console.error(error);
+      notify('Erro ao sincronizar com o Supabase. Verifique sua conexão.', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const updateRequest = (req: RepairRequest) => {
-    setRequests(prev => prev.map(r => r.id === req.id ? req : r));
-    notify('Registro atualizado.');
+  useEffect(() => {
+    initData();
+  }, []);
+
+  useEffect(() => localStorage.setItem('sgr_role_labels', JSON.stringify(roleLabels)), [roleLabels]);
+
+  const addRequest = async (req: RepairRequest) => {
+    try {
+      await dbApi.createRequest(req);
+      setRequests(prev => [req, ...prev]);
+      notify('Solicitação gravada no Supabase!');
+    } catch (e) {
+      notify('Erro ao salvar no banco Supabase.', 'error');
+    }
+  };
+
+  const updateRequest = async (req: RepairRequest) => {
+    try {
+      await dbApi.updateRequest(req);
+      setRequests(prev => prev.map(r => r.id === req.id ? req : r));
+      notify('Registro atualizado no Supabase.');
+    } catch (e) {
+      notify('Erro na atualização remota.', 'error');
+    }
   };
   
-  const addUser = (user: User) => {
-    setUsers(prev => [...prev, user]);
-    notify('Cadastro de pessoal realizado!');
+  const addUser = async (user: User) => {
+    try {
+      await dbApi.saveUser(user);
+      setUsers(prev => [...prev, user]);
+      notify('Usuário adicionado ao banco.');
+    } catch (e) {
+      notify('Erro ao salvar usuário.', 'error');
+    }
   };
 
-  const updateUser = (user: User) => {
-    setUsers(prev => prev.map(u => u.id === user.id ? user : u));
-    notify('Cadastro atualizado.');
+  const updateUser = async (user: User) => {
+    try {
+      await dbApi.saveUser(user);
+      setUsers(prev => prev.map(u => u.id === user.id ? user : u));
+      notify('Cadastro atualizado.');
+    } catch (e) {
+      notify('Erro ao atualizar usuário.', 'error');
+    }
   };
 
-  const deleteUser = (id: string) => {
-    setUsers(prev => prev.filter(u => u.id !== id));
-    notify('Registro removido.', 'info');
+  const deleteUser = async (id: string) => {
+    try {
+      await dbApi.deleteUser(id);
+      setUsers(prev => prev.filter(u => u.id !== id));
+      notify('Registro removido.', 'info');
+    } catch (e) {
+      notify('Erro ao remover registro.', 'error');
+    }
   };
   
-  const updateZonal = (zonal: ZonalMetadata) => {
-    setZonals(prev => prev.map(z => z.id === zonal.id ? zonal : z));
-    notify('Unidade atualizada!');
+  const updateZonal = async (zonal: ZonalMetadata) => {
+    try {
+      await dbApi.saveZonal(zonal);
+      setZonals(prev => prev.map(z => z.id === zonal.id ? zonal : z));
+      notify('Unidade atualizada!');
+    } catch (e) {
+      notify('Erro ao salvar unidade.', 'error');
+    }
   };
 
   const updateRoleLabel = (roleKey: string, label: string) => {
@@ -215,19 +258,15 @@ const App: React.FC = () => {
   };
 
   const removeRole = (roleKey: string) => {
-    // Impedir remoção de cargos base para evitar erros de lógica de sistema
     if (['Manager', 'Collaborator', 'Intern'].includes(roleKey)) {
       notify('Este cargo base não pode ser removido.', 'error');
       return;
     }
-    
-    // Verificar se há usuários usando este cargo
     const inUse = users.some(u => u.role === roleKey);
     if (inUse) {
-      notify('Cargo em uso por técnicos. Reatribua-os antes.', 'error');
+      notify('Cargo em uso por técnicos.', 'error');
       return;
     }
-
     setRoleLabels(prev => {
       const newLabels = { ...prev };
       delete newLabels[roleKey];
@@ -247,7 +286,7 @@ const App: React.FC = () => {
 
   return (
     <AppContext.Provider value={{ 
-      requests, users, zonals, roleLabels,
+      requests, users, zonals, roleLabels, loading,
       addRequest, updateRequest, 
       addUser, updateUser, deleteUser,
       updateZonal, updateRoleLabel, addRole, removeRole,
@@ -258,17 +297,23 @@ const App: React.FC = () => {
           <Navigation />
           <main className="flex-1 pb-24 md:pb-0 md:pl-64 bg-slate-50 min-h-screen">
             <div className="max-w-7xl mx-auto w-full">
-               <Routes>
-                <Route path="/" element={<DashboardPage />} />
-                <Route path="/requests" element={<RequestListPage />} />
-                <Route path="/requests/:id" element={<RequestDetailsPage />} />
-                <Route path="/new" element={<NewRequestPage />} />
-                <Route path="/org" element={<OrgSetupPage />} />
-               </Routes>
+               {loading ? (
+                 <div className="flex flex-col items-center justify-center h-screen">
+                    <Loader2 className="animate-spin text-blue-600 mb-4" size={48} />
+                    <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">Conectando ao Supabase SQL...</p>
+                 </div>
+               ) : (
+                 <Routes>
+                  <Route path="/" element={<DashboardPage />} />
+                  <Route path="/requests" element={<RequestListPage />} />
+                  <Route path="/requests/:id" element={<RequestDetailsPage />} />
+                  <Route path="/new" element={<NewRequestPage />} />
+                  <Route path="/org" element={<OrgSetupPage />} />
+                 </Routes>
+               )}
             </div>
           </main>
 
-          {/* Toast Container */}
           <div className="fixed top-4 md:top-auto md:bottom-24 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 w-[90%] max-w-sm pointer-events-none">
             {toasts.map(toast => (
               <div 
