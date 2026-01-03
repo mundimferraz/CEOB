@@ -15,7 +15,7 @@ export const dbApi = {
       throw error;
     }
 
-    return data.map(req => ({
+    return (data || []).map(req => ({
       id: req.id,
       protocol: req.protocol,
       seiNumber: req.sei_number,
@@ -112,7 +112,7 @@ export const dbApi = {
       throw error;
     }
 
-    return data.map(u => ({
+    return (data || []).map(u => ({
       id: u.id,
       name: u.name,
       role: u.role,
@@ -161,7 +161,7 @@ export const dbApi = {
       console.error('Supabase getZonals Error:', error);
       throw error;
     }
-    return data.map(z => ({
+    return (data || []).map(z => ({
       id: z.id,
       name: z.name,
       managerId: z.manager_id,
@@ -171,18 +171,20 @@ export const dbApi = {
   },
 
   async saveZonal(zonal: ZonalMetadata): Promise<void> {
+    const payload = {
+      id: zonal.id,
+      name: zonal.name,
+      manager_id: zonal.managerId || null,
+      assistant_id: zonal.assistantId || null,
+      description: zonal.description || null
+    };
+
     const { error } = await supabase
       .from('zonals')
-      .upsert([{
-        id: zonal.id,
-        name: zonal.name,
-        manager_id: zonal.managerId || null,
-        assistant_id: zonal.assistantId || null,
-        description: zonal.description || null
-      }], { onConflict: 'id' });
+      .upsert([payload], { onConflict: 'id' });
     
     if (error) {
-      console.error('Supabase saveZonal Error:', error);
+      console.error('Supabase saveZonal Error Detail:', error);
       throw error;
     }
   }

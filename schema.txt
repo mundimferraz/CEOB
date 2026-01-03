@@ -1,8 +1,9 @@
 
--- SCRIPT DE ATUALIZAÇÃO SGR-VIAS --
--- Execute este script no SQL Editor do Supabase para sincronizar a estrutura --
+-- ==========================================
+-- SCRIPT DE ESTRUTURA SGR-VIAS (COPIE E COLE NO SQL EDITOR DO SUPABASE)
+-- ==========================================
 
--- 1. Tabela de Usuários (Se não existir)
+-- 1. TABELA DE USUÁRIOS
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -13,15 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 2. Regra de Unicidade: Apenas 1 Engenheiro (Manager) por Zonal
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = 'unique_manager_per_zonal') THEN
-        CREATE UNIQUE INDEX unique_manager_per_zonal ON users (zonal) WHERE (role = 'Manager');
-    END IF;
-END $$;
-
--- 3. Tabela de Zonais (Se não existir)
+-- 2. TABELA DE ZONAIS (UNIDADES)
 CREATE TABLE IF NOT EXISTS zonals (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -31,15 +24,21 @@ CREATE TABLE IF NOT EXISTS zonals (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Adicionar coluna assistant_id caso a tabela já exista
-DO $$
-BEGIN
+-- 3. HOTFIX: GARANTIR QUE AS COLUNAS EXISTAM (CASO A TABELA JÁ TENHA SIDO CRIADA)
+DO $$ 
+BEGIN 
+    -- Adiciona manager_id se não existir
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='zonals' AND column_name='manager_id') THEN
+        ALTER TABLE zonals ADD COLUMN manager_id TEXT REFERENCES users(id) ON DELETE SET NULL;
+    END IF;
+
+    -- Adiciona assistant_id se não existir (O ERRO REPORTADO ESTÁ AQUI)
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='zonals' AND column_name='assistant_id') THEN
         ALTER TABLE zonals ADD COLUMN assistant_id TEXT REFERENCES users(id) ON DELETE SET NULL;
     END IF;
 END $$;
 
--- 4. Tabela de Vistorias (Se não existir)
+-- 4. TABELA DE VISTORIAS
 CREATE TABLE IF NOT EXISTS repair_requests (
     id TEXT PRIMARY KEY,
     protocol TEXT NOT NULL,
@@ -57,11 +56,3 @@ CREATE TABLE IF NOT EXISTS repair_requests (
     photo_after TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
-
--- 5. Adição de colunas extras (caso a tabela já existisse mas estivesse incompleta)
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='repair_requests' AND column_name='photo_after') THEN
-        ALTER TABLE repair_requests ADD COLUMN photo_after TEXT;
-    END IF;
-END $$;
