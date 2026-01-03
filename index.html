@@ -8,8 +8,11 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>SGR-Vias - Gestão de Obras</title>
     
-    <!-- Tailwind CSS CDN (Nota: Em produção real recomenda-se build via CLI, mas para este ambiente mantemos o JIT) -->
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet Maps CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -21,12 +24,10 @@
         .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
         .touch-target { min-height: 48px; min-width: 48px; }
         
-        /* Scrollbar custom para um look mais limpo */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 
-        /* Animação de fade-in para evitar o flash branco no carregamento do React */
         #root:empty {
             display: flex;
             align-items: center;
@@ -45,6 +46,14 @@
         }
         @keyframes spin {
             to { transform: rotate(360deg); }
+        }
+
+        /* Ajustes específicos para o Leaflet no container arredondado */
+        .leaflet-container {
+            width: 100%;
+            height: 100%;
+            border-radius: 1rem;
+            z-index: 1;
         }
     </style>
 
@@ -65,7 +74,9 @@
 }
 </script>
     
-    <!-- Carregamento do Módulo Principal -->
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
     <script type="module" src="./index.tsx"></script>
 </head>
 <body class="bg-slate-50 text-slate-900 overflow-x-hidden">
