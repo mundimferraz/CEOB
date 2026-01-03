@@ -1,14 +1,14 @@
 
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Filter, Download, Plus, ChevronRight, MapPin, Calendar, User as UserIcon, ClipboardList, ImageIcon, ShieldCheck } from 'lucide-react';
+import { Search, Filter, Download, Plus, ChevronRight, MapPin, Calendar, User as UserIcon, ClipboardList, ImageIcon, ShieldCheck, Users } from 'lucide-react';
 import { useApp } from '../App';
 import { RequestStatus, ZonalType } from '../types';
 import { STATUS_COLORS, ZONALS_LIST } from '../constants';
 import * as XLSX from 'xlsx';
 
 const RequestListPage: React.FC = () => {
-  const { requests, users, zonals, getZonalName } = useApp();
+  const { requests, users, zonals, getZonalName, getRoleLabel } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [zonalFilter, setZonalFilter] = useState<string>('all');
@@ -32,6 +32,7 @@ const RequestListPage: React.FC = () => {
       const tech = users.find(u => u.id === req.technicianId);
       const zonalMeta = zonals.find(z => z.id === req.zonal);
       const engineer = users.find(u => u.id === zonalMeta?.managerId);
+      const assistant = users.find(u => u.id === zonalMeta?.assistantId);
       
       return {
         Protocolo: req.protocol,
@@ -40,6 +41,7 @@ const RequestListPage: React.FC = () => {
         Status: req.status,
         Zonal: getZonalName(req.zonal),
         Engenheiro_Responsavel: engineer?.name || 'Não atribuído',
+        Assistente_Unidade: assistant?.name || 'Não atribuído',
         Tecnico_Vistoriador: tech?.name || 'N/A',
         Data_Visita: req.visitDate,
         Endereco: req.location.address,
@@ -119,6 +121,10 @@ const RequestListPage: React.FC = () => {
             const tech = users.find(u => u.id === req.technicianId);
             const zonalMeta = zonals.find(z => z.id === req.zonal);
             const engineer = users.find(u => u.id === zonalMeta?.managerId);
+            const assistant = users.find(u => u.id === zonalMeta?.assistantId);
+
+            // Exibição prioritária: Assistente da Unidade, fallback para o técnico
+            const primaryUser = assistant || tech;
 
             return (
               <Link 
@@ -157,26 +163,40 @@ const RequestListPage: React.FC = () => {
                   <div className="flex flex-col gap-1.5 pt-2 border-t border-slate-50">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 overflow-hidden">
-                        <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-black text-[10px] flex-shrink-0">
-                          {tech?.name.charAt(0)}
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center font-black text-[10px] flex-shrink-0 ${assistant ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                          {primaryUser?.name.charAt(0)}
                         </div>
-                        <span className="text-[10px] font-black text-slate-900 truncate" title={`Técnico: ${tech?.name}`}>
-                          {tech?.name.split(' ')[0]}
-                        </span>
+                        <div className="flex flex-col truncate">
+                          <span className="text-[10px] font-black text-slate-900 truncate" title={`${assistant ? 'Assistente' : 'Técnico'}: ${primaryUser?.name}`}>
+                            {primaryUser?.name}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex items-center gap-1 text-slate-400 text-[9px] font-black uppercase tracking-tighter">
                          <Calendar size={10} />
                          {new Date(req.visitDate).toLocaleDateString('pt-BR')}
                       </div>
                     </div>
-                    {engineer && (
-                      <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 rounded-lg border border-slate-100">
-                        <ShieldCheck size={10} className="text-blue-600" />
-                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter truncate">
-                          Engenheiro: {engineer.name}
-                        </span>
-                      </div>
-                    )}
+                    
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {engineer && (
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 rounded-lg border border-blue-100">
+                          <ShieldCheck size={10} className="text-blue-600" />
+                          <span className="text-[8px] font-bold text-blue-700 uppercase tracking-tighter truncate">
+                            Eng: {engineer.name}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {assistant && (
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-indigo-50 rounded-lg border border-indigo-100">
+                          <Users size={10} className="text-indigo-600" />
+                          <span className="text-[8px] font-bold text-indigo-700 uppercase tracking-tighter truncate">
+                            {getRoleLabel(assistant.role)}: Unidade
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </Link>
