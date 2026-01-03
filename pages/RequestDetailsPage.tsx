@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
-import { MapPin, Calendar, User as UserIcon, FileText, Camera, Download, Trash2, CheckCircle, AlertTriangle, Crosshair, ImageIcon, Edit2, X, Save, ExternalLink } from 'lucide-react';
+import { MapPin, Calendar, User as UserIcon, FileText, Camera, Download, Trash2, CheckCircle, AlertTriangle, Crosshair, ImageIcon, Edit2, X, Save, ExternalLink, Loader2 } from 'lucide-react';
 import { useApp } from '../App';
 import { RequestStatus } from '../types';
 import { STATUS_COLORS } from '../constants';
@@ -10,13 +10,14 @@ import { STATUS_COLORS } from '../constants';
 const RequestDetailsPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { requests, updateRequest, users, getZonalName, getRoleLabel, notify } = useApp();
+  const { requests, updateRequest, deleteRequest, users, getZonalName, getRoleLabel, notify } = useApp();
   
   const request = requests.find(r => r.id === id);
   const tech = users.find(u => u.id === request?.technicianId);
 
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [editedAddress, setEditedAddress] = useState(request?.location.address || '');
+  const [isCapturingAfter, setIsCapturingAfter] = useState(false);
 
   if (!request) {
     return (
@@ -32,6 +33,13 @@ const RequestDetailsPage: React.FC = () => {
     updateRequest({ ...request, status: newStatus });
   };
 
+  const handleDelete = async () => {
+    if (window.confirm('Tem certeza que deseja excluir permanentemente esta vistoria? Esta ação não pode ser desfeita.')) {
+      await deleteRequest(request.id);
+      navigate('/requests');
+    }
+  };
+
   const handleSaveAddress = () => {
     updateRequest({
       ...request,
@@ -42,6 +50,25 @@ const RequestDetailsPage: React.FC = () => {
     });
     setIsEditingAddress(false);
     notify('Endereço atualizado com sucesso!');
+  };
+
+  const handleAfterPhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setIsCapturingAfter(true);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        updateRequest({
+          ...request,
+          photoAfter: base64,
+          status: RequestStatus.COMPLETED
+        });
+        setIsCapturingAfter(false);
+        notify('Evidência de conclusão salva com sucesso!', 'success');
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const generatePDF = () => {
@@ -93,31 +120,31 @@ const RequestDetailsPage: React.FC = () => {
     doc.text(descLines, margin, y);
     y += (descLines.length * 5) + 15;
 
-    if (request.photoBefore) {
+    const addImageToDoc = (title: string, data: string) => {
+      if (y > 200) { doc.addPage(); y = 30; }
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
-      doc.text('4. EVIDÊNCIAS FOTOGRÁFICAS (ANTES)', margin, y);
+      doc.text(title, margin, y);
       y += 10;
       const imgWidth = 80;
       const imgHeight = 60;
       try {
-        doc.addImage(request.photoBefore, 'JPEG', margin, y, imgWidth, imgHeight);
-        y += imgHeight + 8;
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'italic');
-        doc.text(`Fig 1. Registro fotográfico inicial realizado em ${new Date(request.createdAt).toLocaleDateString()}`, margin, y);
-        y += 15;
+        doc.addImage(data, 'JPEG', margin, y, imgWidth, imgHeight);
+        y += imgHeight + 15;
       } catch (e) {
-        doc.text('[Erro ao carregar imagem no PDF]', margin, y);
-        y += 10;
+        doc.text('[Erro ao processar imagem]', margin, y);
+        y += 15;
       }
-    }
+    };
+
+    if (request.photoBefore) addImageToDoc('4. EVIDÊNCIA INICIAL (ANTES)', request.photoBefore);
+    if (request.photoAfter) addImageToDoc('5. EVIDÊNCIA DE CONCLUSÃO (DEPOIS)', request.photoAfter);
 
     if (y > 240) { doc.addPage(); y = 30; }
     const roleName = tech ? getRoleLabel(tech.role) : 'Técnico';
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text('5. RESPONSABILIDADE', margin, y);
+    doc.text('RECONHECIMENTO', margin, y);
     y += 10;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
@@ -145,6 +172,13 @@ const RequestDetailsPage: React.FC = () => {
           <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase leading-none">{request.protocol}</h1>
         </div>
         <div className="flex gap-2">
+          <button 
+            onClick={handleDelete}
+            className="w-12 h-12 flex items-center justify-center bg-white border border-rose-200 text-rose-500 rounded-2xl hover:bg-rose-50 transition-all shadow-sm"
+            title="Excluir Registro"
+          >
+            <Trash2 size={20} />
+          </button>
           <button 
             onClick={generatePDF}
             className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl hover:bg-slate-800 transition-all shadow-xl font-bold text-sm"
@@ -188,7 +222,6 @@ const RequestDetailsPage: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Link Direto para o Google Maps */}
                 <a 
                   href={mapsUrl}
                   target="_blank"
@@ -210,7 +243,6 @@ const RequestDetailsPage: React.FC = () => {
                    </div>
                 </a>
 
-                {/* Logradouro Editável */}
                 <div className="p-5 bg-blue-50 rounded-2xl border border-blue-100 flex items-start gap-4">
                    <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white flex-shrink-0">
                       <MapPin size={24} />
@@ -257,8 +289,9 @@ const RequestDetailsPage: React.FC = () => {
               </div>
 
               <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Evidência Fotográfica Principal</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Galeria de Evidências</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   {/* Card Antes */}
                    <div className="relative group rounded-3xl overflow-hidden border border-slate-200">
                      <div className="absolute top-4 left-4 bg-slate-900/80 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase z-10">Estado Inicial (Antes)</div>
                      {request.photoBefore ? (
@@ -266,17 +299,34 @@ const RequestDetailsPage: React.FC = () => {
                      ) : (
                         <div className="w-full h-64 bg-slate-100 flex flex-col items-center justify-center text-slate-400">
                            <ImageIcon size={48} />
-                           <span className="text-xs font-black uppercase mt-2">Sem imagem capturada</span>
+                           <span className="text-xs font-black uppercase mt-2">Sem imagem</span>
                         </div>
                      )}
                    </div>
                    
-                   {request.photoAfter && (
-                     <div className="relative group rounded-3xl overflow-hidden border border-slate-200">
-                        <div className="absolute top-4 left-4 bg-emerald-600 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase z-10">Conclusão (Depois)</div>
-                        <img src={request.photoAfter} alt="Depois" className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-500" />
-                     </div>
-                   )}
+                   {/* Card Depois / Upload */}
+                   <div className="relative group rounded-3xl overflow-hidden border border-slate-200">
+                      <div className="absolute top-4 left-4 bg-emerald-600 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase z-10">
+                        {request.photoAfter ? 'Conclusão (Depois)' : 'Aguardando Término'}
+                      </div>
+                      
+                      {request.photoAfter ? (
+                         <img src={request.photoAfter} alt="Depois" className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-500" />
+                      ) : (
+                         <label className="w-full h-64 bg-emerald-50 flex flex-col items-center justify-center text-emerald-600 cursor-pointer hover:bg-emerald-100 transition-colors">
+                            {isCapturingAfter ? (
+                              <Loader2 className="animate-spin" size={48} />
+                            ) : (
+                              <>
+                                <Camera size={48} strokeWidth={1.5} />
+                                <span className="text-xs font-black uppercase mt-2">Tirar Foto do Depois</span>
+                                <p className="text-[10px] font-bold mt-1 text-emerald-400 px-8 text-center uppercase tracking-tighter">Registrar conclusão para finalizar vistoria</p>
+                                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleAfterPhotoCapture} />
+                              </>
+                            )}
+                         </label>
+                      )}
+                   </div>
                 </div>
               </div>
             </div>
@@ -314,12 +364,15 @@ const RequestDetailsPage: React.FC = () => {
                 </div>
                 <h3 className="font-black uppercase tracking-tight text-sm">Resumo da Ação</h3>
              </div>
-             <p className="text-xs text-slate-400 font-medium leading-relaxed mb-6">Esta solicitação foi protocolada sob o regime de manutenção urbana e requer atenção imediata conforme diretrizes da Unidade Operacional.</p>
+             <p className="text-xs text-slate-400 font-medium leading-relaxed mb-6">
+                Status operativo atual: <strong>{request.status.toUpperCase()}</strong>. 
+                {request.status !== RequestStatus.COMPLETED && ' Aguardando finalização técnica para encerramento de chamado.'}
+             </p>
              <div className="space-y-2">
                 <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-                   <div className={`h-full bg-emerald-500 transition-all ${request.status === RequestStatus.COMPLETED ? 'w-full' : request.status === RequestStatus.IN_PROGRESS ? 'w-1/2' : 'w-1/4'}`}></div>
+                   <div className={`h-full bg-emerald-500 transition-all duration-700 ${request.status === RequestStatus.COMPLETED ? 'w-full' : request.status === RequestStatus.IN_PROGRESS ? 'w-1/2' : 'w-1/4'}`}></div>
                 </div>
-                <p className="text-[10px] font-black text-slate-500 text-right uppercase">{request.status}</p>
+                <p className="text-[10px] font-black text-slate-500 text-right uppercase tracking-widest">{request.status}</p>
              </div>
           </div>
         </div>

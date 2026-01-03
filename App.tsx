@@ -25,6 +25,7 @@ interface AppContextType {
   loading: boolean;
   addRequest: (req: RepairRequest) => Promise<void>;
   updateRequest: (req: RepairRequest) => Promise<void>;
+  deleteRequest: (id: string) => Promise<void>;
   addUser: (user: User) => Promise<void>;
   updateUser: (user: User) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
@@ -175,7 +176,7 @@ const App: React.FC = () => {
       if (dbZonals.length > 0) setZonals(dbZonals);
     } catch (error) {
       console.error(error);
-      notify('Erro ao sincronizar com o Supabase. Verifique sua conexão.', 'error');
+      notify('Erro ao sincronizar com o Supabase.', 'error');
     } finally {
       setLoading(false);
     }
@@ -190,8 +191,9 @@ const App: React.FC = () => {
   const addRequest = async (req: RepairRequest) => {
     try {
       await dbApi.createRequest(req);
+      // Atualização imediata da lista local
       setRequests(prev => [req, ...prev]);
-      notify('Solicitação gravada no Supabase!');
+      notify('Solicitação gravada com sucesso!');
     } catch (e) {
       notify('Erro ao salvar no banco Supabase.', 'error');
     }
@@ -200,10 +202,22 @@ const App: React.FC = () => {
   const updateRequest = async (req: RepairRequest) => {
     try {
       await dbApi.updateRequest(req);
-      setRequests(prev => prev.map(r => r.id === req.id ? req : r));
-      notify('Registro atualizado no Supabase.');
+      // Atualização imediata do registro na lista local
+      setRequests(prev => prev.map(r => r.id === req.id ? { ...req } : r));
+      notify('Registro atualizado com sucesso.');
     } catch (e) {
       notify('Erro na atualização remota.', 'error');
+    }
+  };
+
+  const deleteRequest = async (id: string) => {
+    try {
+      await dbApi.deleteRequest(id);
+      // Remoção imediata da lista local
+      setRequests(prev => prev.filter(r => r.id !== id));
+      notify('Solicitação excluída do sistema.', 'info');
+    } catch (e) {
+      notify('Erro ao excluir solicitação.', 'error');
     }
   };
   
@@ -213,7 +227,7 @@ const App: React.FC = () => {
       setUsers(prev => [...prev, user]);
       notify('Usuário adicionado ao banco.');
     } catch (e) {
-      notify('Erro ao salvar usuário.', 'error');
+      notify('Erro ao salvar usuário (possível violação de Engenheiro Único).', 'error');
     }
   };
 
@@ -223,7 +237,7 @@ const App: React.FC = () => {
       setUsers(prev => prev.map(u => u.id === user.id ? user : u));
       notify('Cadastro atualizado.');
     } catch (e) {
-      notify('Erro ao atualizar usuário.', 'error');
+      notify('Erro ao atualizar cadastro.', 'error');
     }
   };
 
@@ -287,7 +301,7 @@ const App: React.FC = () => {
   return (
     <AppContext.Provider value={{ 
       requests, users, zonals, roleLabels, loading,
-      addRequest, updateRequest, 
+      addRequest, updateRequest, deleteRequest,
       addUser, updateUser, deleteUser,
       updateZonal, updateRoleLabel, addRole, removeRole,
       getZonalName, getRoleLabel, notify

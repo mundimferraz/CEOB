@@ -1,7 +1,9 @@
 
--- COPIE E COLE NO SQL EDITOR DO SUPABASE --
+-- SCRIPT DE ATUALIZAÇÃO SGR-VIAS --
+-- Execute este script no SQL Editor do Supabase para sincronizar a estrutura --
 
-CREATE TABLE users (
+-- 1. Tabela de Usuários (Se não existir)
+CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     role TEXT NOT NULL,
@@ -11,7 +13,17 @@ CREATE TABLE users (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
-CREATE TABLE zonals (
+-- 2. Regra de Unicidade: Apenas 1 Engenheiro (Manager) por Zonal
+-- Este bloco verifica se o índice já existe antes de criá-lo
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = 'unique_manager_per_zonal') THEN
+        CREATE UNIQUE INDEX unique_manager_per_zonal ON users (zonal) WHERE (role = 'Manager');
+    END IF;
+END $$;
+
+-- 3. Tabela de Zonais (Se não existir)
+CREATE TABLE IF NOT EXISTS zonals (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     manager_id TEXT REFERENCES users(id) ON DELETE SET NULL,
@@ -19,7 +31,8 @@ CREATE TABLE zonals (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
-CREATE TABLE repair_requests (
+-- 4. Tabela de Vistorias (Se não existir)
+CREATE TABLE IF NOT EXISTS repair_requests (
     id TEXT PRIMARY KEY,
     protocol TEXT NOT NULL,
     sei_number TEXT NOT NULL,
@@ -37,5 +50,10 @@ CREATE TABLE repair_requests (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- DADOS INICIAIS (OPCIONAL) --
--- INSERT INTO zonals (id, name) VALUES ('Zonal Norte', 'Zonal Norte'), ('Zonal Sul', 'Zonal Sul'), ('Zonal Leste', 'Zonal Leste'), ('Zonal Oeste', 'Zonal Oeste');
+-- 5. Adição de colunas extras (caso a tabela já existisse mas estivesse incompleta)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='repair_requests' AND column_name='photo_after') THEN
+        ALTER TABLE repair_requests ADD COLUMN photo_after TEXT;
+    END IF;
+END $$;

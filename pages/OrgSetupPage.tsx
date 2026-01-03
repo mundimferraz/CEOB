@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useApp } from '../App';
 import { ZonalType, User, UserRole, ZonalMetadata } from '../types';
 import { ZONALS_LIST } from '../constants';
-import { UserPlus, Settings, Shield, Map as MapIcon, Edit2, Trash2, X, Save, Search, UserCheck, Briefcase, Plus } from 'lucide-react';
+import { UserPlus, Settings, Shield, Map as MapIcon, Edit2, Trash2, X, Save, Search, UserCheck, Briefcase, Plus, AlertCircle } from 'lucide-react';
 
 const OrgSetupPage: React.FC = () => {
   const { 
@@ -16,15 +16,12 @@ const OrgSetupPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [newRoleInput, setNewRoleInput] = useState('');
   
-  // User Modal State
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   
-  // Zonal Modal State
   const [isZonalModalOpen, setIsZonalModalOpen] = useState(false);
   const [editingZonal, setEditingZonal] = useState<ZonalMetadata | null>(null);
 
-  // Role Modal State
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
 
   const getZonalStats = (zonalId: ZonalType) => {
@@ -44,11 +41,28 @@ const OrgSetupPage: React.FC = () => {
   const handleSaveUser = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    const selectedRole = formData.get('role') as UserRole;
+    const selectedZonal = formData.get('zonal') as ZonalType;
+
+    // REGRA DE NEGÓCIO: Validar se já existe um Engenheiro (Manager) nesta Zonal
+    if (selectedRole === 'Manager') {
+      const existingManager = users.find(u => 
+        u.zonal === selectedZonal && 
+        u.role === 'Manager' && 
+        u.id !== editingUser?.id
+      );
+
+      if (existingManager) {
+        notify(`A ${selectedZonal} já possui um Engenheiro Titular: ${existingManager.name}.`, 'error');
+        return;
+      }
+    }
+
     const userData: User = {
       id: editingUser?.id || `u_${Date.now()}`,
       name: formData.get('name') as string,
-      role: formData.get('role') as UserRole,
-      zonal: formData.get('zonal') as ZonalType,
+      role: selectedRole,
+      zonal: selectedZonal,
       registrationNumber: formData.get('registrationNumber') as string,
       email: formData.get('email') as string,
     };
@@ -146,7 +160,7 @@ const OrgSetupPage: React.FC = () => {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Equipe de Campo</span>
-                    <span className="text-sm font-bold text-slate-900">{stats.teamCount} especialistas</span>
+                    <span className="text-sm font-bold text-slate-900">{stats.teamCount} colaboradores</span>
                   </div>
                   <div className="flex items-center justify-between pt-4 border-t border-slate-50">
                     <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Ações Pendentes</span>
@@ -252,7 +266,7 @@ const OrgSetupPage: React.FC = () => {
         </div>
       )}
 
-      {/* Role Labels Modal - Redesigned for Adding */}
+      {/* Role Labels Modal */}
       {isRoleModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in slide-in-from-bottom-8 duration-300">
@@ -334,6 +348,13 @@ const OrgSetupPage: React.FC = () => {
               </button>
             </div>
             <form onSubmit={handleSaveUser} className="p-8 space-y-5">
+              <div className="bg-amber-50 p-4 rounded-2xl border border-amber-200 flex items-start gap-3 mb-2">
+                <AlertCircle className="text-amber-600 flex-shrink-0" size={18} />
+                <p className="text-[10px] text-amber-900 font-bold leading-relaxed uppercase tracking-tight">
+                  Atenção: Apenas um Engenheiro (Responsável Técnico) é permitido por Zonal conforme diretriz do SGR-Vias.
+                </p>
+              </div>
+
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Nome Completo</label>
                 <input 
@@ -431,7 +452,7 @@ const OrgSetupPage: React.FC = () => {
                   className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900 mb-6"
                 />
                 
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">{getRoleLabel('Manager')} Titular</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Engenheiro Responsável</label>
                 <select 
                   name="managerId"
                   defaultValue={editingZonal.managerId}
@@ -439,9 +460,12 @@ const OrgSetupPage: React.FC = () => {
                 >
                   <option value="">Nenhum atribuído</option>
                   {users.filter(u => u.role === 'Manager').map(u => (
-                    <option key={u.id} value={u.id}>{u.name} (Lotação: {getZonalName(u.zonal)})</option>
+                    <option key={u.id} value={u.id}>{u.name}</option>
                   ))}
                 </select>
+                <p className="text-[9px] text-slate-400 mt-2 font-bold uppercase tracking-tight">
+                  Nota: Apenas usuários cadastrados com o cargo 'Engenheiro' na gestão de pessoal aparecerão nesta lista.
+                </p>
               </div>
 
               <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100">

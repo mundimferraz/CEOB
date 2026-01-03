@@ -80,6 +80,15 @@ export const dbApi = {
     if (error) throw error;
   },
 
+  async deleteRequest(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('repair_requests')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+  },
+
   // Usuários
   async getUsers(): Promise<User[]> {
     const { data, error } = await supabase
@@ -137,8 +146,6 @@ export const dbApi = {
   },
 
   async saveZonal(zonal: ZonalMetadata): Promise<void> {
-    // Importante: se o managerId não existir na tabela users, o Supabase retornará 409/400.
-    // Garantimos que se for vazio, enviamos NULL para evitar violação de FK.
     const { error } = await supabase
       .from('zonals')
       .upsert([{
