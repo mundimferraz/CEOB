@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Filter, Download, Plus, ChevronRight, MapPin, Calendar, User as UserIcon, ClipboardList, MoreVertical } from 'lucide-react';
+import { Search, Filter, Download, Plus, ChevronRight, MapPin, Calendar, User as UserIcon, ClipboardList, ImageIcon } from 'lucide-react';
 import { useApp } from '../App';
 import { RequestStatus, ZonalType } from '../types';
 import { STATUS_COLORS, ZONALS_LIST } from '../constants';
@@ -80,7 +80,7 @@ const RequestListPage: React.FC = () => {
           <input 
             type="text" 
             placeholder="O que você procura?" 
-            className="w-full pl-12 pr-4 h-12 md:h-11 bg-slate-50 border-transparent focus:bg-white focus:border-blue-500 rounded-xl focus:ring-0 outline-none transition-all text-slate-900 placeholder:text-slate-400"
+            className="w-full pl-12 pr-4 h-12 md:h-11 bg-slate-50 border-transparent focus:bg-white focus:border-blue-500 rounded-xl focus:ring-0 outline-none transition-all text-slate-900 placeholder:text-slate-400 font-medium"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
           />
@@ -102,9 +102,6 @@ const RequestListPage: React.FC = () => {
             <option value="all">Unidade: Todas</option>
             {ZONALS_LIST.map(z => <option key={z} value={z}>{getZonalName(z)}</option>)}
           </select>
-          <button className="md:hidden h-12 w-12 flex items-center justify-center bg-blue-50 text-blue-600 rounded-xl">
-             <Filter size={20} />
-          </button>
         </div>
       </div>
 
@@ -117,38 +114,45 @@ const RequestListPage: React.FC = () => {
               <Link 
                 key={req.id} 
                 to={`/requests/${req.id}`}
-                className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-xl hover:-translate-y-1 transition-all active:scale-[0.98]"
+                className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-xl hover:-translate-y-1 transition-all active:scale-[0.98] flex gap-4"
               >
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{req.protocol}</span>
-                    <h3 className="text-lg font-bold text-slate-900 leading-tight line-clamp-2">{req.description}</h3>
-                  </div>
-                  <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black border uppercase ${STATUS_COLORS[req.status]}`}>
-                    {req.status}
-                  </span>
+                {/* Thumbnail Antes */}
+                <div className="w-24 h-24 md:w-32 md:h-32 rounded-xl bg-slate-100 flex-shrink-0 overflow-hidden border border-slate-100 shadow-inner">
+                  {req.photoBefore ? (
+                    <img src={req.photoBefore} alt="Miniatura" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-300">
+                      <ImageIcon size={24} />
+                      <span className="text-[8px] font-black uppercase mt-1">S/ Imagem</span>
+                    </div>
+                  )}
                 </div>
 
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3 text-slate-600">
-                    <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 flex-shrink-0">
-                      <MapPin size={16} />
+                <div className="flex-1 flex flex-col justify-between overflow-hidden">
+                  <div>
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest truncate max-w-[120px]">{req.protocol}</span>
+                      <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black border uppercase tracking-tighter ${STATUS_COLORS[req.status]}`}>
+                        {req.status}
+                      </span>
                     </div>
-                    <span className="text-sm font-medium line-clamp-1">{req.location.address}</span>
+                    <h3 className="text-sm md:text-base font-black text-slate-900 leading-tight line-clamp-2 mb-2">{req.description}</h3>
+                    
+                    <div className="flex items-center gap-1.5 text-slate-500 mb-2">
+                      <MapPin size={12} className="text-blue-500 flex-shrink-0" />
+                      <span className="text-[10px] md:text-xs font-bold truncate">{req.location.address}</span>
+                    </div>
                   </div>
-                  
-                  <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
-                        <UserIcon size={16} />
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-50">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-black text-[10px]">
+                        {tech?.name.charAt(0)}
                       </div>
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-slate-900">{tech?.name || 'Técnico'}</span>
-                        <span className="text-[10px] text-slate-400 font-medium uppercase tracking-tighter">{getZonalName(req.zonal)}</span>
-                      </div>
+                      <span className="text-[10px] font-black text-slate-900 truncate max-w-[80px]">{tech?.name.split(' ')[0]}</span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-slate-400 text-xs font-bold">
-                       <Calendar size={14} />
+                    <div className="flex items-center gap-1 text-slate-400 text-[9px] font-black uppercase tracking-tighter">
+                       <Calendar size={10} />
                        {new Date(req.visitDate).toLocaleDateString('pt-BR')}
                     </div>
                   </div>

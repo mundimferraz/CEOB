@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, MapPin, Save, Loader2, Navigation as NavigationIcon } from 'lucide-react';
+import { Camera, MapPin, Save, Loader2, Navigation as NavigationIcon, Crosshair } from 'lucide-react';
 import { useApp } from '../App';
 import { RequestStatus, ZonalType, RepairRequest } from '../types';
 import { ZONALS_LIST } from '../constants';
@@ -162,7 +162,7 @@ const NewRequestPage: React.FC = () => {
     <div className="p-4 md:p-8 max-w-4xl mx-auto w-full">
       <header className="mb-8">
         <h1 className="text-3xl font-black text-slate-900 tracking-tight">Vistoria de Campo</h1>
-        <p className="text-slate-500 font-medium">Ajuste o local exato no mapa antes de salvar.</p>
+        <p className="text-slate-500 font-medium tracking-tight">Georreferenciamento e registro de demanda técnica.</p>
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-6 pb-24">
@@ -170,7 +170,7 @@ const NewRequestPage: React.FC = () => {
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
               <div className="w-1.5 h-6 bg-emerald-600 rounded-full"></div>
-              Localização Exata
+              Mapa de Georreferenciamento
             </h2>
             <button 
               type="button"
@@ -192,31 +192,49 @@ const NewRequestPage: React.FC = () => {
              )}
           </div>
 
-          <div className="p-5 bg-blue-50 rounded-2xl border border-blue-100 flex items-start gap-4">
-             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white flex-shrink-0 shadow-lg">
-                <MapPin size={20} />
-             </div>
-             <div>
-                <p className="text-xs font-black text-blue-400 uppercase tracking-widest mb-1">Endereço Identificado</p>
-                <p className="text-sm font-bold text-blue-900 leading-snug">
-                  {formData.address || (locating ? 'Buscando endereço...' : 'Aguardando posicionamento no mapa')}
-                </p>
-                <p className="text-[10px] text-blue-700 font-bold mt-2 uppercase">
-                  Lat: {formData.latitude.toFixed(6)} | Lng: {formData.longitude.toFixed(6)}
-                </p>
-             </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Campo de Coordenadas */}
+            <div className="p-5 bg-slate-900 rounded-2xl border border-slate-800 flex items-start gap-4 shadow-xl">
+               <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white flex-shrink-0 shadow-lg">
+                  <Crosshair size={20} />
+               </div>
+               <div>
+                  <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Coordenadas GPS</p>
+                  <p className="text-sm font-bold text-white tracking-wider leading-none">
+                    {formData.latitude.toFixed(6)}, {formData.longitude.toFixed(6)}
+                  </p>
+                  <p className="text-[9px] text-slate-500 font-bold mt-2 uppercase">WGS84 / Geodésico</p>
+               </div>
+            </div>
+
+            {/* Campo de Endereço */}
+            <div className="p-5 bg-blue-50 rounded-2xl border border-blue-100 flex items-start gap-4">
+               <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white flex-shrink-0 shadow-lg">
+                  <MapPin size={20} />
+               </div>
+               <div>
+                  <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Endereço Logradouro</p>
+                  <p className="text-sm font-bold text-blue-900 leading-snug">
+                    {formData.address || (locating ? 'Identificando...' : 'Arraste o pino no mapa')}
+                  </p>
+               </div>
+            </div>
           </div>
+          
+          <p className="text-[9px] text-slate-400 font-bold text-center uppercase tracking-[0.2em] italic mt-2">
+            Importante: O marcador deve estar posicionado sobre o ponto exato da ocorrência
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-5">
             <h2 className="text-lg font-black text-slate-900 border-b border-slate-100 pb-4 flex items-center gap-2">
               <div className="w-1.5 h-6 bg-blue-600 rounded-full"></div>
-              Protocolo & SEI
+              Identificação Administrativa
             </h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Número SEI</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Número do Processo SEI</label>
                 <input 
                   type="text" 
                   className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900"
@@ -227,7 +245,7 @@ const NewRequestPage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Contrato</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Número do Contrato</label>
                 <input 
                   type="text" 
                   className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900"
@@ -243,11 +261,11 @@ const NewRequestPage: React.FC = () => {
           <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-5">
             <h2 className="text-lg font-black text-slate-900 border-b border-slate-100 pb-4 flex items-center gap-2">
                <div className="w-1.5 h-6 bg-indigo-600 rounded-full"></div>
-               Atribuição Técnica
+               Atribuição da Equipe
             </h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Unidade Responsável</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Unidade Executora (Zonal)</label>
                 <select 
                   className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900 appearance-none bg-slate-50"
                   value={formData.zonal}
@@ -257,14 +275,14 @@ const NewRequestPage: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Vistoriador</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Técnico Responsável</label>
                 <select 
                   className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900 appearance-none bg-slate-50"
                   value={formData.technicianId}
                   onChange={e => setFormData({...formData, technicianId: e.target.value})}
                   required
                 >
-                  <option value="">Selecione o técnico...</option>
+                  <option value="">Selecione o profissional...</option>
                   {filteredPersonnel.map(u => (
                     <option key={u.id} value={u.id}>{u.name} ({getRoleLabel(u.role)})</option>
                   ))}
@@ -277,7 +295,7 @@ const NewRequestPage: React.FC = () => {
         <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm space-y-6">
            <h2 className="text-lg font-black text-slate-900 border-b border-slate-100 pb-4 flex items-center gap-2">
              <div className="w-1.5 h-6 bg-rose-600 rounded-full"></div>
-             Evidência Fotográfica (Antes)
+             Registro de Evidências (Antes)
           </h2>
           <label className="flex flex-col items-center justify-center w-full h-64 border-2 border-slate-200 border-dashed rounded-[2rem] cursor-pointer bg-slate-50 hover:bg-slate-100 overflow-hidden relative group transition-all">
             {imagePreview ? (
@@ -287,26 +305,30 @@ const NewRequestPage: React.FC = () => {
                 <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-md mb-4">
                    <Camera className="w-8 h-8 text-blue-600" />
                 </div>
-                <p className="text-sm text-slate-900 font-black uppercase tracking-widest">Capturar Foto</p>
+                <p className="text-sm text-slate-900 font-black uppercase tracking-widest">Tirar Foto do Local</p>
+                <p className="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-widest">Clique aqui para abrir a câmera</p>
               </div>
             )}
             <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
           </label>
-          <textarea 
-            rows={4}
-            className="w-full p-5 border border-slate-200 rounded-[2rem] focus:ring-2 focus:ring-blue-500 outline-none transition-all font-medium text-slate-700 leading-relaxed"
-            placeholder="Observações técnicas..."
-            value={formData.description}
-            onChange={e => setFormData({...formData, description: e.target.value})}
-            required
-          />
+          <div className="space-y-2">
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Parecer Técnico / Observações</label>
+            <textarea 
+              rows={4}
+              className="w-full p-5 border border-slate-200 rounded-[2rem] focus:ring-2 focus:ring-blue-500 outline-none transition-all font-medium text-slate-700 leading-relaxed"
+              placeholder="Descreva as anomalias observadas..."
+              value={formData.description}
+              onChange={e => setFormData({...formData, description: e.target.value})}
+              required
+            />
+          </div>
         </div>
 
         <div className="fixed bottom-0 left-0 right-0 md:relative p-4 md:p-0 bg-white/80 backdrop-blur-md md:bg-transparent border-t md:border-t-0 flex gap-4 z-[100] safe-bottom">
           <button type="button" onClick={() => navigate(-1)} className="flex-1 h-16 bg-white border border-slate-200 rounded-2xl font-black uppercase tracking-widest text-[10px] text-slate-500">Descartar</button>
           <button type="submit" className="flex-2 md:flex-1 h-16 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-blue-200 flex items-center justify-center gap-3 px-8">
             <Save size={20} />
-            Finalizar Vistoria
+            Gravar Vistoria
           </button>
         </div>
       </form>
