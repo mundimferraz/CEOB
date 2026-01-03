@@ -1,0 +1,8 @@
+{
+  "name": "Copy of SGR-Vias: Sistema de Gestão de Reparos em Vias Públicas",
+  "description": "Plataforma institucional para gestão de solicitações de reparos urbanos, com suporte a geolocalização, captura de imagens, relatórios em PDF e exportação para Excel.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
