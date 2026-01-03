@@ -12,7 +12,6 @@ export const dbApi = {
     
     if (error) throw error;
 
-    // Mapear snake_case para camelCase
     return data.map(req => ({
       id: req.id,
       protocol: req.protocol,
@@ -109,7 +108,7 @@ export const dbApi = {
         zonal: user.zonal,
         registration_number: user.registrationNumber,
         email: user.email
-      }]);
+      }], { onConflict: 'id' });
     
     if (error) throw error;
   },
@@ -138,14 +137,17 @@ export const dbApi = {
   },
 
   async saveZonal(zonal: ZonalMetadata): Promise<void> {
+    // Importante: se o managerId não existir na tabela users, o Supabase retornará 409/400.
+    // Garantimos que se for vazio, enviamos NULL para evitar violação de FK.
     const { error } = await supabase
       .from('zonals')
       .upsert([{
         id: zonal.id,
         name: zonal.name,
-        manager_id: zonal.managerId,
-        description: zonal.description
-      }]);
+        manager_id: zonal.managerId || null,
+        description: zonal.description || null
+      }], { onConflict: 'id' });
+    
     if (error) throw error;
   }
 };
