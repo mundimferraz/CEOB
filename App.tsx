@@ -20,14 +20,16 @@ interface AppContextType {
   requests: RepairRequest[];
   users: User[];
   zonals: ZonalMetadata[];
-  roleLabels: Record<UserRole, string>;
+  roleLabels: Record<string, string>;
   addRequest: (req: RepairRequest) => void;
   updateRequest: (req: RepairRequest) => void;
   addUser: (user: User) => void;
   updateUser: (user: User) => void;
   deleteUser: (id: string) => void;
   updateZonal: (zonal: ZonalMetadata) => void;
-  updateRoleLabel: (role: UserRole, label: string) => void;
+  updateRoleLabel: (roleKey: string, label: string) => void;
+  addRole: (label: string) => void;
+  removeRole: (roleKey: string) => void;
   getZonalName: (id: ZonalType) => string;
   getRoleLabel: (role: UserRole) => string;
   notify: (message: string, type?: 'success' | 'error' | 'info') => void;
@@ -148,7 +150,7 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : INITIAL_ZONAL_METADATA;
   });
 
-  const [roleLabels, setRoleLabels] = useState<Record<UserRole, string>>(() => {
+  const [roleLabels, setRoleLabels] = useState<Record<string, string>>(() => {
     const saved = localStorage.getItem('sgr_role_labels');
     return saved ? JSON.parse(saved) : {
       Manager: 'Engenheiro',
@@ -202,9 +204,36 @@ const App: React.FC = () => {
     notify('Unidade atualizada!');
   };
 
-  const updateRoleLabel = (role: UserRole, label: string) => {
-    setRoleLabels(prev => ({ ...prev, [role]: label }));
-    notify('Título do cargo atualizado!');
+  const updateRoleLabel = (roleKey: string, label: string) => {
+    setRoleLabels(prev => ({ ...prev, [roleKey]: label }));
+  };
+
+  const addRole = (label: string) => {
+    const key = `role_${Date.now()}`;
+    setRoleLabels(prev => ({ ...prev, [key]: label }));
+    notify(`Cargo "${label}" adicionado.`);
+  };
+
+  const removeRole = (roleKey: string) => {
+    // Impedir remoção de cargos base para evitar erros de lógica de sistema
+    if (['Manager', 'Collaborator', 'Intern'].includes(roleKey)) {
+      notify('Este cargo base não pode ser removido.', 'error');
+      return;
+    }
+    
+    // Verificar se há usuários usando este cargo
+    const inUse = users.some(u => u.role === roleKey);
+    if (inUse) {
+      notify('Cargo em uso por técnicos. Reatribua-os antes.', 'error');
+      return;
+    }
+
+    setRoleLabels(prev => {
+      const newLabels = { ...prev };
+      delete newLabels[roleKey];
+      return newLabels;
+    });
+    notify('Cargo removido.', 'info');
   };
 
   const getZonalName = (id: ZonalType) => {
@@ -221,7 +250,7 @@ const App: React.FC = () => {
       requests, users, zonals, roleLabels,
       addRequest, updateRequest, 
       addUser, updateUser, deleteUser,
-      updateZonal, updateRoleLabel, 
+      updateZonal, updateRoleLabel, addRole, removeRole,
       getZonalName, getRoleLabel, notify
     }}>
       <HashRouter>

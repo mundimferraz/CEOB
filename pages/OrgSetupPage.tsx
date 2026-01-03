@@ -3,13 +3,18 @@ import React, { useState } from 'react';
 import { useApp } from '../App';
 import { ZonalType, User, UserRole, ZonalMetadata } from '../types';
 import { ZONALS_LIST } from '../constants';
-import { UserPlus, Settings, Shield, Map as MapIcon, Edit2, Trash2, X, Save, Search, UserCheck, Briefcase } from 'lucide-react';
+import { UserPlus, Settings, Shield, Map as MapIcon, Edit2, Trash2, X, Save, Search, UserCheck, Briefcase, Plus } from 'lucide-react';
 
 const OrgSetupPage: React.FC = () => {
-  const { users, requests, zonals, roleLabels, addUser, updateUser, deleteUser, updateZonal, updateRoleLabel, getZonalName, getRoleLabel } = useApp();
+  const { 
+    users, requests, zonals, roleLabels, 
+    addUser, updateUser, deleteUser, updateZonal, updateRoleLabel, addRole, removeRole,
+    getZonalName, getRoleLabel, notify 
+  } = useApp();
   
   const [activeTab, setActiveTab] = useState<'zonals' | 'personnel'>('zonals');
   const [searchTerm, setSearchTerm] = useState('');
+  const [newRoleInput, setNewRoleInput] = useState('');
   
   // User Modal State
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
@@ -71,13 +76,10 @@ const OrgSetupPage: React.FC = () => {
     setEditingZonal(null);
   };
 
-  const handleSaveRoles = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    updateRoleLabel('Manager', formData.get('Manager') as string);
-    updateRoleLabel('Collaborator', formData.get('Collaborator') as string);
-    updateRoleLabel('Intern', formData.get('Intern') as string);
-    setIsRoleModalOpen(false);
+  const handleAddRole = () => {
+    if (!newRoleInput.trim()) return;
+    addRole(newRoleInput.trim());
+    setNewRoleInput('');
   };
 
   const filteredUsers = users.filter(u => 
@@ -174,7 +176,7 @@ const OrgSetupPage: React.FC = () => {
                 className="flex items-center justify-center gap-2 h-12 px-5 bg-white border border-slate-200 text-slate-700 rounded-2xl hover:bg-slate-50 transition-all font-black uppercase tracking-widest text-[10px]"
               >
                 <Briefcase size={16} />
-                Editar Cargos
+                Gerenciar Cargos
               </button>
               <button 
                 onClick={() => {
@@ -209,7 +211,7 @@ const OrgSetupPage: React.FC = () => {
                       <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black border uppercase tracking-wider ${
                         user.role === 'Manager' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' :
                         user.role === 'Collaborator' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
-                        'bg-amber-50 border-amber-200 text-amber-700'
+                        'bg-blue-50 border-blue-200 text-blue-700'
                       }`}>
                         {getRoleLabel(user.role)}
                       </span>
@@ -250,59 +252,68 @@ const OrgSetupPage: React.FC = () => {
         </div>
       )}
 
-      {/* Role Labels Modal */}
+      {/* Role Labels Modal - Redesigned for Adding */}
       {isRoleModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-in slide-in-from-bottom-8 duration-300">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in slide-in-from-bottom-8 duration-300">
             <div className="p-8 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
               <div>
-                <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Editar Títulos</h2>
-                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Configuração Global de Cargos</p>
+                <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Cargos do Sistema</h2>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Gestão de Títulos e Hierarquia</p>
               </div>
               <button onClick={() => setIsRoleModalOpen(false)} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-600 rounded-full transition-all">
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleSaveRoles} className="p-8 space-y-5">
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Título Categoria: Manager</label>
-                <input 
-                  name="Manager"
-                  defaultValue={roleLabels.Manager}
-                  required
-                  className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-900"
-                />
+            
+            <div className="p-8 space-y-6 max-h-[60vh] overflow-y-auto">
+              <div className="space-y-4">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cargos Existentes</p>
+                {Object.entries(roleLabels).map(([key, label]) => (
+                  <div key={key} className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <input 
+                        value={label}
+                        onChange={(e) => updateRoleLabel(key, e.target.value)}
+                        className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-900"
+                      />
+                    </div>
+                    {!['Manager', 'Collaborator', 'Intern'].includes(key) && (
+                      <button 
+                        onClick={() => removeRole(key)}
+                        className="w-12 h-12 flex items-center justify-center text-rose-500 hover:bg-rose-50 rounded-2xl transition-all"
+                      >
+                        <Trash2 size={20} />
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Título Categoria: Collaborator</label>
-                <input 
-                  name="Collaborator"
-                  defaultValue={roleLabels.Collaborator}
-                  required
-                  className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-900"
-                />
+
+              <div className="pt-6 border-t border-slate-100">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-3">Adicionar Novo Cargo</p>
+                <div className="flex gap-3">
+                  <input 
+                    placeholder="Ex: Supervisor, Fiscal..."
+                    className="flex-1 h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-900"
+                    value={newRoleInput}
+                    onChange={(e) => setNewRoleInput(e.target.value)}
+                  />
+                  <button 
+                    onClick={handleAddRole}
+                    className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"
+                  >
+                    <Plus size={24} />
+                  </button>
+                </div>
               </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Título Categoria: Intern</label>
-                <input 
-                  name="Intern"
-                  defaultValue={roleLabels.Intern}
-                  required
-                  className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-900"
-                />
-              </div>
-              <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100">
-                <p className="text-[10px] text-amber-700 font-black uppercase mb-1">Aviso</p>
-                <p className="text-xs text-amber-900">Isso altera apenas o nome exibido. A lógica de hierarquia (quem é responsável por zonal) permanece a mesma.</p>
-              </div>
-              <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => setIsRoleModalOpen(false)} className="flex-1 h-14 bg-white border border-slate-200 text-slate-700 font-black uppercase text-xs rounded-2xl">Cancelar</button>
-                <button type="submit" className="flex-1 h-14 bg-slate-900 text-white font-black uppercase text-xs rounded-2xl flex items-center justify-center gap-2">
-                  <Save size={18} />
-                  Salvar
-                </button>
-              </div>
-            </form>
+            </div>
+
+            <div className="p-8 bg-slate-50 flex gap-3">
+              <button onClick={() => setIsRoleModalOpen(false)} className="w-full h-14 bg-slate-900 text-white font-black uppercase text-xs rounded-2xl flex items-center justify-center gap-2">
+                Concluir
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -340,9 +351,9 @@ const OrgSetupPage: React.FC = () => {
                     defaultValue={editingUser?.role || 'Collaborator'}
                     className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900 appearance-none bg-slate-50"
                   >
-                    <option value="Manager">{getRoleLabel('Manager')}</option>
-                    <option value="Collaborator">{getRoleLabel('Collaborator')}</option>
-                    <option value="Intern">{getRoleLabel('Intern')}</option>
+                    {Object.entries(roleLabels).map(([key, label]) => (
+                      <option key={key} value={key}>{label}</option>
+                    ))}
                   </select>
                 </div>
                 <div>

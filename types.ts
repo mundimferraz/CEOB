@@ -13,7 +13,8 @@ export enum ZonalType {
   WEST = 'Zonal Oeste'
 }
 
-export type UserRole = 'Manager' | 'Collaborator' | 'Intern';
+// UserRole agora é string para permitir cargos customizados dinâmicos
+export type UserRole = string;
 
 export interface User {
   id: string;
