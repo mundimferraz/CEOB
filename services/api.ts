@@ -10,7 +10,10 @@ export const dbApi = {
       .select('*')
       .order('created_at', { ascending: false });
     
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase getRequests Error:', error);
+      throw error;
+    }
 
     return data.map(req => ({
       id: req.id,
@@ -54,7 +57,10 @@ export const dbApi = {
         created_at: request.createdAt
       }]);
     
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase createRequest Error:', error);
+      throw error;
+    }
   },
 
   async updateRequest(request: RepairRequest): Promise<void> {
@@ -77,7 +83,10 @@ export const dbApi = {
       })
       .eq('id', request.id);
     
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase updateRequest Error:', error);
+      throw error;
+    }
   },
 
   async deleteRequest(id: string): Promise<void> {
@@ -86,7 +95,10 @@ export const dbApi = {
       .delete()
       .eq('id', id);
     
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase deleteRequest Error:', error);
+      throw error;
+    }
   },
 
   // Usuários
@@ -95,7 +107,10 @@ export const dbApi = {
       .from('users')
       .select('*');
     
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase getUsers Error:', error);
+      throw error;
+    }
 
     return data.map(u => ({
       id: u.id,
@@ -115,11 +130,14 @@ export const dbApi = {
         name: user.name,
         role: user.role,
         zonal: user.zonal,
-        registration_number: user.registrationNumber,
-        email: user.email
+        registration_number: user.registrationNumber || null,
+        email: user.email || null
       }], { onConflict: 'id' });
     
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase saveUser Error:', error);
+      throw error;
+    }
   },
 
   async deleteUser(id: string): Promise<void> {
@@ -128,7 +146,10 @@ export const dbApi = {
       .delete()
       .eq('id', id);
     
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase deleteUser Error:', error);
+      throw error;
+    }
   },
 
   // Zonal Metadata
@@ -136,7 +157,10 @@ export const dbApi = {
     const { data, error } = await supabase
       .from('zonals')
       .select('*');
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase getZonals Error:', error);
+      throw error;
+    }
     return data.map(z => ({
       id: z.id,
       name: z.name,
@@ -157,6 +181,9 @@ export const dbApi = {
         description: zonal.description || null
       }], { onConflict: 'id' });
     
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase saveZonal Error:', error);
+      throw error;
+    }
   }
 };

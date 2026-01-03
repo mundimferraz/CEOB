@@ -159,7 +159,7 @@ const App: React.FC = () => {
     setToasts(prev => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
-    }, 3000);
+    }, 5000); // Aumentado para 5s para leitura de erros
   }, []);
 
   const initData = async () => {
@@ -174,9 +174,9 @@ const App: React.FC = () => {
       setRequests(dbRequests);
       setUsers(dbUsers);
       if (dbZonals.length > 0) setZonals(dbZonals);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      notify('Erro ao sincronizar com o Supabase.', 'error');
+      notify(`Erro de sincronização: ${error.message || 'Verifique o console.'}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -191,33 +191,30 @@ const App: React.FC = () => {
   const addRequest = async (req: RepairRequest) => {
     try {
       await dbApi.createRequest(req);
-      // Atualização imediata da lista local
       setRequests(prev => [req, ...prev]);
       notify('Solicitação gravada com sucesso!');
-    } catch (e) {
-      notify('Erro ao salvar no banco Supabase.', 'error');
+    } catch (e: any) {
+      notify(`Erro ao gravar: ${e.message}`, 'error');
     }
   };
 
   const updateRequest = async (req: RepairRequest) => {
     try {
       await dbApi.updateRequest(req);
-      // Atualização imediata do registro na lista local
       setRequests(prev => prev.map(r => r.id === req.id ? { ...req } : r));
-      notify('Registro atualizado com sucesso.');
-    } catch (e) {
-      notify('Erro na atualização remota.', 'error');
+      notify('Registro atualizado.');
+    } catch (e: any) {
+      notify(`Erro ao atualizar: ${e.message}`, 'error');
     }
   };
 
   const deleteRequest = async (id: string) => {
     try {
       await dbApi.deleteRequest(id);
-      // Remoção imediata da lista local
       setRequests(prev => prev.filter(r => r.id !== id));
-      notify('Solicitação excluída do sistema.', 'info');
-    } catch (e) {
-      notify('Erro ao excluir solicitação.', 'error');
+      notify('Excluído com sucesso.', 'info');
+    } catch (e: any) {
+      notify(`Erro ao excluir: ${e.message}`, 'error');
     }
   };
   
@@ -225,9 +222,9 @@ const App: React.FC = () => {
     try {
       await dbApi.saveUser(user);
       setUsers(prev => [...prev, user]);
-      notify('Usuário adicionado ao banco.');
-    } catch (e) {
-      notify('Erro ao salvar usuário (possível violação de Engenheiro Único).', 'error');
+      notify('Usuário cadastrado!');
+    } catch (e: any) {
+      notify(`Erro no cadastro: ${e.message}`, 'error');
     }
   };
 
@@ -235,9 +232,9 @@ const App: React.FC = () => {
     try {
       await dbApi.saveUser(user);
       setUsers(prev => prev.map(u => u.id === user.id ? user : u));
-      notify('Cadastro atualizado.');
-    } catch (e) {
-      notify('Erro ao atualizar cadastro.', 'error');
+      notify('Perfil atualizado.');
+    } catch (e: any) {
+      notify(`Erro na atualização: ${e.message}`, 'error');
     }
   };
 
@@ -245,9 +242,9 @@ const App: React.FC = () => {
     try {
       await dbApi.deleteUser(id);
       setUsers(prev => prev.filter(u => u.id !== id));
-      notify('Registro removido.', 'info');
-    } catch (e) {
-      notify('Erro ao remover registro.', 'error');
+      notify('Usuário removido.', 'info');
+    } catch (e: any) {
+      notify(`Erro ao remover: ${e.message}`, 'error');
     }
   };
   
@@ -255,9 +252,9 @@ const App: React.FC = () => {
     try {
       await dbApi.saveZonal(zonal);
       setZonals(prev => prev.map(z => z.id === zonal.id ? zonal : z));
-      notify('Unidade atualizada!');
-    } catch (e) {
-      notify('Erro ao salvar unidade.', 'error');
+      notify('Configurações da Unidade salvas!');
+    } catch (e: any) {
+      notify(`Erro ao salvar Unidade: ${e.message}. Verifique se rodou o script SQL no Supabase.`, 'error');
     }
   };
 
@@ -333,12 +330,17 @@ const App: React.FC = () => {
               <div 
                 key={toast.id}
                 className={`
-                  p-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 md:slide-in-from-bottom-4 duration-300 pointer-events-auto
+                  p-4 rounded-2xl shadow-2xl flex items-start gap-3 animate-in fade-in slide-in-from-top-4 md:slide-in-from-bottom-4 duration-300 pointer-events-auto
                   ${toast.type === 'success' ? 'bg-emerald-600 text-white' : toast.type === 'error' ? 'bg-rose-600 text-white' : 'bg-slate-800 text-white'}
                 `}
               >
-                {toast.type === 'success' ? <CheckCircle size={20} /> : toast.type === 'error' ? <AlertCircle size={20} /> : <Info size={20} />}
-                <p className="text-sm font-bold flex-1">{toast.message}</p>
+                <div className="mt-0.5">
+                  {toast.type === 'success' ? <CheckCircle size={20} /> : toast.type === 'error' ? <AlertCircle size={20} /> : <Info size={20} />}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold">{toast.message}</p>
+                  {toast.type === 'error' && <p className="text-[10px] mt-1 opacity-80 uppercase font-black">Verifique se as tabelas estão atualizadas no Supabase.</p>}
+                </div>
                 <button onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))} className="opacity-50 hover:opacity-100">
                   <X size={16} />
                 </button>

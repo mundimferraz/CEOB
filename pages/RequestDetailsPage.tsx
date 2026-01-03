@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
-import { MapPin, Calendar, User as UserIcon, FileText, Camera, Download, Trash2, CheckCircle, AlertTriangle, Crosshair, ImageIcon, Edit2, X, Save, ExternalLink, Loader2, ShieldCheck, UserCheck } from 'lucide-react';
+import { MapPin, Calendar, User as UserIcon, FileText, Camera, Download, Trash2, CheckCircle, AlertTriangle, Crosshair, ImageIcon, Edit2, X, Save, ExternalLink, Loader2, ShieldCheck, UserCheck, Users } from 'lucide-react';
 import { useApp } from '../App';
 import { RequestStatus } from '../types';
 import { STATUS_COLORS } from '../constants';
@@ -16,6 +16,7 @@ const RequestDetailsPage: React.FC = () => {
   const tech = users.find(u => u.id === request?.technicianId);
   const zonalMeta = zonals.find(z => z.id === request?.zonal);
   const engineer = users.find(u => u.id === zonalMeta?.managerId);
+  const assistant = users.find(u => u.id === zonalMeta?.assistantId);
 
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [editedAddress, setEditedAddress] = useState(request?.location.address || '');
@@ -102,7 +103,9 @@ const RequestDetailsPage: React.FC = () => {
     doc.text(`Contrato: ${request.contract}`, margin, y);
     doc.text(`Zonal/Unidade: ${getZonalName(request.zonal)}`, margin + 90, y);
     y += 7;
-    doc.text(`Responsável Técnico (Zonal): ${engineer?.name || 'Não atribuído'}`, margin, y);
+    doc.text(`Engenheiro Responsável (Titular): ${engineer?.name || 'Não atribuído'}`, margin, y);
+    y += 7;
+    doc.text(`Estagiário/Responsável (Unidade): ${assistant?.name || 'Não atribuído'}`, margin, y);
     y += 15;
 
     // Seção 2: Localização
@@ -156,7 +159,7 @@ const RequestDetailsPage: React.FC = () => {
     doc.text('6. QUADRO TÉCNICO RESPONSÁVEL', margin, y);
     y += 20;
 
-    // Assinatura Técnico
+    // Assinatura Técnico Vistoriador
     doc.line(margin, y, margin + 70, y);
     y += 5;
     doc.setFontSize(9);
@@ -176,11 +179,22 @@ const RequestDetailsPage: React.FC = () => {
     doc.text(`${engineer?.name || '__________________________'}`, margin + 90, yEng);
     yEng += 4;
     doc.setFont('helvetica', 'normal');
-    doc.text(`Responsável Técnico - Engenheiro`, margin + 90, yEng);
+    doc.text(`Engenheiro Responsável Técnico`, margin + 90, yEng);
     yEng += 4;
     doc.text(`Unidade: ${getZonalName(request.zonal)}`, margin + 90, yEng);
 
     y += 15;
+    if (assistant) {
+      doc.line(margin, y, margin + 70, y);
+      y += 5;
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${assistant.name}`, margin, y);
+      y += 4;
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Assistente da Unidade - ${getRoleLabel(assistant.role)}`, margin, y);
+      y += 10;
+    }
+
     doc.setFontSize(8);
     doc.setTextColor(150);
     doc.text(`Emitido em: ${new Date().toLocaleString('pt-BR')} - Sistema SGR-Vias`, margin, y);
@@ -322,7 +336,6 @@ const RequestDetailsPage: React.FC = () => {
               <div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Galeria de Evidências</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                   {/* Card Antes */}
                    <div className="relative group rounded-3xl overflow-hidden border border-slate-200">
                      <div className="absolute top-4 left-4 bg-slate-900/80 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase z-10">Estado Inicial (Antes)</div>
                      {request.photoBefore ? (
@@ -335,7 +348,6 @@ const RequestDetailsPage: React.FC = () => {
                      )}
                    </div>
                    
-                   {/* Card Depois / Upload */}
                    <div className="relative group rounded-3xl overflow-hidden border border-slate-200">
                       <div className="absolute top-4 left-4 bg-emerald-600 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase z-10">
                         {request.photoAfter ? 'Conclusão (Depois)' : 'Aguardando Término'}
@@ -351,7 +363,6 @@ const RequestDetailsPage: React.FC = () => {
                               <>
                                 <Camera size={48} strokeWidth={1.5} />
                                 <span className="text-xs font-black uppercase mt-2">Tirar Foto do Depois</span>
-                                <p className="text-[10px] font-bold mt-1 text-emerald-400 px-8 text-center uppercase tracking-tighter">Registrar conclusão para finalizar vistoria</p>
                                 <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleAfterPhotoCapture} />
                               </>
                             )}
@@ -369,29 +380,43 @@ const RequestDetailsPage: React.FC = () => {
             <h2 className="font-black text-slate-900 uppercase tracking-tight mb-6">Equipe Técnica</h2>
             
             {/* Engenheiro Responsável */}
-            <div className="space-y-4 mb-8">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Engenheiro Titular (Unidade)</p>
-              <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-2xl border border-blue-100">
-                <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg">
-                  <ShieldCheck size={24} />
+            <div className="space-y-3 mb-6">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Engenheiro Titular</p>
+              <div className="flex items-center gap-4 p-3.5 bg-blue-50 rounded-2xl border border-blue-100">
+                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+                  <ShieldCheck size={20} />
                 </div>
                 <div>
-                  <p className="font-black text-slate-900 leading-tight">{engineer?.name || 'Não definido'}</p>
-                  <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Responsável Técnico</span>
+                  <p className="font-black text-slate-900 text-sm leading-tight">{engineer?.name || 'Não definido'}</p>
+                  <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Responsável Técnico</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Estagiário Responsável */}
+            <div className="space-y-3 mb-6">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Assistente da Unidade</p>
+              <div className="flex items-center gap-4 p-3.5 bg-indigo-50 rounded-2xl border border-indigo-100">
+                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+                  <Users size={20} />
+                </div>
+                <div>
+                  <p className="font-black text-slate-900 text-sm leading-tight">{assistant?.name || 'Não definido'}</p>
+                  <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">{assistant ? getRoleLabel(assistant.role) : 'Assistente'}</span>
                 </div>
               </div>
             </div>
 
             {/* Técnico Vistoriador */}
-            <div className="space-y-4">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Técnico Vistoriador (Registro)</p>
-              <div className="flex items-center gap-4 p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
-                <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-lg">
+            <div className="space-y-3">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Vistoriador do Registro</p>
+              <div className="flex items-center gap-4 p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
+                <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-lg">
                   {tech?.name.charAt(0)}
                 </div>
                 <div>
-                  <p className="font-black text-slate-900 leading-tight">{tech?.name}</p>
-                  <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{tech ? getRoleLabel(tech.role) : 'Técnico'}</span>
+                  <p className="font-black text-slate-900 text-sm leading-tight">{tech?.name}</p>
+                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Técnico em Campo</span>
                 </div>
               </div>
             </div>
@@ -402,7 +427,7 @@ const RequestDetailsPage: React.FC = () => {
                 <span className="text-slate-900 font-bold">{new Date(request.visitDate).toLocaleDateString('pt-BR')}</span>
               </div>
               <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
-                <span className="text-slate-400">Lotação</span>
+                <span className="text-slate-400">Unidade Lotação</span>
                 <span className="text-slate-900 font-bold">{getZonalName(request.zonal)}</span>
               </div>
             </div>
