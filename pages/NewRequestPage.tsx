@@ -7,7 +7,7 @@ import { RequestStatus, ZonalType, RepairRequest } from '../types';
 import { ZONALS_LIST } from '../constants';
 
 const NewRequestPage: React.FC = () => {
-  const { addRequest, users, getZonalName, notify } = useApp();
+  const { addRequest, users, getZonalName, getRoleLabel, notify } = useApp();
   const navigate = useNavigate();
   
   const mapRef = useRef<any>(null);
@@ -31,7 +31,6 @@ const NewRequestPage: React.FC = () => {
 
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  // Inicializa o mapa
   useEffect(() => {
     if (!mapRef.current) {
       const L = (window as any).L;
@@ -48,14 +47,12 @@ const NewRequestPage: React.FC = () => {
         autoPan: true
       }).addTo(mapRef.current);
 
-      // Evento ao arrastar o marcador
       markerRef.current.on('dragend', (event: any) => {
         const marker = event.target;
         const position = marker.getLatLng();
         updatePosition(position.lat, position.lng);
       });
 
-      // Evento ao clicar no mapa
       mapRef.current.on('click', (e: any) => {
         const { lat, lng } = e.latlng;
         markerRef.current.setLatLng([lat, lng]);
@@ -63,7 +60,7 @@ const NewRequestPage: React.FC = () => {
       });
 
       setIsMapReady(true);
-      handleCaptureLocation(); // Tenta pegar a posição real ao iniciar
+      handleCaptureLocation();
     }
 
     return () => {
@@ -76,8 +73,6 @@ const NewRequestPage: React.FC = () => {
 
   const updatePosition = async (lat: number, lng: number) => {
     setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
-    
-    // Geocodificação reversa usando Nominatim (Gratuito/OSM)
     try {
       const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`, {
         headers: { 'Accept-Language': 'pt-BR' }
@@ -102,19 +97,16 @@ const NewRequestPage: React.FC = () => {
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        const L = (window as any).L;
-        
         if (mapRef.current && markerRef.current) {
           mapRef.current.setView([latitude, longitude], 17);
           markerRef.current.setLatLng([latitude, longitude]);
         }
-        
         updatePosition(latitude, longitude);
         setLocating(false);
-        notify("Posição GPS capturada!");
+        notify("GPS capturado!");
       },
       () => {
-        notify("Erro ao obter GPS. Verifique as permissões.", "error");
+        notify("Erro ao obter GPS.", "error");
         setLocating(false);
       },
       { enableHighAccuracy: true }
@@ -174,7 +166,6 @@ const NewRequestPage: React.FC = () => {
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-6 pb-24">
-        {/* Mapa e Geolocalização */}
         <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
@@ -215,12 +206,8 @@ const NewRequestPage: React.FC = () => {
                 </p>
              </div>
           </div>
-          <p className="text-[10px] text-slate-400 font-bold text-center uppercase tracking-widest italic">
-            Dica: Arraste o pino vermelho ou clique no mapa para ajustar a posição
-          </p>
         </div>
 
-        {/* Dados Administrativos */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-5">
             <h2 className="text-lg font-black text-slate-900 border-b border-slate-100 pb-4 flex items-center gap-2">
@@ -240,7 +227,7 @@ const NewRequestPage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Identificador Contrato</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Contrato</label>
                 <input 
                   type="text" 
                   className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900"
@@ -279,7 +266,7 @@ const NewRequestPage: React.FC = () => {
                 >
                   <option value="">Selecione o técnico...</option>
                   {filteredPersonnel.map(u => (
-                    <option key={u.id} value={u.id}>{u.name} ({u.role === 'Intern' ? 'Estagiário' : 'Colaborador'})</option>
+                    <option key={u.id} value={u.id}>{u.name} ({getRoleLabel(u.role)})</option>
                   ))}
                 </select>
               </div>
@@ -287,7 +274,6 @@ const NewRequestPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Evidência Visual */}
         <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm space-y-6">
            <h2 className="text-lg font-black text-slate-900 border-b border-slate-100 pb-4 flex items-center gap-2">
              <div className="w-1.5 h-6 bg-rose-600 rounded-full"></div>
@@ -298,42 +284,27 @@ const NewRequestPage: React.FC = () => {
               <img src={imagePreview} alt="Preview" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
             ) : (
               <div className="flex flex-col items-center justify-center p-6 text-center">
-                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-md mb-4 group-hover:scale-110 transition-transform">
+                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-md mb-4">
                    <Camera className="w-8 h-8 text-blue-600" />
                 </div>
-                <p className="text-sm text-slate-900 font-black uppercase tracking-widest">Capturar Foto do Local</p>
-                <p className="text-xs text-slate-400 mt-2 font-medium">Use a câmera do dispositivo para registrar o estado da via</p>
+                <p className="text-sm text-slate-900 font-black uppercase tracking-widest">Capturar Foto</p>
               </div>
             )}
             <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
           </label>
-          
-          <div className="space-y-2">
-            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Observações Técnicas da Ocorrência</label>
-            <textarea 
-              rows={4}
-              className="w-full p-5 border border-slate-200 rounded-[2rem] focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-slate-300 font-medium text-slate-700 leading-relaxed"
-              placeholder="Descreva aqui buracos, vazamentos, falta de sinalização ou outras anomalias observadas no local..."
-              value={formData.description}
-              onChange={e => setFormData({...formData, description: e.target.value})}
-              required
-            />
-          </div>
+          <textarea 
+            rows={4}
+            className="w-full p-5 border border-slate-200 rounded-[2rem] focus:ring-2 focus:ring-blue-500 outline-none transition-all font-medium text-slate-700 leading-relaxed"
+            placeholder="Observações técnicas..."
+            value={formData.description}
+            onChange={e => setFormData({...formData, description: e.target.value})}
+            required
+          />
         </div>
 
-        {/* Ações Fixas Rodapé */}
         <div className="fixed bottom-0 left-0 right-0 md:relative p-4 md:p-0 bg-white/80 backdrop-blur-md md:bg-transparent border-t md:border-t-0 flex gap-4 z-[100] safe-bottom">
-          <button 
-            type="button" 
-            onClick={() => navigate(-1)}
-            className="flex-1 h-16 bg-white border border-slate-200 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] text-slate-500 active:scale-95 transition-all shadow-sm"
-          >
-            Descartar
-          </button>
-          <button 
-            type="submit"
-            className="flex-2 md:flex-1 h-16 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] active:scale-95 transition-all shadow-xl shadow-blue-200 flex items-center justify-center gap-3 px-8"
-          >
+          <button type="button" onClick={() => navigate(-1)} className="flex-1 h-16 bg-white border border-slate-200 rounded-2xl font-black uppercase tracking-widest text-[10px] text-slate-500">Descartar</button>
+          <button type="submit" className="flex-2 md:flex-1 h-16 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-blue-200 flex items-center justify-center gap-3 px-8">
             <Save size={20} />
             Finalizar Vistoria
           </button>

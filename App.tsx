@@ -2,7 +2,7 @@
 import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, ClipboardList, PlusCircle, Users, Menu, X, ChevronRight, Plus, CheckCircle, Info, AlertCircle } from 'lucide-react';
-import { RepairRequest, User, ZonalType, RequestStatus, ZonalMetadata } from './types';
+import { RepairRequest, User, ZonalType, RequestStatus, ZonalMetadata, UserRole } from './types';
 import { MOCK_REQUESTS, MOCK_USERS, INITIAL_ZONAL_METADATA } from './constants';
 import DashboardPage from './pages/DashboardPage';
 import RequestListPage from './pages/RequestListPage';
@@ -20,13 +20,16 @@ interface AppContextType {
   requests: RepairRequest[];
   users: User[];
   zonals: ZonalMetadata[];
+  roleLabels: Record<UserRole, string>;
   addRequest: (req: RepairRequest) => void;
   updateRequest: (req: RepairRequest) => void;
   addUser: (user: User) => void;
   updateUser: (user: User) => void;
   deleteUser: (id: string) => void;
   updateZonal: (zonal: ZonalMetadata) => void;
+  updateRoleLabel: (role: UserRole, label: string) => void;
   getZonalName: (id: ZonalType) => string;
+  getRoleLabel: (role: UserRole) => string;
   notify: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
@@ -145,11 +148,21 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : INITIAL_ZONAL_METADATA;
   });
 
+  const [roleLabels, setRoleLabels] = useState<Record<UserRole, string>>(() => {
+    const saved = localStorage.getItem('sgr_role_labels');
+    return saved ? JSON.parse(saved) : {
+      Manager: 'Engenheiro',
+      Collaborator: 'Colaborador',
+      Intern: 'Estagiário'
+    };
+  });
+
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   useEffect(() => localStorage.setItem('sgr_requests', JSON.stringify(requests)), [requests]);
   useEffect(() => localStorage.setItem('sgr_users', JSON.stringify(users)), [users]);
   useEffect(() => localStorage.setItem('sgr_zonals', JSON.stringify(zonals)), [zonals]);
+  useEffect(() => localStorage.setItem('sgr_role_labels', JSON.stringify(roleLabels)), [roleLabels]);
 
   const notify = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
     const id = Date.now().toString();
@@ -171,7 +184,7 @@ const App: React.FC = () => {
   
   const addUser = (user: User) => {
     setUsers(prev => [...prev, user]);
-    notify('Técnico cadastrado com sucesso!');
+    notify('Cadastro de pessoal realizado!');
   };
 
   const updateUser = (user: User) => {
@@ -181,12 +194,17 @@ const App: React.FC = () => {
 
   const deleteUser = (id: string) => {
     setUsers(prev => prev.filter(u => u.id !== id));
-    notify('Usuário removido do sistema.', 'info');
+    notify('Registro removido.', 'info');
   };
   
   const updateZonal = (zonal: ZonalMetadata) => {
     setZonals(prev => prev.map(z => z.id === zonal.id ? zonal : z));
-    notify('Configurações da Unidade atualizadas!');
+    notify('Unidade atualizada!');
+  };
+
+  const updateRoleLabel = (role: UserRole, label: string) => {
+    setRoleLabels(prev => ({ ...prev, [role]: label }));
+    notify('Título do cargo atualizado!');
   };
 
   const getZonalName = (id: ZonalType) => {
@@ -194,12 +212,17 @@ const App: React.FC = () => {
     return zonal?.name || id;
   };
 
+  const getRoleLabel = (role: UserRole) => {
+    return roleLabels[role] || role;
+  };
+
   return (
     <AppContext.Provider value={{ 
-      requests, users, zonals, 
+      requests, users, zonals, roleLabels,
       addRequest, updateRequest, 
       addUser, updateUser, deleteUser,
-      updateZonal, getZonalName, notify
+      updateZonal, updateRoleLabel, 
+      getZonalName, getRoleLabel, notify
     }}>
       <HashRouter>
         <div className="flex flex-col md:flex-row min-h-screen">
@@ -212,7 +235,7 @@ const App: React.FC = () => {
                 <Route path="/requests/:id" element={<RequestDetailsPage />} />
                 <Route path="/new" element={<NewRequestPage />} />
                 <Route path="/org" element={<OrgSetupPage />} />
-              </Routes>
+               </Routes>
             </div>
           </main>
 

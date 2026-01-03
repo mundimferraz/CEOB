@@ -3,10 +3,10 @@ import React, { useState } from 'react';
 import { useApp } from '../App';
 import { ZonalType, User, UserRole, ZonalMetadata } from '../types';
 import { ZONALS_LIST } from '../constants';
-import { UserPlus, Settings, Shield, Map as MapIcon, Edit2, Trash2, X, Save, Search, UserCheck } from 'lucide-react';
+import { UserPlus, Settings, Shield, Map as MapIcon, Edit2, Trash2, X, Save, Search, UserCheck, Briefcase } from 'lucide-react';
 
 const OrgSetupPage: React.FC = () => {
-  const { users, requests, zonals, addUser, updateUser, deleteUser, updateZonal, getZonalName } = useApp();
+  const { users, requests, zonals, roleLabels, addUser, updateUser, deleteUser, updateZonal, updateRoleLabel, getZonalName, getRoleLabel } = useApp();
   
   const [activeTab, setActiveTab] = useState<'zonals' | 'personnel'>('zonals');
   const [searchTerm, setSearchTerm] = useState('');
@@ -18,6 +18,9 @@ const OrgSetupPage: React.FC = () => {
   // Zonal Modal State
   const [isZonalModalOpen, setIsZonalModalOpen] = useState(false);
   const [editingZonal, setEditingZonal] = useState<ZonalMetadata | null>(null);
+
+  // Role Modal State
+  const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
 
   const getZonalStats = (zonalId: ZonalType) => {
     const zonalUsers = users.filter(u => u.zonal === zonalId);
@@ -66,6 +69,15 @@ const OrgSetupPage: React.FC = () => {
     updateZonal(zonalData);
     setIsZonalModalOpen(false);
     setEditingZonal(null);
+  };
+
+  const handleSaveRoles = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    updateRoleLabel('Manager', formData.get('Manager') as string);
+    updateRoleLabel('Collaborator', formData.get('Collaborator') as string);
+    updateRoleLabel('Intern', formData.get('Intern') as string);
+    setIsRoleModalOpen(false);
   };
 
   const filteredUsers = users.filter(u => 
@@ -124,7 +136,7 @@ const OrgSetupPage: React.FC = () => {
                 </div>
                 <div className="p-6 space-y-5 flex-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Engenheiro Responsável</span>
+                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{getRoleLabel('Manager')} Responsável</span>
                     <span className="text-sm font-bold text-slate-900 flex items-center gap-2">
                       <UserCheck size={16} className="text-blue-500" />
                       {stats.managerName}
@@ -156,16 +168,25 @@ const OrgSetupPage: React.FC = () => {
                 onChange={e => setSearchTerm(e.target.value)}
               />
             </div>
-            <button 
-              onClick={() => {
-                setEditingUser(null);
-                setIsUserModalOpen(true);
-              }}
-              className="flex items-center justify-center gap-2 h-12 px-6 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 font-black uppercase tracking-widest text-xs"
-            >
-              <UserPlus size={18} />
-              Novo Cadastro
-            </button>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setIsRoleModalOpen(true)}
+                className="flex items-center justify-center gap-2 h-12 px-5 bg-white border border-slate-200 text-slate-700 rounded-2xl hover:bg-slate-50 transition-all font-black uppercase tracking-widest text-[10px]"
+              >
+                <Briefcase size={16} />
+                Editar Cargos
+              </button>
+              <button 
+                onClick={() => {
+                  setEditingUser(null);
+                  setIsUserModalOpen(true);
+                }}
+                className="flex items-center justify-center gap-2 h-12 px-6 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 font-black uppercase tracking-widest text-[10px]"
+              >
+                <UserPlus size={18} />
+                Novo Cadastro
+              </button>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
@@ -190,7 +211,7 @@ const OrgSetupPage: React.FC = () => {
                         user.role === 'Collaborator' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
                         'bg-amber-50 border-amber-200 text-amber-700'
                       }`}>
-                        {user.role === 'Manager' ? 'Engenheiro' : user.role === 'Collaborator' ? 'Técnico' : 'Estagiário'}
+                        {getRoleLabel(user.role)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-slate-600">
@@ -229,6 +250,63 @@ const OrgSetupPage: React.FC = () => {
         </div>
       )}
 
+      {/* Role Labels Modal */}
+      {isRoleModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-in slide-in-from-bottom-8 duration-300">
+            <div className="p-8 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Editar Títulos</h2>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Configuração Global de Cargos</p>
+              </div>
+              <button onClick={() => setIsRoleModalOpen(false)} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-600 rounded-full transition-all">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveRoles} className="p-8 space-y-5">
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Título Categoria: Manager</label>
+                <input 
+                  name="Manager"
+                  defaultValue={roleLabels.Manager}
+                  required
+                  className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-900"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Título Categoria: Collaborator</label>
+                <input 
+                  name="Collaborator"
+                  defaultValue={roleLabels.Collaborator}
+                  required
+                  className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-900"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Título Categoria: Intern</label>
+                <input 
+                  name="Intern"
+                  defaultValue={roleLabels.Intern}
+                  required
+                  className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-900"
+                />
+              </div>
+              <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100">
+                <p className="text-[10px] text-amber-700 font-black uppercase mb-1">Aviso</p>
+                <p className="text-xs text-amber-900">Isso altera apenas o nome exibido. A lógica de hierarquia (quem é responsável por zonal) permanece a mesma.</p>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => setIsRoleModalOpen(false)} className="flex-1 h-14 bg-white border border-slate-200 text-slate-700 font-black uppercase text-xs rounded-2xl">Cancelar</button>
+                <button type="submit" className="flex-1 h-14 bg-slate-900 text-white font-black uppercase text-xs rounded-2xl flex items-center justify-center gap-2">
+                  <Save size={18} />
+                  Salvar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* User CRUD Modal */}
       {isUserModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -236,7 +314,7 @@ const OrgSetupPage: React.FC = () => {
             <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <div>
                 <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">
-                  {editingUser ? 'Editar Técnico' : 'Novo Cadastro'}
+                  {editingUser ? 'Editar Registro' : 'Novo Cadastro'}
                 </h2>
                 <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Setor de Engenharia</p>
               </div>
@@ -262,9 +340,9 @@ const OrgSetupPage: React.FC = () => {
                     defaultValue={editingUser?.role || 'Collaborator'}
                     className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900 appearance-none bg-slate-50"
                   >
-                    <option value="Manager">Engenheiro</option>
-                    <option value="Collaborator">Colaborador</option>
-                    <option value="Intern">Estagiário</option>
+                    <option value="Manager">{getRoleLabel('Manager')}</option>
+                    <option value="Collaborator">{getRoleLabel('Collaborator')}</option>
+                    <option value="Intern">{getRoleLabel('Intern')}</option>
                   </select>
                 </div>
                 <div>
@@ -342,7 +420,7 @@ const OrgSetupPage: React.FC = () => {
                   className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900 mb-6"
                 />
                 
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Engenheiro Titular</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">{getRoleLabel('Manager')} Titular</label>
                 <select 
                   name="managerId"
                   defaultValue={editingZonal.managerId}
@@ -353,7 +431,6 @@ const OrgSetupPage: React.FC = () => {
                     <option key={u.id} value={u.id}>{u.name} (Lotação: {getZonalName(u.zonal)})</option>
                   ))}
                 </select>
-                <p className="text-[10px] text-slate-500 mt-2 font-bold italic ml-1">Apenas usuários com cargo de "Engenheiro" aparecem nesta lista.</p>
               </div>
 
               <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100">
@@ -361,21 +438,12 @@ const OrgSetupPage: React.FC = () => {
                    <Shield size={14} />
                    Diretriz Institucional
                 </div>
-                <p className="text-xs text-blue-900 font-medium leading-relaxed">As alterações no nome da unidade serão refletidas retroativamente em todos os cabeçalhos de relatórios emitidos sob este ID.</p>
+                <p className="text-xs text-blue-900 font-medium leading-relaxed">As alterações afetarão todos os cabeçalhos de relatórios emitidos sob este ID.</p>
               </div>
 
               <div className="flex gap-3 pt-4">
-                <button 
-                  type="button"
-                  onClick={() => setIsZonalModalOpen(false)}
-                  className="flex-1 h-14 bg-white border border-slate-200 text-slate-700 font-black uppercase tracking-widest text-xs rounded-2xl active:scale-95 transition-all"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  className="flex-1 h-14 bg-slate-900 text-white font-black uppercase tracking-widest text-xs rounded-2xl active:scale-95 transition-all shadow-xl shadow-slate-200 flex items-center justify-center gap-2"
-                >
+                <button type="button" onClick={() => setIsZonalModalOpen(false)} className="flex-1 h-14 bg-white border border-slate-200 text-slate-700 font-black uppercase text-xs rounded-2xl">Cancelar</button>
+                <button type="submit" className="flex-1 h-14 bg-slate-900 text-white font-black uppercase text-xs rounded-2xl flex items-center justify-center gap-2">
                   <Save size={18} />
                   Atualizar
                 </button>
