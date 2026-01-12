@@ -223,12 +223,13 @@ const RequestDetailsPage: React.FC = () => {
     doc.setFontSize(8);
     doc.text('Engenheiro Civil - Responsável Técnico', pageWidth / 2, y, { align: 'center' });
     
-    // Pequena nota do técnico vistoriador no rodapé da seção, caso necessário
-    if (tech) {
+    // Pequena nota do ESTAGIÁRIO/ASSISTENTE no rodapé da seção, como executor da vistoria
+    const visitor = assistant || tech;
+    if (visitor) {
       y += 10;
       doc.setFontSize(7);
       doc.setTextColor(120);
-      doc.text(`Vistoria técnica realizada por: ${tech.name} (Matrícula: ${tech.registrationNumber || '---'})`, pageWidth / 2, y, { align: 'center' });
+      doc.text(`Vistoria técnica realizada por: ${visitor.name} (Matrícula: ${visitor.registrationNumber || '---'})`, pageWidth / 2, y, { align: 'center' });
     }
 
     // Rodapé de Autenticidade
