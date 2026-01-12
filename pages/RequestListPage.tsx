@@ -1,11 +1,12 @@
 
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Filter, Download, Plus, ChevronRight, MapPin, Calendar, User as UserIcon, ClipboardList, ImageIcon, ShieldCheck, Users } from 'lucide-react';
+import { Search, Filter, Download, Plus, ChevronRight, MapPin, Calendar, User as UserIcon, ClipboardList, ImageIcon, ShieldCheck, Users, FileText, FileSpreadsheet } from 'lucide-react';
 import { useApp } from '../App';
 import { RequestStatus, ZonalType } from '../types';
 import { STATUS_COLORS, ZONALS_LIST } from '../constants';
 import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
 
 const RequestListPage: React.FC = () => {
   const { requests, users, zonals, getZonalName, getRoleLabel } = useApp();
@@ -27,7 +28,7 @@ const RequestListPage: React.FC = () => {
     });
   }, [requests, searchTerm, statusFilter, zonalFilter]);
 
-  const exportToExcel = () => {
+  const exportToCSV = () => {
     const data = filteredRequests.map(req => {
       const tech = users.find(u => u.id === req.technicianId);
       const zonalMeta = zonals.find(z => z.id === req.zonal);
@@ -40,21 +41,136 @@ const RequestListPage: React.FC = () => {
         Contrato: req.contract,
         Status: req.status,
         Zonal: getZonalName(req.zonal),
-        Engenheiro_Responsavel: engineer?.name || 'Não atribuído',
-        Assistente_Unidade: assistant?.name || 'Não atribuído',
-        Tecnico_Vistoriador: tech?.name || 'N/A',
-        Data_Visita: req.visitDate,
+        Engenheiro: engineer?.name || '---',
+        Assistente: assistant?.name || '---',
+        Data: new Date(req.visitDate).toLocaleDateString('pt-BR'),
         Endereco: req.location.address,
-        Latitude: req.location.latitude,
-        Longitude: req.location.longitude,
         Descricao: req.description
       };
     });
 
     const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Solicitacoes");
-    XLSX.writeFile(workbook, `Relatorio_SGR_Vias_${new Date().toISOString().split('T')[0]}.xlsx`);
+    const csvOutput = XLSX.utils.sheet_to_csv(worksheet);
+    const blob = new Blob([csvOutput], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Relatorio_SGR_${new Date().getTime()}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const generateGeneralPDF = async () => {
+    const doc = new jsPDF('l', 'mm', 'a4');
+    const margin = 10;
+    const pageWidth = 297;
+    let y = 20;
+
+    // Header
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, pageWidth, 15, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RELATÓRIO CONSOLIDADO DE VISTORIAS DE CAMPO - SGR-VIAS', pageWidth / 2, 10, { align: 'center' });
+
+    // Table Headers
+    y = 25;
+    doc.setTextColor(15, 23, 42);
+    doc.setFontSize(8);
+    doc.setFillColor(241, 245, 249);
+    doc.rect(margin, y, pageWidth - (margin * 2), 7, 'F');
+    
+    const cols = {
+      prot: margin + 2,
+      status: margin + 35,
+      zonal: margin + 65,
+      equipe: margin + 100,
+      data: margin + 170,
+      antes: margin + 195,
+      depois: margin + 240
+    };
+
+    doc.text('PROTOCOLO', cols.prot, y + 4.5);
+    doc.text('STATUS', cols.status, y + 4.5);
+    doc.text('UNIDADE', cols.zonal, y + 4.5);
+    doc.text('EQUIPE TÉCNICA', cols.equipe, y + 4.5);
+    doc.text('DATA', cols.data, y + 4.5);
+    doc.text('EVIDÊNCIA (ANTES)', cols.antes, y + 4.5);
+    doc.text('EVIDÊNCIA (DEPOIS)', cols.depois, y + 4.5);
+
+    y += 10;
+
+    for (const req of filteredRequests) {
+      if (y > 180) {
+        doc.addPage('l', 'mm', 'a4');
+        y = 20;
+        // Re-draw headers on new page
+        doc.setFillColor(241, 245, 249);
+        doc.rect(margin, y - 5, pageWidth - (margin * 2), 7, 'F');
+        doc.text('PROTOCOLO', cols.prot, y - 0.5);
+        doc.text('STATUS', cols.status, y - 0.5);
+        doc.text('UNIDADE', cols.zonal, y - 0.5);
+        doc.text('EQUIPE TÉCNICA', cols.equipe, y - 0.5);
+        doc.text('DATA', cols.data, y - 0.5);
+        doc.text('EVIDÊNCIA (ANTES)', cols.antes, y - 0.5);
+        doc.text('EVIDÊNCIA (DEPOIS)', cols.depois, y - 0.5);
+        y += 5;
+      }
+
+      const zonalMeta = zonals.find(z => z.id === req.zonal);
+      const engineer = users.find(u => u.id === zonalMeta?.managerId);
+      const assistant = users.find(u => u.id === zonalMeta?.assistantId);
+
+      doc.setFont('helvetica', 'bold');
+      doc.text(req.protocol, cols.prot, y + 10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(req.status.toUpperCase(), cols.status, y + 10);
+      doc.text(getZonalName(req.zonal), cols.zonal, y + 10);
+      
+      const equipeText = `ENG: ${engineer?.name || '---'}\nAST: ${assistant?.name || '---'}`;
+      doc.text(equipeText, cols.equipe, y + 8);
+      
+      doc.text(new Date(req.visitDate).toLocaleDateString('pt-BR'), cols.data, y + 10);
+
+      // Photos
+      const imgW = 25;
+      const imgH = 18;
+
+      if (req.photoBefore) {
+        try {
+          doc.addImage(req.photoBefore, 'JPEG', cols.antes, y, imgW, imgH);
+        } catch (e) {
+          doc.setFontSize(6);
+          doc.text('[Erro na imagem]', cols.antes, y + 10);
+          doc.setFontSize(8);
+        }
+      }
+
+      if (req.photoAfter) {
+        try {
+          doc.addImage(req.photoAfter, 'JPEG', cols.depois, y, imgW, imgH);
+        } catch (e) {
+          doc.setFontSize(6);
+          doc.text('[Erro na imagem]', cols.depois, y + 10);
+          doc.setFontSize(8);
+        }
+      } else {
+        doc.setFontSize(6);
+        doc.setTextColor(150);
+        doc.text('SEM IMAGEM', cols.depois + 5, y + 10);
+        doc.setTextColor(0);
+        doc.setFontSize(8);
+      }
+
+      doc.setDrawColor(241, 245, 249);
+      doc.line(margin, y + 20, pageWidth - margin, y + 20);
+      y += 25;
+    }
+
+    doc.save(`Relatorio_Geral_SGR_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   return (
@@ -64,13 +180,22 @@ const RequestListPage: React.FC = () => {
           <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Vistorias de Campo</h1>
           <p className="text-slate-500 font-medium">Gerencie e monitore os reparos urbanos.</p>
         </div>
-        <div className="hidden md:flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button 
-            onClick={exportToExcel}
-            className="flex items-center gap-2 px-5 py-2.5 bg-white text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 font-bold transition-all shadow-sm"
+            onClick={exportToCSV}
+            className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 font-bold transition-all shadow-sm text-sm"
+            title="Exportar dados brutos para planilha"
           >
-            <Download size={18} />
-            Exportar XLSX
+            <FileSpreadsheet size={16} className="text-emerald-600" />
+            Exportar CSV
+          </button>
+          <button 
+            onClick={generateGeneralPDF}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl hover:bg-slate-800 font-bold transition-all shadow-lg text-sm"
+            title="Gerar PDF para impressão em A4 Paisagem"
+          >
+            <FileText size={16} className="text-blue-400" />
+            Relatório PDF
           </button>
           <Link 
             to="/new" 
