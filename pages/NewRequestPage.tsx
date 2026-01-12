@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, MapPin, Save, Loader2, Navigation as NavigationIcon, Crosshair } from 'lucide-react';
+import { Camera, MapPin, Save, Loader2, Navigation as NavigationIcon, Crosshair, Check } from 'lucide-react';
 import { useApp } from '../App';
 import { RequestStatus, ZonalType, RepairRequest } from '../types';
 import { ZONALS_LIST } from '../constants';
@@ -14,6 +14,8 @@ const NewRequestPage: React.FC = () => {
   const markerRef = useRef<any>(null);
   const [locating, setLocating] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
   
   const [formData, setFormData] = useState({
     protocol: '',
@@ -126,13 +128,14 @@ const NewRequestPage: React.FC = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.photoBefore) {
       notify("A foto do local é obrigatória.", "error");
       return;
     }
 
+    setIsSaving(true);
     const newRequest: RepairRequest = {
       id: `req_${Date.now()}`,
       protocol: formData.protocol || `PR-${Date.now().toString().slice(-6)}`,
@@ -152,8 +155,18 @@ const NewRequestPage: React.FC = () => {
       createdAt: new Date().toISOString(),
     };
 
-    addRequest(newRequest);
-    navigate('/requests');
+    try {
+      await addRequest(newRequest);
+      setIsSaving(false);
+      setIsSaved(true);
+      
+      // Atraso discreto para exibir o checkmark antes de navegar
+      setTimeout(() => {
+        navigate('/requests');
+      }, 1000);
+    } catch (error) {
+      setIsSaving(false);
+    }
   };
 
   const filteredPersonnel = users.filter(u => u.zonal === formData.zonal);
@@ -175,7 +188,7 @@ const NewRequestPage: React.FC = () => {
             <button 
               type="button"
               onClick={handleCaptureLocation}
-              disabled={locating}
+              disabled={locating || isSaving || isSaved}
               className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-100 transition-all active:scale-95 disabled:opacity-50"
             >
               {locating ? <Loader2 size={14} className="animate-spin" /> : <NavigationIcon size={14} />}
@@ -193,7 +206,6 @@ const NewRequestPage: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Campo de Coordenadas */}
             <div className="p-5 bg-slate-900 rounded-2xl border border-slate-800 flex items-start gap-4 shadow-xl">
                <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white flex-shrink-0 shadow-lg">
                   <Crosshair size={20} />
@@ -207,7 +219,6 @@ const NewRequestPage: React.FC = () => {
                </div>
             </div>
 
-            {/* Campo de Endereço */}
             <div className="p-5 bg-blue-50 rounded-2xl border border-blue-100 flex items-start gap-4">
                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white flex-shrink-0 shadow-lg">
                   <MapPin size={20} />
@@ -242,6 +253,7 @@ const NewRequestPage: React.FC = () => {
                   value={formData.seiNumber}
                   onChange={e => setFormData({...formData, seiNumber: e.target.value})}
                   required
+                  disabled={isSaving || isSaved}
                 />
               </div>
               <div>
@@ -253,6 +265,7 @@ const NewRequestPage: React.FC = () => {
                   value={formData.contract}
                   onChange={e => setFormData({...formData, contract: e.target.value})}
                   required
+                  disabled={isSaving || isSaved}
                 />
               </div>
             </div>
@@ -270,6 +283,7 @@ const NewRequestPage: React.FC = () => {
                   className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900 appearance-none bg-slate-50"
                   value={formData.zonal}
                   onChange={e => setFormData({...formData, zonal: e.target.value as ZonalType, technicianId: ''})}
+                  disabled={isSaving || isSaved}
                 >
                   {ZONALS_LIST.map(z => <option key={z} value={z}>{getZonalName(z)}</option>)}
                 </select>
@@ -281,6 +295,7 @@ const NewRequestPage: React.FC = () => {
                   value={formData.technicianId}
                   onChange={e => setFormData({...formData, technicianId: e.target.value})}
                   required
+                  disabled={isSaving || isSaved}
                 >
                   <option value="">Selecione o profissional...</option>
                   {filteredPersonnel.map(u => (
@@ -297,7 +312,7 @@ const NewRequestPage: React.FC = () => {
              <div className="w-1.5 h-6 bg-rose-600 rounded-full"></div>
              Registro de Evidências (Antes)
           </h2>
-          <label className="flex flex-col items-center justify-center w-full h-64 border-2 border-slate-200 border-dashed rounded-[2rem] cursor-pointer bg-slate-50 hover:bg-slate-100 overflow-hidden relative group transition-all">
+          <label className={`flex flex-col items-center justify-center w-full h-64 border-2 border-slate-200 border-dashed rounded-[2rem] cursor-pointer bg-slate-50 hover:bg-slate-100 overflow-hidden relative group transition-all ${isSaving || isSaved ? 'pointer-events-none opacity-80' : ''}`}>
             {imagePreview ? (
               <img src={imagePreview} alt="Preview" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
             ) : (
@@ -309,26 +324,48 @@ const NewRequestPage: React.FC = () => {
                 <p className="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-widest">Clique aqui para abrir a câmera</p>
               </div>
             )}
-            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} disabled={isSaving || isSaved} />
           </label>
           <div className="space-y-2">
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Parecer Técnico / Observações</label>
             <textarea 
               rows={4}
-              className="w-full p-5 border border-slate-200 rounded-[2rem] focus:ring-2 focus:ring-blue-500 outline-none transition-all font-medium text-slate-700 leading-relaxed"
+              className="w-full p-5 border border-slate-200 rounded-[2rem] focus:ring-2 focus:ring-blue-500 outline-none transition-all font-medium text-slate-700 leading-relaxed disabled:bg-slate-50 disabled:text-slate-400"
               placeholder="Descreva as anomalias observadas..."
               value={formData.description}
               onChange={e => setFormData({...formData, description: e.target.value})}
               required
+              disabled={isSaving || isSaved}
             />
           </div>
         </div>
 
         <div className="fixed bottom-0 left-0 right-0 md:relative p-4 md:p-0 bg-white/80 backdrop-blur-md md:bg-transparent border-t md:border-t-0 flex gap-4 z-[100] safe-bottom">
-          <button type="button" onClick={() => navigate(-1)} className="flex-1 h-16 bg-white border border-slate-200 rounded-2xl font-black uppercase tracking-widest text-[10px] text-slate-500">Descartar</button>
-          <button type="submit" className="flex-2 md:flex-1 h-16 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-blue-200 flex items-center justify-center gap-3 px-8">
-            <Save size={20} />
-            Gravar Vistoria
+          <button 
+            type="button" 
+            onClick={() => navigate(-1)} 
+            disabled={isSaving || isSaved}
+            className="flex-1 h-16 bg-white border border-slate-200 rounded-2xl font-black uppercase tracking-widest text-[10px] text-slate-500 disabled:opacity-50"
+          >
+            Descartar
+          </button>
+          <button 
+            type="submit" 
+            disabled={isSaving || isSaved}
+            className={`flex-2 md:flex-1 h-16 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl flex items-center justify-center gap-3 px-8 transition-all duration-300 ${
+              isSaved 
+                ? 'bg-emerald-600 text-white shadow-emerald-200' 
+                : 'bg-blue-600 text-white shadow-blue-200'
+            }`}
+          >
+            {isSaving ? (
+              <Loader2 size={20} className="animate-spin" />
+            ) : isSaved ? (
+              <Check size={20} className="animate-in zoom-in duration-300" />
+            ) : (
+              <Save size={20} />
+            )}
+            {isSaving ? 'Gravando...' : isSaved ? 'Gravado!' : 'Gravar Vistoria'}
           </button>
         </div>
       </form>

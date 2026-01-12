@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useApp } from '../App';
 import { ZonalType, User, UserRole, ZonalMetadata } from '../types';
 import { ZONALS_LIST } from '../constants';
-import { UserPlus, Settings, Shield, Map as MapIcon, Edit2, Trash2, X, Save, Search, UserCheck, Briefcase, Plus, AlertCircle, Users } from 'lucide-react';
+import { UserPlus, Settings, Shield, Map as MapIcon, Edit2, Trash2, X, Save, Search, UserCheck, Briefcase, Plus, AlertCircle, Users, Hash } from 'lucide-react';
 
 const OrgSetupPage: React.FC = () => {
   const { 
@@ -226,7 +226,10 @@ const OrgSetupPage: React.FC = () => {
                   <tr key={user.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="font-black text-slate-900">{user.name}</div>
-                      <div className="text-[10px] text-slate-400 font-bold uppercase">Mat: {user.registrationNumber || '---'}</div>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <Hash size={10} className="text-slate-400" />
+                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Matrícula: {user.registrationNumber || '---'}</span>
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black border uppercase tracking-wider ${
@@ -368,9 +371,11 @@ const OrgSetupPage: React.FC = () => {
                   name="name"
                   defaultValue={editingUser?.name}
                   required
+                  placeholder="Nome do profissional"
                   className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900"
                 />
               </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Cargo</label>
@@ -395,15 +400,17 @@ const OrgSetupPage: React.FC = () => {
                   </select>
                 </div>
               </div>
+
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Matrícula</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Matrícula (Opcional)</label>
                 <input 
                   name="registrationNumber"
                   defaultValue={editingUser?.registrationNumber}
-                  placeholder="00000-0"
+                  placeholder="Ex: 12345-6"
                   className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900"
                 />
               </div>
+
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">E-mail</label>
                 <input 
@@ -414,6 +421,7 @@ const OrgSetupPage: React.FC = () => {
                   className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900"
                 />
               </div>
+
               <div className="flex gap-3 pt-6">
                 <button 
                   type="button"

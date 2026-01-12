@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Filter, Download, Plus, ChevronRight, MapPin, Calendar, User as UserIcon, ClipboardList, ImageIcon, ShieldCheck, Users, FileText, FileSpreadsheet } from 'lucide-react';
+import { Search, Filter, Download, Plus, ChevronRight, MapPin, Calendar, User as UserIcon, ClipboardList, ImageIcon, ShieldCheck, Users, FileText, FileSpreadsheet, ChevronDown } from 'lucide-react';
 import { useApp } from '../App';
 import { RequestStatus, ZonalType } from '../types';
 import { STATUS_COLORS, ZONALS_LIST } from '../constants';
@@ -9,7 +9,7 @@ import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 
 const RequestListPage: React.FC = () => {
-  const { requests, users, zonals, getZonalName, getRoleLabel } = useApp();
+  const { requests, users, zonals, getZonalName, getRoleLabel, updateRequest, notify } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [zonalFilter, setZonalFilter] = useState<string>('all');
@@ -27,6 +27,14 @@ const RequestListPage: React.FC = () => {
       return matchesSearch && matchesStatus && matchesZonal;
     });
   }, [requests, searchTerm, statusFilter, zonalFilter]);
+
+  const handleQuickStatusChange = (e: React.ChangeEvent<HTMLSelectElement>, req: any) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const newStatus = e.target.value as RequestStatus;
+    updateRequest({ ...req, status: newStatus });
+    notify(`Status de ${req.protocol} alterado para ${newStatus}`);
+  };
 
   const exportToCSV = () => {
     const data = filteredRequests.map(req => {
@@ -68,7 +76,6 @@ const RequestListPage: React.FC = () => {
     const pageWidth = 297;
     let y = 20;
 
-    // Header
     doc.setFillColor(15, 23, 42);
     doc.rect(0, 0, pageWidth, 15, 'F');
     doc.setTextColor(255, 255, 255);
@@ -76,7 +83,6 @@ const RequestListPage: React.FC = () => {
     doc.setFont('helvetica', 'bold');
     doc.text('RELATÓRIO CONSOLIDADO DE VISTORIAS DE CAMPO - SGR-VIAS', pageWidth / 2, 10, { align: 'center' });
 
-    // Table Headers
     y = 25;
     doc.setTextColor(15, 23, 42);
     doc.setFontSize(8);
@@ -107,7 +113,6 @@ const RequestListPage: React.FC = () => {
       if (y > 180) {
         doc.addPage('l', 'mm', 'a4');
         y = 20;
-        // Re-draw headers on new page
         doc.setFillColor(241, 245, 249);
         doc.rect(margin, y - 5, pageWidth - (margin * 2), 7, 'F');
         doc.text('PROTOCOLO', cols.prot, y - 0.5);
@@ -135,7 +140,6 @@ const RequestListPage: React.FC = () => {
       
       doc.text(new Date(req.visitDate).toLocaleDateString('pt-BR'), cols.data, y + 10);
 
-      // Photos
       const imgW = 25;
       const imgH = 18;
 
@@ -184,7 +188,6 @@ const RequestListPage: React.FC = () => {
           <button 
             onClick={exportToCSV}
             className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 font-bold transition-all shadow-sm text-sm"
-            title="Exportar dados brutos para planilha"
           >
             <FileSpreadsheet size={16} className="text-emerald-600" />
             Exportar CSV
@@ -192,7 +195,6 @@ const RequestListPage: React.FC = () => {
           <button 
             onClick={generateGeneralPDF}
             className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl hover:bg-slate-800 font-bold transition-all shadow-lg text-sm"
-            title="Gerar PDF para impressão em A4 Paisagem"
           >
             <FileText size={16} className="text-blue-400" />
             Relatório PDF
@@ -207,7 +209,6 @@ const RequestListPage: React.FC = () => {
         </div>
       </header>
 
-      {/* Filters Bar */}
       <div className="bg-white p-2 md:p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -239,7 +240,6 @@ const RequestListPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Requests List */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {filteredRequests.length > 0 ? (
           filteredRequests.map(req => {
@@ -247,8 +247,6 @@ const RequestListPage: React.FC = () => {
             const zonalMeta = zonals.find(z => z.id === req.zonal);
             const engineer = users.find(u => u.id === zonalMeta?.managerId);
             const assistant = users.find(u => u.id === zonalMeta?.assistantId);
-
-            // Exibição prioritária: Assistente da Unidade, fallback para o técnico
             const primaryUser = assistant || tech;
 
             return (
@@ -257,7 +255,6 @@ const RequestListPage: React.FC = () => {
                 to={`/requests/${req.id}`}
                 className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-xl hover:-translate-y-1 transition-all active:scale-[0.98] flex gap-4"
               >
-                {/* Thumbnail Antes */}
                 <div className="w-24 h-24 md:w-32 md:h-32 rounded-xl bg-slate-100 flex-shrink-0 overflow-hidden border border-slate-100 shadow-inner">
                   {req.photoBefore ? (
                     <img src={req.photoBefore} alt="Miniatura" className="w-full h-full object-cover" />
@@ -271,11 +268,23 @@ const RequestListPage: React.FC = () => {
 
                 <div className="flex-1 flex flex-col justify-between overflow-hidden">
                   <div>
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest truncate max-w-[120px]">{req.protocol}</span>
-                      <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black border uppercase tracking-tighter ${STATUS_COLORS[req.status]}`}>
-                        {req.status}
-                      </span>
+                    <div className="flex justify-between items-start mb-1 gap-2">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest truncate max-w-[100px]">{req.protocol}</span>
+                      <div 
+                        className="relative"
+                        onClick={e => e.preventDefault()} // Impede o Link de navegar ao clicar no container do select
+                      >
+                        <select 
+                          value={req.status}
+                          onChange={e => handleQuickStatusChange(e, req)}
+                          className={`appearance-none pl-2.5 pr-6 py-0.5 rounded-lg text-[8px] font-black border uppercase tracking-tighter outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer transition-colors ${STATUS_COLORS[req.status]}`}
+                        >
+                          {Object.values(RequestStatus).map(status => (
+                            <option key={status} value={status} className="bg-white text-slate-900 font-bold uppercase">{status}</option>
+                          ))}
+                        </select>
+                        <ChevronDown size={8} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
+                      </div>
                     </div>
                     <h3 className="text-sm md:text-base font-black text-slate-900 leading-tight line-clamp-2 mb-2">{req.description}</h3>
                     
@@ -292,7 +301,7 @@ const RequestListPage: React.FC = () => {
                           {primaryUser?.name.charAt(0)}
                         </div>
                         <div className="flex flex-col truncate">
-                          <span className="text-[10px] font-black text-slate-900 truncate" title={`${assistant ? 'Assistente' : 'Técnico'}: ${primaryUser?.name}`}>
+                          <span className="text-[10px] font-black text-slate-900 truncate">
                             {primaryUser?.name}
                           </span>
                         </div>
@@ -338,7 +347,6 @@ const RequestListPage: React.FC = () => {
         )}
       </div>
 
-      {/* FAB - Mobile only */}
       <Link 
         to="/new" 
         className="md:hidden fixed bottom-24 right-6 w-16 h-16 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-2xl active:scale-90 transition-transform z-40 border-4 border-white"

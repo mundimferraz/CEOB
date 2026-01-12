@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
-import { MapPin, Calendar, User as UserIcon, FileText, Camera, Download, Trash2, CheckCircle, AlertTriangle, Crosshair, ImageIcon, Edit2, X, Save, ExternalLink, Loader2, ShieldCheck, UserCheck, Users } from 'lucide-react';
+import { MapPin, Calendar, User as UserIcon, FileText, Camera, Download, Trash2, CheckCircle, AlertTriangle, Crosshair, ImageIcon, Edit2, X, Save, ExternalLink, Loader2, ShieldCheck, UserCheck, Users, ChevronDown } from 'lucide-react';
 import { useApp } from '../App';
 import { RequestStatus } from '../types';
 import { STATUS_COLORS } from '../constants';
@@ -34,6 +34,7 @@ const RequestDetailsPage: React.FC = () => {
 
   const handleStatusChange = (newStatus: RequestStatus) => {
     updateRequest({ ...request, status: newStatus });
+    notify(`Status atualizado para: ${newStatus}`, 'success');
   };
 
   const handleDelete = async () => {
@@ -81,7 +82,6 @@ const RequestDetailsPage: React.FC = () => {
     const contentWidth = pageWidth - (margin * 2);
     let y = 18;
 
-    // Cabeçalho Institucional (Compacto)
     doc.setFillColor(15, 23, 42);
     doc.rect(0, 0, pageWidth, 18, 'F');
     doc.setTextColor(255, 255, 255);
@@ -92,7 +92,6 @@ const RequestDetailsPage: React.FC = () => {
     doc.setTextColor(15, 23, 42);
     y = 28;
 
-    // Seção 1: Dados Administrativos (Layout em Colunas para Economizar Espaço)
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.text('1. DADOS ADMINISTRATIVOS', margin, y);
@@ -101,21 +100,18 @@ const RequestDetailsPage: React.FC = () => {
     y += 8;
 
     doc.setFontSize(8.5);
-    // Linha 1
     doc.setFont('helvetica', 'bold'); doc.text('Protocolo:', margin, y);
     doc.setFont('helvetica', 'normal'); doc.text(request.protocol, margin + 22, y);
     doc.setFont('helvetica', 'bold'); doc.text('SEI:', margin + contentWidth / 2, y);
     doc.setFont('helvetica', 'normal'); doc.text(request.seiNumber, margin + contentWidth / 2 + 10, y);
     
     y += 5;
-    // Linha 2
     doc.setFont('helvetica', 'bold'); doc.text('Contrato:', margin, y);
     doc.setFont('helvetica', 'normal'); doc.text(request.contract, margin + 22, y);
     doc.setFont('helvetica', 'bold'); doc.text('Status:', margin + contentWidth / 2, y);
     doc.setFont('helvetica', 'normal'); doc.text(request.status.toUpperCase(), margin + contentWidth / 2 + 10, y);
 
     y += 5;
-    // Linha 3
     doc.setFont('helvetica', 'bold'); doc.text('Unidade:', margin, y);
     doc.setFont('helvetica', 'normal'); doc.text(getZonalName(request.zonal), margin + 22, y);
     doc.setFont('helvetica', 'bold'); doc.text('Data Visita:', margin + contentWidth / 2, y);
@@ -123,7 +119,6 @@ const RequestDetailsPage: React.FC = () => {
 
     y += 10;
 
-    // Seção 2: Localização
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.text('2. LOCALIZAÇÃO E GEORREFERENCIAMENTO', margin, y);
@@ -141,7 +136,6 @@ const RequestDetailsPage: React.FC = () => {
     doc.text(addrLines, margin + 22, y);
     y += (addrLines.length * 4) + 6;
 
-    // Seção 3: Parecer Técnico (JUSTIFICADO)
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.text('3. PARECER TÉCNICO DESCRITIVO', margin, y);
@@ -157,7 +151,6 @@ const RequestDetailsPage: React.FC = () => {
     });
     y += (descLines.length * 4.5) + 8;
 
-    // Seção 4: Registro Fotográfico (LADO A LADO)
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.text('4. REGISTRO FOTOGRÁFICO DE EVIDÊNCIAS', margin, y);
@@ -196,7 +189,6 @@ const RequestDetailsPage: React.FC = () => {
 
     y += imgHeight + 18;
 
-    // Seção 5: Responsabilidade Técnica (ASSINATURA ÚNICA CENTRALIZADA)
     if (y > 250) { doc.addPage(); y = 25; } 
 
     doc.setFontSize(9);
@@ -205,7 +197,6 @@ const RequestDetailsPage: React.FC = () => {
     doc.line(margin, y + 1.5, margin + contentWidth, y + 1.5);
     y += 25;
 
-    // Linha de Assinatura Centralizada do Engenheiro Responsável
     const sigLineWidth = 90;
     const sigX = (pageWidth / 2) - (sigLineWidth / 2);
     
@@ -223,7 +214,6 @@ const RequestDetailsPage: React.FC = () => {
     doc.setFontSize(8);
     doc.text('Engenheiro Civil - Responsável Técnico', pageWidth / 2, y, { align: 'center' });
     
-    // Pequena nota do ESTAGIÁRIO/ASSISTENTE no rodapé da seção, como executor da vistoria
     const visitor = assistant || tech;
     if (visitor) {
       y += 10;
@@ -232,7 +222,6 @@ const RequestDetailsPage: React.FC = () => {
       doc.text(`Vistoria técnica realizada por: ${visitor.name} (Matrícula: ${visitor.registrationNumber || '---'})`, pageWidth / 2, y, { align: 'center' });
     }
 
-    // Rodapé de Autenticidade
     doc.setFontSize(7);
     doc.setTextColor(150);
     const footerY = 288;
@@ -277,21 +266,22 @@ const RequestDetailsPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+            <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-50/50">
               <h2 className="font-black text-slate-900 uppercase tracking-tight">Memorial Descritivo</h2>
-              <div className="flex gap-2">
-                <button 
-                  onClick={() => handleStatusChange(RequestStatus.IN_PROGRESS)}
-                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black border transition-all ${request.status === RequestStatus.IN_PROGRESS ? 'bg-amber-100 text-amber-700 border-amber-200 shadow-sm' : 'bg-white text-slate-400 border-slate-200'}`}
-                >
-                  EM EXECUÇÃO
-                </button>
-                <button 
-                  onClick={() => handleStatusChange(RequestStatus.COMPLETED)}
-                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black border transition-all ${request.status === RequestStatus.COMPLETED ? 'bg-emerald-100 text-emerald-700 border-emerald-200 shadow-sm' : 'bg-white text-slate-400 border-slate-200'}`}
-                >
-                  CONCLUÍDO
-                </button>
+              <div className="flex flex-col gap-1 w-full sm:w-auto">
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Status Operativo</label>
+                <div className="relative">
+                  <select 
+                    value={request.status}
+                    onChange={e => handleStatusChange(e.target.value as RequestStatus)}
+                    className={`w-full sm:w-48 h-10 appearance-none pl-4 pr-10 rounded-xl text-xs font-black border uppercase transition-all shadow-sm outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer ${STATUS_COLORS[request.status]}`}
+                  >
+                    {Object.values(RequestStatus).map(s => (
+                      <option key={s} value={s} className="bg-white text-slate-900 font-bold">{s}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
+                </div>
               </div>
             </div>
             <div className="p-6 space-y-8">
@@ -358,9 +348,14 @@ const RequestDetailsPage: React.FC = () => {
                           rows={2}
                         />
                       ) : (
-                        <p className="font-bold text-blue-900 text-sm leading-snug break-words">
+                        <a 
+                          href={mapsUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="font-bold text-blue-900 text-sm leading-snug break-words block hover:underline hover:text-blue-700 transition-colors cursor-pointer"
+                        >
                           {request.location.address}
-                        </p>
+                        </a>
                       )}
                    </div>
                 </div>
@@ -381,7 +376,7 @@ const RequestDetailsPage: React.FC = () => {
                      {request.photoBefore ? (
                         <img src={request.photoBefore} alt="Antes" className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-500" />
                      ) : (
-                        <div className="w-full h-64 bg-slate-100 flex flex-col items-center justify-center text-slate-400">
+                        <div className="w-full h-64 bg-slate-100 flex flex-col items-center justify-center text-slate-300">
                            <ImageIcon size={48} />
                            <span className="text-xs font-black uppercase mt-2">Sem imagem</span>
                         </div>
@@ -419,7 +414,6 @@ const RequestDetailsPage: React.FC = () => {
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
             <h2 className="font-black text-slate-900 uppercase tracking-tight mb-6">Equipe Técnica</h2>
             
-            {/* Engenheiro Responsável */}
             <div className="space-y-3 mb-6">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Engenheiro Titular</p>
               <div className="flex items-center gap-4 p-3.5 bg-blue-50 rounded-2xl border border-blue-100">
@@ -433,7 +427,6 @@ const RequestDetailsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Estagiário Responsável */}
             <div className="space-y-3 mb-6">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Assistente da Unidade</p>
               <div className="flex items-center gap-4 p-3.5 bg-indigo-50 rounded-2xl border border-indigo-100">
@@ -447,7 +440,6 @@ const RequestDetailsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Técnico Vistoriador */}
             <div className="space-y-3">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Vistoriador do Registro</p>
               <div className="flex items-center gap-4 p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
