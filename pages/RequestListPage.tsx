@@ -180,19 +180,19 @@ const RequestListPage: React.FC = () => {
                     
                     <div className="flex flex-wrap gap-1 mt-1">
                       {engineer && (
-                        <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 rounded-lg border border-blue-100">
-                          <ShieldCheck size={10} className="text-blue-600" />
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 rounded-lg border border-blue-100 max-w-[140px]">
+                          <ShieldCheck size={10} className="text-blue-600 flex-shrink-0" />
                           <span className="text-[8px] font-bold text-blue-700 uppercase tracking-tighter truncate">
-                            Eng: {engineer.name}
+                            ENG: {engineer.name}
                           </span>
                         </div>
                       )}
                       
                       {assistant && (
-                        <div className="flex items-center gap-1.5 px-2 py-1 bg-indigo-50 rounded-lg border border-indigo-100">
-                          <Users size={10} className="text-indigo-600" />
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-indigo-50 rounded-lg border border-indigo-100 max-w-[140px]">
+                          <Users size={10} className="text-indigo-600 flex-shrink-0" />
                           <span className="text-[8px] font-bold text-indigo-700 uppercase tracking-tighter truncate">
-                            {getRoleLabel(assistant.role)}: Unidade
+                            {getRoleLabel(assistant.role).toUpperCase()}: {assistant.name}
                           </span>
                         </div>
                       )}
