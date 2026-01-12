@@ -79,173 +79,165 @@ const RequestDetailsPage: React.FC = () => {
     const margin = 15;
     const pageWidth = 210;
     const contentWidth = pageWidth - (margin * 2);
-    let y = 20;
+    let y = 18;
 
-    // Header Azul Escuro / Institucional
+    // Header Institucional
     doc.setFillColor(15, 23, 42);
-    doc.rect(0, 0, pageWidth, 20, 'F');
+    doc.rect(0, 0, pageWidth, 18, 'F');
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(12);
+    doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    doc.text('LAUDO TÉCNICO DE VISTORIA - SGR-VIAS', pageWidth / 2, 13, { align: 'center' });
+    doc.text('LAUDO TÉCNICO DE VISTORIA - SGR-VIAS', pageWidth / 2, 11.5, { align: 'center' });
 
     doc.setTextColor(15, 23, 42);
-    y = 30;
+    y = 28;
 
-    // Seção 1: Identificação Administrativa (Layout em Colunas)
-    doc.setFontSize(10);
+    // Seção 1: Dados Administrativos
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.text('1. DADOS ADMINISTRATIVOS', margin, y);
     doc.setDrawColor(226, 232, 240);
-    doc.line(margin, y + 2, margin + contentWidth, y + 2);
+    doc.line(margin, y + 1.5, margin + contentWidth, y + 1.5);
+    y += 8;
+
+    doc.setFontSize(8.5);
+    // Linha 1
+    doc.setFont('helvetica', 'bold'); doc.text('Protocolo:', margin, y);
+    doc.setFont('helvetica', 'normal'); doc.text(request.protocol, margin + 22, y);
+    doc.setFont('helvetica', 'bold'); doc.text('SEI:', margin + contentWidth / 2, y);
+    doc.setFont('helvetica', 'normal'); doc.text(request.seiNumber, margin + contentWidth / 2 + 10, y);
+    
+    y += 5;
+    // Linha 2
+    doc.setFont('helvetica', 'bold'); doc.text('Contrato:', margin, y);
+    doc.setFont('helvetica', 'normal'); doc.text(request.contract, margin + 22, y);
+    doc.setFont('helvetica', 'bold'); doc.text('Status:', margin + contentWidth / 2, y);
+    doc.setFont('helvetica', 'normal'); doc.text(request.status.toUpperCase(), margin + contentWidth / 2 + 10, y);
+
+    y += 5;
+    // Linha 3
+    doc.setFont('helvetica', 'bold'); doc.text('Unidade:', margin, y);
+    doc.setFont('helvetica', 'normal'); doc.text(getZonalName(request.zonal), margin + 22, y);
+    doc.setFont('helvetica', 'bold'); doc.text('Data Visita:', margin + contentWidth / 2, y);
+    doc.setFont('helvetica', 'normal'); doc.text(new Date(request.visitDate).toLocaleDateString('pt-BR'), margin + contentWidth / 2 + 20, y);
+
     y += 10;
 
+    // Seção 2: Localização
     doc.setFontSize(9);
-    // Coluna 1
-    doc.setFont('helvetica', 'bold'); doc.text('Protocolo:', margin, y);
-    doc.setFont('helvetica', 'normal'); doc.text(request.protocol, margin + 25, y);
-    
-    // Coluna 2
-    doc.setFont('helvetica', 'bold'); doc.text('SEI:', margin + contentWidth / 2, y);
-    doc.setFont('helvetica', 'normal'); doc.text(request.seiNumber, margin + contentWidth / 2 + 15, y);
-    
-    y += 6;
-    doc.setFont('helvetica', 'bold'); doc.text('Contrato:', margin, y);
-    doc.setFont('helvetica', 'normal'); doc.text(request.contract, margin + 25, y);
-    
-    doc.setFont('helvetica', 'bold'); doc.text('Status:', margin + contentWidth / 2, y);
-    doc.setFont('helvetica', 'normal'); doc.text(request.status.toUpperCase(), margin + contentWidth / 2 + 15, y);
-
-    y += 6;
-    doc.setFont('helvetica', 'bold'); doc.text('Unidade:', margin, y);
-    doc.setFont('helvetica', 'normal'); doc.text(getZonalName(request.zonal), margin + 25, y);
-    
-    doc.setFont('helvetica', 'bold'); doc.text('Data Visita:', margin + contentWidth / 2, y);
-    doc.setFont('helvetica', 'normal'); doc.text(new Date(request.visitDate).toLocaleDateString('pt-BR'), margin + contentWidth / 2 + 25, y);
-
-    y += 12;
-
-    // Seção 2: Localização e Georreferenciamento
-    doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.text('2. LOCALIZAÇÃO E GEORREFERENCIAMENTO', margin, y);
-    doc.line(margin, y + 2, margin + contentWidth, y + 2);
-    y += 10;
+    doc.line(margin, y + 1.5, margin + contentWidth, y + 1.5);
+    y += 8;
 
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setFont('helvetica', 'bold'); doc.text('Coordenadas:', margin, y);
-    doc.setFont('helvetica', 'normal'); doc.text(`${request.location.latitude.toFixed(6)}, ${request.location.longitude.toFixed(6)} (WGS84)`, margin + 25, y);
+    doc.setFont('helvetica', 'normal'); doc.text(`${request.location.latitude.toFixed(6)}, ${request.location.longitude.toFixed(6)} (WGS84)`, margin + 22, y);
     
-    y += 6;
+    y += 5;
     doc.setFont('helvetica', 'bold'); doc.text('Logradouro:', margin, y);
     doc.setFont('helvetica', 'normal');
-    const addrLines = doc.splitTextToSize(request.location.address, contentWidth - 25);
-    doc.text(addrLines, margin + 25, y);
+    const addrLines = doc.splitTextToSize(request.location.address, contentWidth - 22);
+    doc.text(addrLines, margin + 22, y);
     y += (addrLines.length * 4) + 6;
 
     // Seção 3: Parecer Técnico (JUSTIFICADO)
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.text('3. PARECER TÉCNICO DESCRITIVO', margin, y);
-    doc.line(margin, y + 2, margin + contentWidth, y + 2);
-    y += 10;
+    doc.line(margin, y + 1.5, margin + contentWidth, y + 1.5);
+    y += 8;
 
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setFont('helvetica', 'normal');
-    // Justificação do parágrafo
+    const descLines = doc.splitTextToSize(request.description, contentWidth);
     doc.text(request.description, margin, y, {
       maxWidth: contentWidth,
       align: 'justify'
     });
-    
-    // Cálculo dinâmico da altura do parágrafo para o próximo elemento
-    const textLines = doc.splitTextToSize(request.description, contentWidth);
-    y += (textLines.length * 5) + 10;
+    y += (descLines.length * 4.5) + 8;
 
-    // Seção 4: Registro Fotográfico (LADO A LADO)
-    doc.setFontSize(10);
+    // Seção 4: Registro Fotográfico
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.text('4. REGISTRO FOTOGRÁFICO DE EVIDÊNCIAS', margin, y);
-    doc.line(margin, y + 2, margin + contentWidth, y + 2);
-    y += 8;
+    doc.line(margin, y + 1.5, margin + contentWidth, y + 1.5);
+    y += 6;
 
-    const imgWidth = (contentWidth / 2) - 5;
-    const imgHeight = 50;
+    const imgWidth = (contentWidth / 2) - 3;
+    const imgHeight = 52;
 
     if (request.photoBefore) {
-      doc.setFontSize(8);
-      doc.text('VISTA INICIAL (ANTES)', margin + (imgWidth / 2), y + 4, { align: 'center' });
+      doc.setFontSize(7.5);
+      doc.text('VISTA INICIAL (ANTES)', margin + (imgWidth / 2), y + 3, { align: 'center' });
       try {
-        doc.addImage(request.photoBefore, 'JPEG', margin, y + 6, imgWidth, imgHeight);
+        doc.addImage(request.photoBefore, 'JPEG', margin, y + 5, imgWidth, imgHeight);
       } catch (e) {
         doc.text('[Erro na Imagem]', margin + 5, y + 20);
       }
     }
 
     if (request.photoAfter) {
-      doc.setFontSize(8);
-      doc.text('VISTA FINAL (DEPOIS)', margin + contentWidth - (imgWidth / 2), y + 4, { align: 'center' });
+      doc.setFontSize(7.5);
+      doc.text('VISTA FINAL (DEPOIS)', margin + contentWidth - (imgWidth / 2), y + 3, { align: 'center' });
       try {
-        doc.addImage(request.photoAfter, 'JPEG', margin + contentWidth - imgWidth, y + 6, imgWidth, imgHeight);
+        doc.addImage(request.photoAfter, 'JPEG', margin + contentWidth - imgWidth, y + 5, imgWidth, imgHeight);
       } catch (e) {
         doc.text('[Erro na Imagem]', margin + contentWidth - imgWidth + 5, y + 20);
       }
     } else {
-        doc.setFontSize(8);
-        doc.setTextColor(150);
+        doc.setFontSize(7.5);
+        doc.setTextColor(160);
         doc.text('AGUARDANDO CONCLUSÃO', margin + contentWidth - (imgWidth / 2), y + 25, { align: 'center' });
         doc.setDrawColor(240);
-        doc.rect(margin + contentWidth - imgWidth, y + 6, imgWidth, imgHeight, 'S');
+        doc.rect(margin + contentWidth - imgWidth, y + 5, imgWidth, imgHeight, 'S');
         doc.setTextColor(15, 23, 42);
     }
 
-    y += imgHeight + 20;
+    y += imgHeight + 18;
 
-    // Seção 5: Quadro de Responsáveis (Compacto)
-    if (y > 240) { doc.addPage(); y = 30; } // Garante que assinaturas não quebrem feio
+    // Seção 5: Responsabilidade Técnica (ASSINATURA ÚNICA)
+    if (y > 250) { doc.addPage(); y = 25; } 
 
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.text('5. RESPONSABILIDADE TÉCNICA', margin, y);
-    doc.line(margin, y + 2, margin + contentWidth, y + 2);
-    y += 15;
+    doc.line(margin, y + 1.5, margin + contentWidth, y + 1.5);
+    y += 22;
 
-    const colWidth = contentWidth / 3;
-
-    // Técnico Vistoriador
-    doc.setDrawColor(200);
-    doc.line(margin, y, margin + colWidth - 5, y);
+    // Assinatura Centralizada do Engenheiro
+    const sigLineWidth = 80;
+    const sigX = (pageWidth / 2) - (sigLineWidth / 2);
+    
+    doc.setDrawColor(15, 23, 42);
+    doc.setLineWidth(0.2);
+    doc.line(sigX, y, sigX + sigLineWidth, y);
+    
+    y += 5;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text(engineer?.name || 'ENGENHEIRO RESPONSÁVEL', pageWidth / 2, y, { align: 'center' });
+    
+    y += 4.5;
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
-    doc.setFont('helvetica', 'bold');
-    doc.text(tech?.name || 'Vistoriador', margin, y + 4);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Matrícula: ${tech?.registrationNumber || '---'}`, margin, y + 7);
-    doc.text(getRoleLabel(tech?.role || ''), margin, y + 10);
-
-    // Engenheiro
-    doc.line(margin + colWidth, y, margin + (colWidth * 2) - 5, y);
-    doc.setFont('helvetica', 'bold');
-    doc.text(engineer?.name || '___________________', margin + colWidth, y + 4);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Engenheiro Responsável', margin + colWidth, y + 7);
-
-    // Assistente/Estagiário
-    if (assistant) {
-      doc.line(margin + (colWidth * 2), y, margin + contentWidth, y);
-      doc.setFont('helvetica', 'bold');
-      doc.text(assistant.name, margin + (colWidth * 2), y + 4);
-      doc.setFont('helvetica', 'normal');
-      doc.text(getRoleLabel(assistant.role), margin + (colWidth * 2), y + 7);
+    doc.text('Engenheiro Civil - Responsável Técnico', pageWidth / 2, y, { align: 'center' });
+    
+    if (tech) {
+      y += 10;
+      doc.setFontSize(7);
+      doc.setTextColor(120);
+      doc.text(`Vistoria realizada por: ${tech.name} (Mat: ${tech.registrationNumber || '---'})`, pageWidth / 2, y, { align: 'center' });
     }
 
-    // Rodapé de Autenticidade
+    // Rodapé
     doc.setFontSize(7);
     doc.setTextColor(150);
-    const footerY = 285;
-    doc.text(`Documento gerado eletronicamente via SGR-Vias em ${new Date().toLocaleString('pt-BR')}`, margin, footerY);
-    doc.text(`ID de Rastreabilidade: ${request.id}`, margin + contentWidth, footerY, { align: 'right' });
+    const footerY = 288;
+    doc.text(`Documento gerado pelo SGR-Vias em ${new Date().toLocaleString('pt-BR')}`, margin, footerY);
+    doc.text(`ID: ${request.id}`, margin + contentWidth, footerY, { align: 'right' });
 
-    doc.save(`Laudo_Tecnico_${request.protocol}.pdf`);
+    doc.save(`Laudo_${request.protocol}.pdf`);
   };
 
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${request.location.latitude},${request.location.longitude}`;
