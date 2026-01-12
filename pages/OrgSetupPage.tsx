@@ -139,7 +139,6 @@ const OrgSetupPage: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="font-black text-lg leading-none">{stats.displayName}</h3>
-                      <p className="text-[10px] text-blue-400 font-bold uppercase tracking-widest mt-1">SGR Unit ID: {zId.split(' ')[1]}</p>
                     </div>
                   </div>
                   <button 
