@@ -81,7 +81,7 @@ const RequestDetailsPage: React.FC = () => {
     const contentWidth = pageWidth - (margin * 2);
     let y = 18;
 
-    // Header Institucional
+    // Cabeçalho Institucional (Compacto)
     doc.setFillColor(15, 23, 42);
     doc.rect(0, 0, pageWidth, 18, 'F');
     doc.setTextColor(255, 255, 255);
@@ -92,7 +92,7 @@ const RequestDetailsPage: React.FC = () => {
     doc.setTextColor(15, 23, 42);
     y = 28;
 
-    // Seção 1: Dados Administrativos
+    // Seção 1: Dados Administrativos (Layout em Colunas para Economizar Espaço)
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.text('1. DADOS ADMINISTRATIVOS', margin, y);
@@ -157,7 +157,7 @@ const RequestDetailsPage: React.FC = () => {
     });
     y += (descLines.length * 4.5) + 8;
 
-    // Seção 4: Registro Fotográfico
+    // Seção 4: Registro Fotográfico (LADO A LADO)
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.text('4. REGISTRO FOTOGRÁFICO DE EVIDÊNCIAS', margin, y);
@@ -196,17 +196,17 @@ const RequestDetailsPage: React.FC = () => {
 
     y += imgHeight + 18;
 
-    // Seção 5: Responsabilidade Técnica (ASSINATURA ÚNICA)
+    // Seção 5: Responsabilidade Técnica (ASSINATURA ÚNICA CENTRALIZADA)
     if (y > 250) { doc.addPage(); y = 25; } 
 
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.text('5. RESPONSABILIDADE TÉCNICA', margin, y);
     doc.line(margin, y + 1.5, margin + contentWidth, y + 1.5);
-    y += 22;
+    y += 25;
 
-    // Assinatura Centralizada do Engenheiro
-    const sigLineWidth = 80;
+    // Linha de Assinatura Centralizada do Engenheiro Responsável
+    const sigLineWidth = 90;
     const sigX = (pageWidth / 2) - (sigLineWidth / 2);
     
     doc.setDrawColor(15, 23, 42);
@@ -223,21 +223,22 @@ const RequestDetailsPage: React.FC = () => {
     doc.setFontSize(8);
     doc.text('Engenheiro Civil - Responsável Técnico', pageWidth / 2, y, { align: 'center' });
     
+    // Pequena nota do técnico vistoriador no rodapé da seção, caso necessário
     if (tech) {
       y += 10;
       doc.setFontSize(7);
       doc.setTextColor(120);
-      doc.text(`Vistoria realizada por: ${tech.name} (Mat: ${tech.registrationNumber || '---'})`, pageWidth / 2, y, { align: 'center' });
+      doc.text(`Vistoria técnica realizada por: ${tech.name} (Matrícula: ${tech.registrationNumber || '---'})`, pageWidth / 2, y, { align: 'center' });
     }
 
-    // Rodapé
+    // Rodapé de Autenticidade
     doc.setFontSize(7);
     doc.setTextColor(150);
     const footerY = 288;
-    doc.text(`Documento gerado pelo SGR-Vias em ${new Date().toLocaleString('pt-BR')}`, margin, footerY);
-    doc.text(`ID: ${request.id}`, margin + contentWidth, footerY, { align: 'right' });
+    doc.text(`Documento oficial gerado digitalmente via SGR-Vias em ${new Date().toLocaleString('pt-BR')}`, margin, footerY);
+    doc.text(`ID de Rastreabilidade: ${request.id}`, margin + contentWidth, footerY, { align: 'right' });
 
-    doc.save(`Laudo_${request.protocol}.pdf`);
+    doc.save(`Laudo_Tecnico_${request.protocol}.pdf`);
   };
 
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${request.location.latitude},${request.location.longitude}`;
