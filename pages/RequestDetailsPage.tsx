@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
-import { MapPin, Calendar, User as UserIcon, FileText, Camera, Download, Trash2, CheckCircle, AlertTriangle, Crosshair, ImageIcon, Edit2, X, Save, ExternalLink, Loader2, ShieldCheck, UserCheck, Users, ChevronDown } from 'lucide-react';
+import { MapPin, Calendar, User as UserIcon, FileText, Camera, Download, Trash2, CheckCircle, AlertTriangle, Crosshair, ImageIcon, Edit2, X, Save, ExternalLink, Loader2, ShieldCheck, UserCheck, Users, ChevronDown, Share2 } from 'lucide-react';
 import { useApp } from '../App';
 import { RequestStatus } from '../types';
 import { STATUS_COLORS } from '../constants';
@@ -35,6 +35,35 @@ const RequestDetailsPage: React.FC = () => {
   const handleStatusChange = (newStatus: RequestStatus) => {
     updateRequest({ ...request, status: newStatus });
     notify(`Status atualizado para: ${newStatus}`, 'success');
+  };
+
+  const handleShareImage = async (base64Data: string, title: string) => {
+    try {
+      if (!base64Data) return;
+
+      // Converte Base64 para Blob e depois para File para que o Share API aceite como arquivo
+      const res = await fetch(base64Data);
+      const blob = await res.blob();
+      const file = new File([blob], `${title.replace(/\s+/g, '_')}.jpg`, { type: 'image/jpeg' });
+
+      if (navigator.share && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: `Evidência: ${title}`,
+          text: `SGR-Vias: Evidência da vistoria ${request.protocol}`,
+        });
+      } else {
+        // Fallback: Download se não houver suporte a compartilhamento de arquivos
+        const link = document.createElement('a');
+        link.href = base64Data;
+        link.download = `${title}.jpg`;
+        link.click();
+        notify("Compartilhamento nativo indisponível. Imagem baixada.");
+      }
+    } catch (err) {
+      console.error("Erro ao compartilhar:", err);
+      notify("Erro ao tentar compartilhar a imagem.", "error");
+    }
   };
 
   const handleDelete = async () => {
@@ -371,23 +400,42 @@ const RequestDetailsPage: React.FC = () => {
               <div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Galeria de Evidências</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                   <div className="relative group rounded-3xl overflow-hidden border border-slate-200">
+                   <div className="relative group rounded-3xl overflow-hidden border border-slate-200 bg-slate-100">
                      <div className="absolute top-4 left-4 bg-slate-900/80 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase z-10">Estado Inicial (Antes)</div>
+                     {request.photoBefore && (
+                       <button 
+                         onClick={() => handleShareImage(request.photoBefore!, 'Estado_Inicial')}
+                         className="absolute top-4 right-4 bg-white/20 backdrop-blur-md text-white p-2 rounded-xl hover:bg-blue-600 transition-all z-10 shadow-lg"
+                         title="Compartilhar imagem real"
+                       >
+                         <Share2 size={16} />
+                       </button>
+                     )}
                      {request.photoBefore ? (
                         <img src={request.photoBefore} alt="Antes" className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-500" />
                      ) : (
-                        <div className="w-full h-64 bg-slate-100 flex flex-col items-center justify-center text-slate-300">
+                        <div className="w-full h-64 flex flex-col items-center justify-center text-slate-300">
                            <ImageIcon size={48} />
                            <span className="text-xs font-black uppercase mt-2">Sem imagem</span>
                         </div>
                      )}
                    </div>
                    
-                   <div className="relative group rounded-3xl overflow-hidden border border-slate-200">
+                   <div className="relative group rounded-3xl overflow-hidden border border-slate-200 bg-slate-100">
                       <div className="absolute top-4 left-4 bg-emerald-600 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase z-10">
                         {request.photoAfter ? 'Conclusão (Depois)' : 'Aguardando Término'}
                       </div>
                       
+                      {request.photoAfter && (
+                        <button 
+                          onClick={() => handleShareImage(request.photoAfter!, 'Conclusao_Vistoria')}
+                          className="absolute top-4 right-4 bg-white/20 backdrop-blur-md text-white p-2 rounded-xl hover:bg-emerald-600 transition-all z-10 shadow-lg"
+                          title="Compartilhar imagem real"
+                        >
+                          <Share2 size={16} />
+                        </button>
+                      )}
+
                       {request.photoAfter ? (
                          <img src={request.photoAfter} alt="Depois" className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-500" />
                       ) : (
