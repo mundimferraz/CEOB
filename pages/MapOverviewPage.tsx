@@ -13,13 +13,12 @@ const MapOverviewPage: React.FC = () => {
   const [isMapReady, setIsMapReady] = useState(false);
   const [selectedZonal, setSelectedZonal] = useState<string>('all');
   
-  // Cores baseadas no status para os marcadores
   const getMarkerColor = (status: RequestStatus) => {
     switch (status) {
-      case RequestStatus.OPEN: return '#3b82f6'; // Blue
-      case RequestStatus.IN_PROGRESS: return '#f59e0b'; // Amber
-      case RequestStatus.COMPLETED: return '#10b981'; // Emerald
-      case RequestStatus.CANCELED: return '#f43f5e'; // Rose
+      case RequestStatus.OPEN: return '#3b82f6';
+      case RequestStatus.IN_PROGRESS: return '#f59e0b';
+      case RequestStatus.COMPLETED: return '#10b981';
+      case RequestStatus.CANCELED: return '#f43f5e';
       default: return '#94a3b8';
     }
   };
@@ -37,35 +36,40 @@ const MapOverviewPage: React.FC = () => {
     if (!L) return;
 
     if (!mapRef.current) {
-      // Inicializa o mapa centralizado em SP por padrão
+      // Inicialização robusta
       mapRef.current = L.map('global-map-container', {
         zoomControl: false,
         attributionControl: false
       }).setView([-23.5505, -46.6333], 12);
 
-      L.tileLayer('https://{s}.tile.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 20
+      // Usando OpenStreetMap padrão para maior compatibilidade
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
       }).addTo(mapRef.current);
 
       L.control.zoom({ position: 'bottomright' }).addTo(mapRef.current);
-      L.control.attribution({ position: 'bottomleft' }).addTo(mapRef.current);
       
-      setIsMapReady(true);
+      // FIX: Força o mapa a reconhecer o tamanho do container após o mount
+      setTimeout(() => {
+        if (mapRef.current) {
+          mapRef.current.invalidateSize();
+          setIsMapReady(true);
+        }
+      }, 500);
     }
 
-    // Limpa marcadores existentes antes de re-adicionar
+    // Limpeza de marcadores
     mapRef.current.eachLayer((layer: any) => {
       if (layer instanceof L.Marker) {
         mapRef.current.removeLayer(layer);
       }
     });
 
-    // Adiciona os marcadores filtrados
     const markers: any[] = [];
     filteredRequests.forEach(req => {
       const color = getMarkerColor(req.status);
       
-      // Ícone customizado no Leaflet usando DivIcon para maior controle estético
       const customIcon = L.divIcon({
         className: 'custom-div-icon',
         html: `
@@ -97,7 +101,6 @@ const MapOverviewPage: React.FC = () => {
       const marker = L.marker([req.location.latitude, req.location.longitude], { icon: customIcon })
         .addTo(mapRef.current);
 
-      // Popup Estilizado
       const popupContent = `
         <div class="p-2 min-w-[200px]">
           <div class="flex items-center gap-2 mb-2">
@@ -112,11 +115,9 @@ const MapOverviewPage: React.FC = () => {
           </p>
           <button 
             onclick="window.location.hash='#/requests/${req.id}'"
-            style="background-color: #0f172a;"
-            class="w-full py-2 rounded-lg text-white text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-1 hover:bg-slate-800 transition-colors"
+            style="background-color: #0f172a; color: white; width: 100%; padding: 8px; border-radius: 8px; font-size: 9px; font-weight: 900; text-transform: uppercase; cursor: pointer; border: none;"
           >
             Abrir Ficha Técnica
-            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
           </button>
         </div>
       `;
@@ -130,16 +131,11 @@ const MapOverviewPage: React.FC = () => {
       markers.push(marker);
     });
 
-    // Ajusta o zoom para enquadrar todos os marcadores se houver algum
     if (markers.length > 0 && mapRef.current) {
       const group = new L.featureGroup(markers);
-      mapRef.current.fitBounds(group.getBounds().pad(0.1));
+      mapRef.current.fitBounds(group.getBounds().pad(0.2));
     }
-
-    return () => {
-      // Cleanup se necessário
-    };
-  }, [filteredRequests]);
+  }, [filteredRequests, isMapReady]);
 
   const stats = useMemo(() => ({
     total: filteredRequests.length,
@@ -148,13 +144,17 @@ const MapOverviewPage: React.FC = () => {
   }), [filteredRequests]);
 
   return (
-    <div className="relative w-full h-screen md:h-[calc(100vh)] overflow-hidden">
-      <div id="global-map-container" className="w-full h-full z-0 bg-slate-50"></div>
+    <div className="relative w-full h-screen bg-slate-100 overflow-hidden">
+      <div 
+        id="global-map-container" 
+        className="absolute inset-0 z-0"
+        style={{ height: '100%', width: '100%' }}
+      ></div>
       
       {!isMapReady && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-50">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm z-[100]">
           <Loader2 className="animate-spin text-blue-600 mb-4" size={40} />
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Renderizando Cartografia...</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando Cartografia...</p>
         </div>
       )}
 
@@ -224,7 +224,6 @@ const MapOverviewPage: React.FC = () => {
          </div>
       </div>
 
-      {/* CSS para o Popup customizado */}
       <style>{`
         .custom-leaflet-popup .leaflet-popup-content-wrapper {
           border-radius: 1.5rem;
@@ -236,6 +235,9 @@ const MapOverviewPage: React.FC = () => {
         }
         .custom-leaflet-popup .leaflet-popup-tip {
           display: none;
+        }
+        #global-map-container {
+          background-color: #f1f5f9; /* Fundo fallback enquanto carrega */
         }
       `}</style>
     </div>

@@ -1,13 +1,16 @@
 
 import React, { useMemo } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { useApp } from '../App';
-import { RequestStatus, ZonalType } from '../types';
+// Fix: Move ZONALS_LIST to constants import as it is not exported from types
+import { RequestStatus } from '../types';
 import { STATUS_COLORS, ZONALS_LIST } from '../constants';
-import { ClipboardCheck, Clock, Map, AlertCircle, TrendingUp } from 'lucide-react';
+import { ClipboardCheck, Clock, Map as MapIcon, AlertCircle, TrendingUp, ChevronRight, Navigation } from 'lucide-react';
 
 const DashboardPage: React.FC = () => {
   const { requests, getZonalName } = useApp();
+  const navigate = useNavigate();
 
   const stats = useMemo(() => {
     const counts = {
@@ -34,7 +37,7 @@ const DashboardPage: React.FC = () => {
     }));
   }, [requests, getZonalName]);
 
-  const StatCard = ({ label, value, icon: Icon, colorClass, gradient }: any) => (
+  const StatCard = ({ label, value, icon: Icon, colorClass }: any) => (
     <div className={`relative overflow-hidden bg-white p-6 rounded-2xl border border-slate-200 shadow-sm transition-all hover:shadow-lg`}>
       <div className="relative z-10 flex items-center justify-between">
         <div>
@@ -54,17 +57,29 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div className="p-4 md:p-8 space-y-8 pb-12">
-      <header>
-        <div className="flex items-center gap-2 mb-1">
-           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-           <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">Painel Operativo Realtime</span>
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+             <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">Painel Operativo Realtime</span>
+          </div>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Estatísticas de Obras</h1>
         </div>
-        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Estatísticas de Obras</h1>
+        
+        {/* BOTÃO DE ACESSO RÁPIDO AO MAPA */}
+        <Link 
+          to="/map"
+          className="flex items-center gap-3 px-6 py-3 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl hover:bg-slate-800 transition-all active:scale-95 group"
+        >
+          <Navigation size={16} className="text-emerald-400 group-hover:rotate-12 transition-transform" />
+          Ver Mapa de Vistorias
+          <ChevronRight size={14} className="opacity-50" />
+        </Link>
       </header>
 
       {/* Quick Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <StatCard label="Solicitações" value={stats.total} icon={Map} colorClass="bg-indigo-50 text-indigo-600" />
+        <StatCard label="Solicitações" value={stats.total} icon={MapIcon} colorClass="bg-indigo-50 text-indigo-600" />
         <StatCard label="Aguardando" value={stats[RequestStatus.OPEN]} icon={AlertCircle} colorClass="bg-amber-50 text-amber-600" />
         <StatCard label="Operativas" value={stats[RequestStatus.IN_PROGRESS]} icon={Clock} colorClass="bg-blue-50 text-blue-600" />
         <StatCard label="Finalizadas" value={stats[RequestStatus.COMPLETED]} icon={ClipboardCheck} colorClass="bg-emerald-50 text-emerald-600" />
