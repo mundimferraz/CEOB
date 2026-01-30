@@ -115,7 +115,6 @@ const Navigation = () => {
                 if (user) setCurrentUser(user);
               }}
             >
-              <option value="" disabled>Trocar Usuário...</option>
               {users.map(u => (
                 <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
               ))}
@@ -126,7 +125,7 @@ const Navigation = () => {
                  {currentUser?.name?.charAt(0) || '?'}
                </div>
                <div className="overflow-hidden">
-                 <p className="text-[11px] font-black text-white truncate">{currentUser?.name || 'Aguardando...'}</p>
+                 <p className="text-[11px] font-black text-white truncate">{currentUser?.name || 'Carregando...'}</p>
                  <div className="flex items-center gap-1">
                    <ShieldCheck size={10} className="text-blue-400" />
                    <p className="text-[9px] text-slate-400 font-bold uppercase truncate">{currentRoleConfig.label}</p>
@@ -173,9 +172,9 @@ const Navigation = () => {
 
 const App: React.FC = () => {
   const [requests, setRequests] = useState<RepairRequest[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [zonals, setZonals] = useState<ZonalMetadata[]>([]);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [users, setUsers] = useState<User[]>(MOCK_USERS); // Inicia com mocks para evitar estado nulo
+  const [zonals, setZonals] = useState<ZonalMetadata[]>(INITIAL_ZONAL_METADATA);
+  const [currentUser, setCurrentUser] = useState<User | null>(MOCK_USERS[0]); // Inicia como Paulo Sérgio
   const [loading, setLoading] = useState(true);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -193,7 +192,6 @@ const App: React.FC = () => {
 
     switch (action) {
       case 'manage_users':
-        // Agora permite ADMIN e EDITOR (Gestores)
         return [AppRole.ADMIN, AppRole.EDITOR].includes(role);
       case 'create_request':
         return [AppRole.ADMIN, AppRole.EDITOR, AppRole.OPERATOR].includes(role);
@@ -217,23 +215,25 @@ const App: React.FC = () => {
         dbApi.getZonals()
       ]);
       
-      let currentUsers = dbUsers;
+      let finalUsers = dbUsers;
       if (dbUsers.length === 0) {
+        console.log("Injetando usuários iniciais...");
         for (const u of MOCK_USERS) {
           await dbApi.saveUser(u);
         }
-        currentUsers = await dbApi.getUsers();
+        finalUsers = await dbApi.getUsers();
       }
       
-      setUsers(currentUsers);
+      setUsers(finalUsers);
       setRequests(dbRequests);
       setZonals(dbZonals.length > 0 ? dbZonals : INITIAL_ZONAL_METADATA);
       
-      const pauloSergio = currentUsers.find(u => u.id === 'u1') || currentUsers.find(u => u.role === AppRole.ADMIN) || currentUsers[0];
+      // GARANTE QUE PAULO SÉRGIO (ID u1) SEJA O SELECIONADO NA INICIALIZAÇÃO
+      const pauloSergio = finalUsers.find(u => u.id === 'u1') || finalUsers.find(u => u.role === AppRole.ADMIN) || finalUsers[0];
       if (pauloSergio) setCurrentUser(pauloSergio);
       
     } catch (error: any) {
-      console.error("Erro Crítico de Inicialização:", error);
+      console.error("Erro na carga de dados:", error);
       notify(`Erro de Sincronização: ${error.message}`, 'error');
     } finally {
       setLoading(false);
@@ -319,11 +319,11 @@ const App: React.FC = () => {
           <Navigation />
           <main className="flex-1 pb-24 md:pb-0 md:pl-64 bg-slate-50 min-h-screen">
             <div className="max-w-7xl mx-auto w-full">
-               {loading ? (
+               {loading && requests.length === 0 ? (
                  <div className="flex flex-col items-center justify-center h-screen bg-white">
                     <Loader2 className="animate-spin text-blue-600 mb-6" size={56} />
-                    <h2 className="text-sm font-black text-slate-900 uppercase tracking-[0.3em]">Carregando Ecossistema</h2>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-2">SGR-Vias • Gestão Governamental</p>
+                    <h2 className="text-sm font-black text-slate-900 uppercase tracking-[0.3em]">Autenticando Admin</h2>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-2">Eng. Paulo Sérgio • SGR-Vias</p>
                  </div>
                ) : (
                  <Routes>
