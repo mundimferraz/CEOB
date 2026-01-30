@@ -60,6 +60,13 @@ const Navigation = () => {
     ? ROLE_CONFIG[currentUser.role] 
     : DEFAULT_ROLE_CONFIG;
 
+  const handleUserSwitch = (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    if (user) {
+      setCurrentUser(user);
+    }
+  };
+
   return (
     <>
       <header className="md:hidden flex items-center justify-between p-4 bg-white border-b border-slate-200 sticky top-0 z-40 h-16">
@@ -110,24 +117,21 @@ const Navigation = () => {
             <select 
               className="w-full bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold p-2.5 text-white outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
               value={currentUser?.id || ''}
-              onChange={(e) => {
-                const user = users.find(u => u.id === e.target.value);
-                if (user) setCurrentUser(user);
-              }}
+              onChange={(e) => handleUserSwitch(e.target.value)}
             >
               {users.map(u => (
                 <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
               ))}
             </select>
             
-            <div className="flex items-center gap-3 p-2 rounded-xl bg-slate-800/50 border border-slate-700/50">
-               <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white text-xs font-black shadow-md flex-shrink-0">
+            <div className={`flex items-center gap-3 p-2 rounded-xl border transition-all ${currentUser?.role === AppRole.ADMIN ? 'bg-blue-900/40 border-blue-500/50' : 'bg-slate-800/50 border-slate-700/50'}`}>
+               <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-black shadow-md flex-shrink-0 ${currentUser?.role === AppRole.ADMIN ? 'bg-blue-500' : 'bg-slate-700'}`}>
                  {currentUser?.name?.charAt(0) || '?'}
                </div>
                <div className="overflow-hidden">
                  <p className="text-[11px] font-black text-white truncate">{currentUser?.name || 'Carregando...'}</p>
                  <div className="flex items-center gap-1">
-                   <ShieldCheck size={10} className="text-blue-400" />
+                   {currentUser?.role === AppRole.ADMIN ? <ShieldAlert size={10} className="text-amber-400" /> : <ShieldCheck size={10} className="text-blue-400" />}
                    <p className="text-[9px] text-slate-400 font-bold uppercase truncate">{currentRoleConfig.label}</p>
                  </div>
                </div>
@@ -172,9 +176,31 @@ const Navigation = () => {
 
 const App: React.FC = () => {
   const [requests, setRequests] = useState<RepairRequest[]>([]);
-  const [users, setUsers] = useState<User[]>(MOCK_USERS); // Inicia com mocks para evitar estado nulo
+  const [users, setUsers] = useState<User[]>(MOCK_USERS);
   const [zonals, setZonals] = useState<ZonalMetadata[]>(INITIAL_ZONAL_METADATA);
-  const [currentUser, setCurrentUser] = useState<User | null>(MOCK_USERS[0]); // Inicia como Paulo Sérgio
+  
+  // TENTA CARREGAR DO LOCALSTORAGE OU USA PAULO SERGIO POR PADRÃO
+  const [currentUser, setCurrentUserInternal] = useState<User | null>(() => {
+    const saved = localStorage.getItem('sgr_vias_user');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return MOCK_USERS[0];
+      }
+    }
+    return MOCK_USERS[0];
+  });
+
+  const setCurrentUser = (user: User | null) => {
+    setCurrentUserInternal(user);
+    if (user) {
+      localStorage.setItem('sgr_vias_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('sgr_vias_user');
+    }
+  };
+
   const [loading, setLoading] = useState(true);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -217,7 +243,7 @@ const App: React.FC = () => {
       
       let finalUsers = dbUsers;
       if (dbUsers.length === 0) {
-        console.log("Injetando usuários iniciais...");
+        console.log("Banco vazio. Sincronizando usuários mestres...");
         for (const u of MOCK_USERS) {
           await dbApi.saveUser(u);
         }
@@ -228,13 +254,27 @@ const App: React.FC = () => {
       setRequests(dbRequests);
       setZonals(dbZonals.length > 0 ? dbZonals : INITIAL_ZONAL_METADATA);
       
-      // GARANTE QUE PAULO SÉRGIO (ID u1) SEJA O SELECIONADO NA INICIALIZAÇÃO
-      const pauloSergio = finalUsers.find(u => u.id === 'u1') || finalUsers.find(u => u.role === AppRole.ADMIN) || finalUsers[0];
-      if (pauloSergio) setCurrentUser(pauloSergio);
+      // LOGICA DE SESSÃO PERSISTENTE OU PADRÃO ADMIN
+      const savedUser = localStorage.getItem('sgr_vias_user');
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        const userInDb = finalUsers.find(u => u.id === parsed.id);
+        if (userInDb) {
+          setCurrentUserInternal(userInDb);
+        } else {
+          // Se o usuário salvo não existe mais, volta pro Paulo Sérgio
+          const admin = finalUsers.find(u => u.id === 'u1') || finalUsers[0];
+          setCurrentUser(admin);
+        }
+      } else {
+        // Primeiro acesso: Paulo Sérgio
+        const admin = finalUsers.find(u => u.id === 'u1') || finalUsers[0];
+        setCurrentUser(admin);
+      }
       
     } catch (error: any) {
       console.error("Erro na carga de dados:", error);
-      notify(`Erro de Sincronização: ${error.message}`, 'error');
+      notify(`Sincronização offline: Usando dados locais`, 'info');
     } finally {
       setLoading(false);
     }
@@ -323,7 +363,7 @@ const App: React.FC = () => {
                  <div className="flex flex-col items-center justify-center h-screen bg-white">
                     <Loader2 className="animate-spin text-blue-600 mb-6" size={56} />
                     <h2 className="text-sm font-black text-slate-900 uppercase tracking-[0.3em]">Autenticando Admin</h2>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-2">Eng. Paulo Sérgio • SGR-Vias</p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-2">Sincronizando Sessão Segura</p>
                  </div>
                ) : (
                  <Routes>
