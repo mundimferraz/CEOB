@@ -21,13 +21,16 @@ export const STATUS_COLORS = {
   [RequestStatus.CANCELED]: 'bg-rose-100 text-rose-700 border-rose-200',
 };
 
-// Mapeamento de Cores por Cargo com terminologia "Gestor" para perfis Manager (Editor)
+// Mapeamento de Cores por Cargo
+// Adicionadas chaves "Manager" e "Intern" para compatibilidade com dados existentes no Supabase
 export const ROLE_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
   [AppRole.ADMIN]: { label: 'Administrador Central', color: 'bg-purple-100 text-purple-700 border-purple-200', icon: 'ShieldAlert' },
+  "Manager": { label: 'Administrador Central', color: 'bg-purple-100 text-purple-700 border-purple-200', icon: 'ShieldAlert' },
   [AppRole.EDITOR]: { label: 'Gestor / Avançado', color: 'bg-blue-100 text-blue-700 border-blue-200', icon: 'UserPen' },
   [AppRole.OPERATOR]: { label: 'Técnico Operador', color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: 'UserCog' },
   [AppRole.VIEWER]: { label: 'Visualizador / Auditor', color: 'bg-slate-100 text-slate-700 border-slate-200', icon: 'Eye' },
   [AppRole.RESTRICTED]: { label: 'Restrito à Unidade', color: 'bg-rose-100 text-rose-700 border-rose-200', icon: 'UserMinus' },
+  "Intern": { label: 'Acesso Restrito', color: 'bg-rose-100 text-rose-700 border-rose-200', icon: 'UserMinus' },
 };
 
 export const DEFAULT_ROLE_CONFIG = { 

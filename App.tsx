@@ -56,6 +56,7 @@ const Navigation = () => {
     { path: '/org', label: 'Gestão de Usuários', icon: Users, visible: canDo('manage_users') },
   ];
 
+  // Lógica de fallback robusta para ROLE_CONFIG
   const currentRoleConfig = (currentUser && currentUser.role && ROLE_CONFIG[currentUser.role]) 
     ? ROLE_CONFIG[currentUser.role] 
     : DEFAULT_ROLE_CONFIG;
@@ -124,14 +125,14 @@ const Navigation = () => {
               ))}
             </select>
             
-            <div className={`flex items-center gap-3 p-2 rounded-xl border transition-all ${currentUser?.role === AppRole.ADMIN ? 'bg-blue-900/40 border-blue-500/50' : 'bg-slate-800/50 border-slate-700/50'}`}>
-               <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-black shadow-md flex-shrink-0 ${currentUser?.role === AppRole.ADMIN ? 'bg-blue-500' : 'bg-slate-700'}`}>
+            <div className={`flex items-center gap-3 p-2 rounded-xl border transition-all ${[AppRole.ADMIN, 'Manager'].includes(currentUser?.role || '') ? 'bg-blue-900/40 border-blue-500/50' : 'bg-slate-800/50 border-slate-700/50'}`}>
+               <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-black shadow-md flex-shrink-0 ${[AppRole.ADMIN, 'Manager'].includes(currentUser?.role || '') ? 'bg-blue-500' : 'bg-slate-700'}`}>
                  {currentUser?.name?.charAt(0) || '?'}
                </div>
                <div className="overflow-hidden">
                  <p className="text-[11px] font-black text-white truncate">{currentUser?.name || 'Carregando...'}</p>
                  <div className="flex items-center gap-1">
-                   {currentUser?.role === AppRole.ADMIN ? <ShieldAlert size={10} className="text-amber-400" /> : <ShieldCheck size={10} className="text-blue-400" />}
+                   {[AppRole.ADMIN, 'Manager'].includes(currentUser?.role || '') ? <ShieldAlert size={10} className="text-amber-400" /> : <ShieldCheck size={10} className="text-blue-400" />}
                    <p className="text-[9px] text-slate-400 font-bold uppercase truncate">{currentRoleConfig.label}</p>
                  </div>
                </div>
@@ -178,7 +179,9 @@ const App: React.FC = () => {
   const [requests, setRequests] = useState<RepairRequest[]>([]);
   const [users, setUsers] = useState<User[]>(MOCK_USERS);
   const [zonals, setZonals] = useState<ZonalMetadata[]>(INITIAL_ZONAL_METADATA);
-  
+  const [loading, setLoading] = useState(true);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
   // TENTA CARREGAR DO LOCALSTORAGE OU USA PAULO SERGIO POR PADRÃO
   const [currentUser, setCurrentUserInternal] = useState<User | null>(() => {
     const saved = localStorage.getItem('sgr_vias_user');
@@ -201,9 +204,6 @@ const App: React.FC = () => {
     }
   };
 
-  const [loading, setLoading] = useState(true);
-  const [toasts, setToasts] = useState<Toast[]>([]);
-
   const notify = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
     const id = Date.now().toString();
     setToasts(prev => [...prev, { id, message, type }]);
@@ -214,19 +214,24 @@ const App: React.FC = () => {
 
   const canDo = useCallback((action: 'manage_users' | 'create_request' | 'edit_request' | 'delete_request' | 'view_all_zonals') => {
     if (!currentUser) return false;
-    const role = currentUser.role;
+    const role = currentUser.role as any;
+
+    // Normalização: Considera 'Manager' como ADMIN ou EDITOR
+    const isAdmin = [AppRole.ADMIN, 'Manager', 'Admin'].includes(role);
+    const isEditor = [AppRole.EDITOR, 'Editor'].includes(role) || isAdmin;
+    const isOperator = [AppRole.OPERATOR, 'Operator'].includes(role) || isEditor;
 
     switch (action) {
       case 'manage_users':
-        return [AppRole.ADMIN, AppRole.EDITOR].includes(role);
+        return isAdmin || isEditor;
       case 'create_request':
-        return [AppRole.ADMIN, AppRole.EDITOR, AppRole.OPERATOR].includes(role);
+        return isOperator;
       case 'edit_request':
-        return [AppRole.ADMIN, AppRole.EDITOR, AppRole.OPERATOR].includes(role);
+        return isOperator;
       case 'delete_request':
-        return [AppRole.ADMIN, AppRole.EDITOR].includes(role);
+        return isAdmin || isEditor;
       case 'view_all_zonals':
-        return role !== AppRole.RESTRICTED;
+        return role !== AppRole.RESTRICTED && role !== 'Intern';
       default:
         return false;
     }
@@ -243,38 +248,42 @@ const App: React.FC = () => {
       
       let finalUsers = dbUsers;
       if (dbUsers.length === 0) {
-        console.log("Banco vazio. Sincronizando usuários mestres...");
         for (const u of MOCK_USERS) {
           await dbApi.saveUser(u);
         }
         finalUsers = await dbApi.getUsers();
       }
       
+      // FORÇA PAULO SERGIO A SER ADMIN SE ELE EXISTIR NO BANCO
+      finalUsers = finalUsers.map(u => {
+        if (u.name.includes("Paulo Sérgio")) {
+          return { ...u, role: AppRole.ADMIN };
+        }
+        return u;
+      });
+      
       setUsers(finalUsers);
       setRequests(dbRequests);
       setZonals(dbZonals.length > 0 ? dbZonals : INITIAL_ZONAL_METADATA);
       
-      // LOGICA DE SESSÃO PERSISTENTE OU PADRÃO ADMIN
       const savedUser = localStorage.getItem('sgr_vias_user');
       if (savedUser) {
         const parsed = JSON.parse(savedUser);
-        const userInDb = finalUsers.find(u => u.id === parsed.id);
+        const userInDb = finalUsers.find(u => u.id === parsed.id || u.name === parsed.name);
         if (userInDb) {
           setCurrentUserInternal(userInDb);
         } else {
-          // Se o usuário salvo não existe mais, volta pro Paulo Sérgio
-          const admin = finalUsers.find(u => u.id === 'u1') || finalUsers[0];
+          const admin = finalUsers.find(u => u.name.includes("Paulo Sérgio")) || finalUsers[0];
           setCurrentUser(admin);
         }
       } else {
-        // Primeiro acesso: Paulo Sérgio
-        const admin = finalUsers.find(u => u.id === 'u1') || finalUsers[0];
+        const admin = finalUsers.find(u => u.name.includes("Paulo Sérgio")) || finalUsers[0];
         setCurrentUser(admin);
       }
       
     } catch (error: any) {
       console.error("Erro na carga de dados:", error);
-      notify(`Sincronização offline: Usando dados locais`, 'info');
+      notify(`Erro na conexão com Supabase`, 'error');
     } finally {
       setLoading(false);
     }
