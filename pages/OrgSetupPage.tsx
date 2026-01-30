@@ -29,8 +29,8 @@ const OrgSetupPage: React.FC = () => {
         <div className="w-24 h-24 bg-rose-50 rounded-full flex items-center justify-center text-rose-500 mb-6 border border-rose-100">
            <ShieldAlert size={48} strokeWidth={1.5} />
         </div>
-        <h1 className="text-2xl font-black text-slate-900 mb-2 tracking-tight uppercase">Privilégios Insuficientes</h1>
-        <p className="text-slate-500 max-w-sm mb-8 font-medium">Apenas usuários com nível de <strong>Administrador Central</strong> podem gerenciar a base de dados funcional e lotações.</p>
+        <h1 className="text-2xl font-black text-slate-900 mb-2 tracking-tight uppercase">Acesso Restrito</h1>
+        <p className="text-slate-500 max-w-sm mb-8 font-medium">Sua conta atual não possui privilégios de <strong>Gestão Organizacional</strong>. Entre em contato com o suporte central.</p>
         <button 
           onClick={() => navigate('/')}
           className="flex items-center gap-2 px-8 py-3 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-800 transition-all shadow-xl"

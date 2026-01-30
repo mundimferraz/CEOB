@@ -56,7 +56,6 @@ const Navigation = () => {
     { path: '/org', label: 'Gestão de Usuários', icon: Users, visible: canDo('manage_users') },
   ];
 
-  // Blindagem extrema contra erro de leitura de 'color'
   const currentRoleConfig = (currentUser && currentUser.role && ROLE_CONFIG[currentUser.role]) 
     ? ROLE_CONFIG[currentUser.role] 
     : DEFAULT_ROLE_CONFIG;
@@ -105,7 +104,6 @@ const Navigation = () => {
           })}
         </nav>
 
-        {/* Simulador de Sessão */}
         <div className="p-6 mt-auto border-t border-slate-800 bg-slate-900/50">
           <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3">Simulador de Perfil</p>
           <div className="space-y-3">
@@ -195,7 +193,8 @@ const App: React.FC = () => {
 
     switch (action) {
       case 'manage_users':
-        return role === AppRole.ADMIN;
+        // Agora permite ADMIN e EDITOR (Gestores)
+        return [AppRole.ADMIN, AppRole.EDITOR].includes(role);
       case 'create_request':
         return [AppRole.ADMIN, AppRole.EDITOR, AppRole.OPERATOR].includes(role);
       case 'edit_request':
@@ -220,7 +219,6 @@ const App: React.FC = () => {
       
       let currentUsers = dbUsers;
       if (dbUsers.length === 0) {
-        console.log("Sistema limpo detectado. Injetando carga inicial...");
         for (const u of MOCK_USERS) {
           await dbApi.saveUser(u);
         }
@@ -231,7 +229,6 @@ const App: React.FC = () => {
       setRequests(dbRequests);
       setZonals(dbZonals.length > 0 ? dbZonals : INITIAL_ZONAL_METADATA);
       
-      // Paulo Sérgio (u1) como Admin Logado Padrão
       const pauloSergio = currentUsers.find(u => u.id === 'u1') || currentUsers.find(u => u.role === AppRole.ADMIN) || currentUsers[0];
       if (pauloSergio) setCurrentUser(pauloSergio);
       
