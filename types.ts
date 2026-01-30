@@ -13,8 +13,16 @@ export enum ZonalType {
   WEST = 'Zonal Oeste'
 }
 
-// UserRole agora é string para permitir cargos customizados dinâmicos
-export type UserRole = string;
+// Hierarquia de Cargos definida
+export enum AppRole {
+  ADMIN = 'Admin',         // Acesso total
+  EDITOR = 'Editor',       // Cria/Edita vistorias, sem gestão de sistema
+  OPERATOR = 'Operator',   // Acesso básico operacional
+  VIEWER = 'Viewer',       // Apenas leitura (Relatórios)
+  RESTRICTED = 'Restricted' // Acesso limitado à própria Zonal
+}
+
+export type UserRole = AppRole;
 
 export interface User {
   id: string;
@@ -22,7 +30,7 @@ export interface User {
   role: UserRole;
   zonal: ZonalType;
   email?: string;
-  registrationNumber?: string; // Matrícula
+  registrationNumber?: string;
 }
 
 export interface LocationData {
@@ -50,7 +58,7 @@ export interface RepairRequest {
 export interface ZonalMetadata {
   id: ZonalType;
   name: string;
-  managerId?: string; // ID do Engenheiro Responsável
-  assistantId?: string; // ID do Estagiário/Responsável da Unidade
+  managerId?: string;
+  assistantId?: string;
   description?: string;
 }

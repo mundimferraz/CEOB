@@ -1,5 +1,5 @@
 
-import { ZonalType, RequestStatus, User, RepairRequest, ZonalMetadata } from './types';
+import { ZonalType, RequestStatus, User, RepairRequest, ZonalMetadata, AppRole } from './types';
 
 export const ZONALS_LIST: ZonalType[] = [
   ZonalType.NORTH,
@@ -21,11 +21,19 @@ export const STATUS_COLORS = {
   [RequestStatus.CANCELED]: 'bg-rose-100 text-rose-700 border-rose-200',
 };
 
+// Mapeamento de Cores por Cargo
+export const ROLE_CONFIG = {
+  [AppRole.ADMIN]: { label: 'Administrador', color: 'bg-purple-100 text-purple-700 border-purple-200', icon: 'ShieldAlert' },
+  [AppRole.EDITOR]: { label: 'Avançado / Editor', color: 'bg-blue-100 text-blue-700 border-blue-200', icon: 'UserPen' },
+  [AppRole.OPERATOR]: { label: 'Operador Padrão', color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: 'UserCog' },
+  [AppRole.VIEWER]: { label: 'Visualizador', color: 'bg-slate-100 text-slate-700 border-slate-200', icon: 'Eye' },
+  [AppRole.RESTRICTED]: { label: 'Acesso Restrito', color: 'bg-rose-100 text-rose-700 border-rose-200', icon: 'UserMinus' },
+};
+
 export const MOCK_USERS: User[] = [
-  { id: 'u1', name: 'Eng. Ricardo Souza', role: 'Manager', zonal: ZonalType.NORTH, registrationNumber: '12345-6' },
-  { id: 'u2', name: 'Ana Oliveira', role: 'Collaborator', zonal: ZonalType.NORTH, registrationNumber: '88772-1' },
-  { id: 'u3', name: 'Carlos Santos', role: 'Intern', zonal: ZonalType.NORTH, registrationNumber: 'EST-990' },
-  { id: 'u4', name: 'Juliana Lima', role: 'Manager', zonal: ZonalType.SOUTH, registrationNumber: '55443-2' },
+  { id: 'u1', name: 'Eng. Ricardo Souza', role: AppRole.ADMIN, zonal: ZonalType.NORTH, registrationNumber: '12345-6' },
+  { id: 'u2', name: 'Ana Oliveira', role: AppRole.EDITOR, zonal: ZonalType.NORTH, registrationNumber: '88772-1' },
+  { id: 'u4', name: 'Juliana Lima', role: AppRole.OPERATOR, zonal: ZonalType.SOUTH, registrationNumber: '55443-2' },
 ];
 
 export const MOCK_REQUESTS: RepairRequest[] = [
