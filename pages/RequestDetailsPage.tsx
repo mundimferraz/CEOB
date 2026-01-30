@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
-import { MapPin, Calendar, User as UserIcon, FileText, Camera, Download, Trash2, CheckCircle, AlertTriangle, Crosshair, ImageIcon, Edit2, X, Save, ExternalLink, Loader2, ShieldCheck, UserCheck, Users, ChevronDown, Share2, Hash, Briefcase } from 'lucide-react';
+import { MapPin, Calendar, User as UserIcon, FileText, Camera, Download, Trash2, CheckCircle, AlertTriangle, Crosshair, ImageIcon, Edit2, X, Save, ExternalLink, Loader2, ShieldCheck, UserCheck, Users, ChevronDown, Share2, Hash, Briefcase, ClipboardList } from 'lucide-react';
 import { useApp } from '../App';
 import { RequestStatus } from '../types';
 import { STATUS_COLORS } from '../constants';
@@ -100,6 +100,15 @@ const RequestDetailsPage: React.FC = () => {
     });
     setIsEditingAddress(false);
     notify('Endereço atualizado!');
+  };
+
+  const handleSaveDescription = () => {
+    updateRequest({
+      ...request,
+      description: editedDescription
+    });
+    setIsEditingDescription(false);
+    notify('Parecer Técnico atualizado!');
   };
 
   const handleAfterPhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -426,30 +435,31 @@ const RequestDetailsPage: React.FC = () => {
               </div>
 
               <div>
-                <div className="flex items-center gap-2 mb-2 group">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Parecer Técnico</p>
-                  {canEdit && !isEditingDescription && (
-                    <button onClick={() => setIsEditingDescription(true)} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-blue-500"><Edit2 size={12}/></button>
-                  )}
-                </div>
-                {isEditingDescription ? (
-                  <div className="space-y-2">
-                    <textarea 
-                      className="w-full p-4 border border-blue-500 rounded-2xl outline-none font-medium text-slate-700 leading-relaxed bg-white" 
-                      rows={4}
-                      value={editedDescription}
-                      onChange={e => setEditedDescription(e.target.value)}
-                    />
-                    <div className="flex justify-end gap-2">
-                       <button onClick={() => { setIsEditingDescription(false); setEditedDescription(request.description); }} className="px-4 py-2 text-rose-600 font-bold uppercase text-[10px] tracking-widest bg-rose-50 rounded-xl">Cancelar</button>
-                       <button onClick={() => { saveField('description', editedDescription); setIsEditingDescription(false); }} className="px-4 py-2 text-white font-bold uppercase text-[10px] tracking-widest bg-emerald-600 rounded-xl">Salvar Parecer</button>
+                <div className="p-5 bg-blue-50 rounded-2xl border border-blue-100 flex items-start gap-4">
+                  <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white flex-shrink-0">
+                    <ClipboardList size={24} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Parecer Técnico</p>
+                      {canEdit && (!isEditingDescription ? (
+                        <button onClick={() => setIsEditingDescription(true)} className="text-blue-600 hover:text-blue-800 p-1"><Edit2 size={14} /></button>
+                      ) : (
+                        <div className="flex gap-2">
+                           <button onClick={handleSaveDescription} className="text-emerald-600 hover:text-emerald-800"><Save size={14} /></button>
+                           <button onClick={() => {setIsEditingDescription(false); setEditedDescription(request.description);}} className="text-rose-600 hover:text-rose-800"><X size={14} /></button>
+                        </div>
+                      ))}
                     </div>
+                    {isEditingDescription ? (
+                      <textarea className="w-full text-sm font-bold text-blue-900 bg-white border border-blue-200 rounded-lg p-2 outline-none focus:ring-2 focus:ring-blue-500" value={editedDescription} onChange={(e) => setEditedDescription(e.target.value)} rows={4} />
+                    ) : (
+                      <div className="text-sm font-bold text-blue-900 leading-relaxed italic">
+                        "{request.description}"
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="bg-slate-50 p-6 rounded-[2rem] text-slate-700 font-medium leading-relaxed border border-slate-100 italic">
-                    "{request.description}"
-                  </div>
-                )}
+                </div>
               </div>
 
               <div>
