@@ -11,6 +11,7 @@ import RequestDetailsPage from './pages/RequestDetailsPage';
 import OrgSetupPage from './pages/OrgSetupPage';
 import MapOverviewPage from './pages/MapOverviewPage';
 import { dbApi } from './services/api';
+import { supabase } from './services/supabase';
 
 interface Toast {
   id: string;
@@ -236,6 +237,27 @@ const App: React.FC = () => {
     }
   }, [currentUser]);
 
+  // Função para mapear dados do DB para o tipo RepairRequest
+  const mapDbRequest = (req: any): RepairRequest => ({
+    id: req.id,
+    protocol: req.protocol,
+    seiNumber: req.sei_number,
+    contract: req.contract,
+    description: req.description,
+    location: {
+      latitude: req.latitude,
+      longitude: req.longitude,
+      address: req.address
+    },
+    visitDate: req.visit_date,
+    status: req.status as RequestStatus,
+    technicianId: req.technician_id,
+    zonal: req.zonal as ZonalType,
+    photoBefore: req.photo_before,
+    photoAfter: req.photo_after,
+    createdAt: req.created_at
+  });
+
   const initData = async () => {
     try {
       setLoading(true);
@@ -287,12 +309,37 @@ const App: React.FC = () => {
     }
   };
 
-  useEffect(() => { initData(); }, []);
+  useEffect(() => {
+    initData();
+
+    // INSCRIÇÃO REALTIME DO SUPABASE
+    const subscription = supabase
+      .channel('repair_requests_changes')
+      .on('postgres_changes', { event: '*', table: 'repair_requests', schema: 'public' }, (payload) => {
+        console.log('Realtime update received:', payload);
+        
+        if (payload.eventType === 'INSERT') {
+          const newReq = mapDbRequest(payload.new);
+          setRequests(prev => [newReq, ...prev]);
+          notify(`Novo registro inserido: ${newReq.protocol}`, 'info');
+        } else if (payload.eventType === 'UPDATE') {
+          const updatedReq = mapDbRequest(payload.new);
+          setRequests(prev => prev.map(r => r.id === updatedReq.id ? updatedReq : r));
+        } else if (payload.eventType === 'DELETE') {
+          setRequests(prev => prev.filter(r => r.id !== payload.old.id));
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  }, []);
 
   const addRequest = async (req: RepairRequest) => {
     try {
       await dbApi.createRequest(req);
-      setRequests(prev => [req, ...prev]);
+      // O estado é atualizado via Realtime Subscription, mas podemos antecipar se quisermos
       notify('Vistoria salva com sucesso!');
     } catch (e: any) { notify(`Erro: ${e.message}`, 'error'); }
   };
@@ -300,7 +347,6 @@ const App: React.FC = () => {
   const updateRequest = async (req: RepairRequest) => {
     try {
       await dbApi.updateRequest(req);
-      setRequests(prev => prev.map(r => r.id === req.id ? { ...req } : r));
       notify('Registro atualizado.');
     } catch (e: any) { notify(`Erro ao atualizar: ${e.message}`, 'error'); }
   };
@@ -308,7 +354,6 @@ const App: React.FC = () => {
   const deleteRequest = async (id: string) => {
     try {
       await dbApi.deleteRequest(id);
-      setRequests(prev => prev.filter(r => r.id !== id));
       notify('Registro removido.', 'info');
     } catch (e: any) { notify(`Erro: ${e.message}`, 'error'); }
   };
