@@ -56,6 +56,11 @@ const Navigation = () => {
     { path: '/org', label: 'Gestão de Usuários', icon: Users, visible: canDo('manage_users') },
   ];
 
+  // Defesa contra erro de leitura de propriedade 'color' de undefined
+  const currentRoleConfig = currentUser && ROLE_CONFIG[currentUser.role] 
+    ? ROLE_CONFIG[currentUser.role] 
+    : { color: 'bg-slate-100 text-slate-400 border-slate-200', label: 'Carregando...' };
+
   return (
     <>
       <header className="md:hidden flex items-center justify-between p-4 bg-white border-b border-slate-200 sticky top-0 z-40 h-16">
@@ -64,7 +69,7 @@ const Navigation = () => {
           <span className="font-extrabold tracking-tight text-slate-900 uppercase">SGR-VIAS</span>
         </div>
         <div className="flex items-center gap-2">
-           <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border uppercase ${currentUser ? ROLE_CONFIG[currentUser.role].color : ''}`}>
+           <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border uppercase ${currentRoleConfig.color}`}>
              {currentUser?.role || 'Visitante'}
            </span>
         </div>
@@ -100,12 +105,12 @@ const Navigation = () => {
           })}
         </nav>
 
-        {/* Simulador de Sessão Consertado */}
+        {/* Simulador de Sessão */}
         <div className="p-6 mt-auto border-t border-slate-800 bg-slate-900/50">
           <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3">Simulador de Perfil</p>
           <div className="space-y-3">
             <select 
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold p-2.5 text-white outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold p-2.5 text-white outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
               value={currentUser?.id || ''}
               onChange={(e) => {
                 const user = users.find(u => u.id === e.target.value);
@@ -119,14 +124,14 @@ const Navigation = () => {
             </select>
             
             <div className="flex items-center gap-3 p-2 rounded-xl bg-slate-800/50 border border-slate-700/50">
-               <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white text-xs font-black shadow-md">
-                 {currentUser?.name.charAt(0)}
+               <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white text-xs font-black shadow-md flex-shrink-0">
+                 {currentUser?.name?.charAt(0) || '?'}
                </div>
                <div className="overflow-hidden">
-                 <p className="text-[11px] font-black text-white truncate">{currentUser?.name}</p>
+                 <p className="text-[11px] font-black text-white truncate">{currentUser?.name || 'Sistema'}</p>
                  <div className="flex items-center gap-1">
                    <ShieldCheck size={10} className="text-blue-400" />
-                   <p className="text-[9px] text-slate-400 font-bold uppercase truncate">{currentUser?.role}</p>
+                   <p className="text-[9px] text-slate-400 font-bold uppercase truncate">{currentUser?.role || 'Aguardando'}</p>
                  </div>
                </div>
             </div>
@@ -213,28 +218,27 @@ const App: React.FC = () => {
         dbApi.getZonals()
       ]);
       
-      // Bootstrapping: Se não houver usuários, injeta os iniciais (Admin u1, Editor u2, Operator u4)
+      // Bootstrapping de Usuários: Garante que o Admin (u1) sempre exista
+      let currentUsers = dbUsers;
       if (dbUsers.length === 0) {
-        console.log("Banco vazio, injetando usuários iniciais...");
-        for (const user of MOCK_USERS) {
-          await dbApi.saveUser(user);
+        console.log("Sistema limpo detectado. Injetando carga inicial...");
+        for (const u of MOCK_USERS) {
+          await dbApi.saveUser(u);
         }
-        const refreshedUsers = await dbApi.getUsers();
-        setUsers(refreshedUsers);
-        setCurrentUser(refreshedUsers.find(u => u.role === AppRole.ADMIN) || refreshedUsers[0]);
-      } else {
-        setUsers(dbUsers);
-        // Garante que o usuário Admin logado inicialmente é o que está no banco
-        const admin = dbUsers.find(u => u.role === AppRole.ADMIN) || dbUsers[0];
-        setCurrentUser(admin);
+        currentUsers = await dbApi.getUsers();
       }
-
+      
+      setUsers(currentUsers);
       setRequests(dbRequests);
       setZonals(dbZonals.length > 0 ? dbZonals : INITIAL_ZONAL_METADATA);
       
+      // Define o usuário Admin como logado inicialmente
+      const admin = currentUsers.find(u => u.role === AppRole.ADMIN) || currentUsers[0];
+      if (admin) setCurrentUser(admin);
+      
     } catch (error: any) {
-      console.error(error);
-      notify(`Erro ao carregar dados: ${error.message}`, 'error');
+      console.error("Erro Crítico de Inicialização:", error);
+      notify(`Erro de Sincronização: ${error.message}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -304,9 +308,6 @@ const App: React.FC = () => {
     return zonal?.name || id;
   };
 
-  /**
-   * Helper to get user-friendly role label from AppRole enum.
-   */
   const getRoleLabel = (role: AppRole) => {
     return ROLE_CONFIG[role]?.label || role;
   };

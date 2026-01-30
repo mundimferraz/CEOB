@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { useApp } from '../App';
 import { ZonalType, User, UserRole, ZonalMetadata, AppRole } from '../types';
 import { ZONALS_LIST, ROLE_CONFIG } from '../constants';
-// Added ChevronDown to the lucide-react import
 import { UserPlus, Settings, Shield, Map as MapIcon, Edit2, Trash2, X, Save, Search, UserCheck, Briefcase, Plus, AlertCircle, Users, Hash, ShieldCheck, Eye, UserCog, UserPen, ShieldAlert, ArrowLeft, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -134,35 +133,38 @@ const OrgSetupPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredUsers.map(user => (
-                  <tr key={user.id} className="hover:bg-slate-50/50 transition-colors group">
-                    <td className="px-8 py-5">
-                      <div className="flex items-center gap-3">
-                         <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 font-black text-sm group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
-                           {user.name.charAt(0)}
-                         </div>
-                         <div>
-                           <div className="font-bold text-slate-900 text-sm">{user.name}</div>
-                           <div className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Matrícula: {user.registrationNumber || '---'}</div>
-                         </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-5 whitespace-nowrap">
-                      <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black border uppercase tracking-wider ${ROLE_CONFIG[user.role].color}`}>
-                        {user.role === AppRole.ADMIN && <ShieldAlert size={12} />}
-                        {user.role === AppRole.VIEWER && <Eye size={12} />}
-                        {ROLE_CONFIG[user.role].label}
-                      </div>
-                    </td>
-                    <td className="px-8 py-5 whitespace-nowrap">
-                      <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">{getZonalName(user.zonal)}</span>
-                    </td>
-                    <td className="px-8 py-5 whitespace-nowrap text-right space-x-1">
-                      <button onClick={() => { setEditingUser(user); setIsUserModalOpen(true); }} className="w-10 h-10 inline-flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"><Edit2 size={16} /></button>
-                      <button onClick={() => { if (window.confirm(`Deseja remover ${user.name} do sistema?`)) deleteUser(user.id); }} className="w-10 h-10 inline-flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={16} /></button>
-                    </td>
-                  </tr>
-                ))}
+                {filteredUsers.map(user => {
+                  const roleCfg = ROLE_CONFIG[user.role] || { color: 'bg-slate-100 text-slate-400', label: user.role };
+                  return (
+                    <tr key={user.id} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="px-8 py-5">
+                        <div className="flex items-center gap-3">
+                           <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 font-black text-sm group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+                             {user.name?.charAt(0) || '?'}
+                           </div>
+                           <div>
+                             <div className="font-bold text-slate-900 text-sm">{user.name}</div>
+                             <div className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Matrícula: {user.registrationNumber || '---'}</div>
+                           </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5 whitespace-nowrap">
+                        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black border uppercase tracking-wider ${roleCfg.color}`}>
+                          {user.role === AppRole.ADMIN && <ShieldAlert size={12} />}
+                          {user.role === AppRole.VIEWER && <Eye size={12} />}
+                          {roleCfg.label}
+                        </div>
+                      </td>
+                      <td className="px-8 py-5 whitespace-nowrap">
+                        <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">{getZonalName(user.zonal)}</span>
+                      </td>
+                      <td className="px-8 py-5 whitespace-nowrap text-right space-x-1">
+                        <button onClick={() => { setEditingUser(user); setIsUserModalOpen(true); }} className="w-10 h-10 inline-flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"><Edit2 size={16} /></button>
+                        <button onClick={() => { if (window.confirm(`Deseja remover ${user.name} do sistema?`)) deleteUser(user.id); }} className="w-10 h-10 inline-flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={16} /></button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -262,51 +264,6 @@ const OrgSetupPage: React.FC = () => {
                 <button type="submit" className="flex-[2] h-16 bg-blue-600 text-white font-black uppercase text-xs rounded-2xl flex items-center justify-center gap-3 shadow-2xl shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all">
                   <Save size={20} />
                   Gravar Alterações
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Zonal Modal */}
-      {isZonalModalOpen && editingZonal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-300">
-            <div className="p-8 border-b border-slate-100 bg-slate-900 text-white flex justify-between items-center">
-              <div className="flex items-center gap-4">
-                 <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-blue-400">
-                    <MapIcon size={24} />
-                 </div>
-                 <div>
-                  <h2 className="text-xl font-black uppercase tracking-tight leading-none">Configurar Unidade</h2>
-                  <p className="text-[10px] text-blue-400 font-black tracking-widest uppercase mt-2">ID Fiscal: {editingZonal.id}</p>
-                 </div>
-              </div>
-              <button onClick={() => setIsZonalModalOpen(false)} className="w-10 h-10 flex items-center justify-center bg-white/10 hover:bg-white/20 text-white rounded-full transition-all"><X size={20} /></button>
-            </div>
-            <form onSubmit={handleSaveZonal} className="p-8 space-y-6">
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Apelido da Unidade Regional</label>
-                <input name="name" defaultValue={editingZonal.name} required className="w-full h-14 px-5 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none font-bold text-slate-900 bg-slate-50/50" />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Engenheiro Responsável (RT)</label>
-                <div className="relative">
-                  <select name="managerId" defaultValue={editingZonal.managerId} className="w-full h-14 px-5 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none font-bold text-slate-900 appearance-none bg-white">
-                    <option value="">Selecione um Profissional Autorizado...</option>
-                    {users.filter(u => u.role === AppRole.ADMIN || u.role === AppRole.EDITOR).map(u => (
-                      <option key={u.id} value={u.id}>{u.name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-40" />
-                </div>
-              </div>
-              <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => setIsZonalModalOpen(false)} className="flex-1 h-16 bg-white border border-slate-200 text-slate-600 font-black uppercase text-xs rounded-2xl">Voltar</button>
-                <button type="submit" className="flex-[2] h-16 bg-slate-900 text-white font-black uppercase text-xs rounded-2xl flex items-center justify-center gap-3 shadow-2xl shadow-slate-200 active:scale-95 transition-all">
-                  <Save size={20} />
-                  Atualizar Unidade
                 </button>
               </div>
             </form>
