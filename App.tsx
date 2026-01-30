@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, ClipboardList, PlusCircle, Users, Menu, X, ChevronRight, Plus, CheckCircle, Info, AlertCircle, Loader2, LogOut, UserCircle, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, PlusCircle, Users, Menu, X, ChevronRight, Plus, CheckCircle, Info, AlertCircle, Loader2, LogOut, UserCircle, ShieldCheck, ShieldAlert, Map as MapIcon } from 'lucide-react';
 import { RepairRequest, User, ZonalType, RequestStatus, ZonalMetadata, UserRole, AppRole } from './types';
 import { MOCK_REQUESTS, MOCK_USERS, INITIAL_ZONAL_METADATA, ROLE_CONFIG, DEFAULT_ROLE_CONFIG } from './constants';
 import DashboardPage from './pages/DashboardPage';
@@ -9,6 +9,7 @@ import RequestListPage from './pages/RequestListPage';
 import NewRequestPage from './pages/NewRequestPage';
 import RequestDetailsPage from './pages/RequestDetailsPage';
 import OrgSetupPage from './pages/OrgSetupPage';
+import MapOverviewPage from './pages/MapOverviewPage';
 import { dbApi } from './services/api';
 
 interface Toast {
@@ -51,12 +52,12 @@ const Navigation = () => {
 
   const navItems = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard, visible: true },
+    { path: '/map', label: 'Mapa Operativo', icon: MapIcon, visible: true },
     { path: '/requests', label: 'Vistorias', icon: ClipboardList, visible: true },
     { path: '/new', label: 'Nova Vistoria', icon: PlusCircle, highlight: true, visible: canDo('create_request') },
     { path: '/org', label: 'Gestão de Usuários', icon: Users, visible: canDo('manage_users') },
   ];
 
-  // Lógica de fallback robusta para ROLE_CONFIG
   const currentRoleConfig = (currentUser && currentUser.role && ROLE_CONFIG[currentUser.role]) 
     ? ROLE_CONFIG[currentUser.role] 
     : DEFAULT_ROLE_CONFIG;
@@ -182,7 +183,6 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  // TENTA CARREGAR DO LOCALSTORAGE OU USA PAULO SERGIO POR PADRÃO
   const [currentUser, setCurrentUserInternal] = useState<User | null>(() => {
     const saved = localStorage.getItem('sgr_vias_user');
     if (saved) {
@@ -216,7 +216,6 @@ const App: React.FC = () => {
     if (!currentUser) return false;
     const role = currentUser.role as any;
 
-    // Normalização: Considera 'Manager' como ADMIN ou EDITOR
     const isAdmin = [AppRole.ADMIN, 'Manager', 'Admin'].includes(role);
     const isEditor = [AppRole.EDITOR, 'Editor'].includes(role) || isAdmin;
     const isOperator = [AppRole.OPERATOR, 'Operator'].includes(role) || isEditor;
@@ -254,7 +253,6 @@ const App: React.FC = () => {
         finalUsers = await dbApi.getUsers();
       }
       
-      // FORÇA PAULO SERGIO A SER ADMIN SE ELE EXISTIR NO BANCO
       finalUsers = finalUsers.map(u => {
         if (u.name.includes("Paulo Sérgio")) {
           return { ...u, role: AppRole.ADMIN };
@@ -367,7 +365,7 @@ const App: React.FC = () => {
         <div className="flex flex-col md:flex-row min-h-screen">
           <Navigation />
           <main className="flex-1 pb-24 md:pb-0 md:pl-64 bg-slate-50 min-h-screen">
-            <div className="max-w-7xl mx-auto w-full">
+            <div className="max-w-7xl mx-auto w-full h-full">
                {loading && requests.length === 0 ? (
                  <div className="flex flex-col items-center justify-center h-screen bg-white">
                     <Loader2 className="animate-spin text-blue-600 mb-6" size={56} />
@@ -377,6 +375,7 @@ const App: React.FC = () => {
                ) : (
                  <Routes>
                   <Route path="/" element={<DashboardPage />} />
+                  <Route path="/map" element={<MapOverviewPage />} />
                   <Route path="/requests" element={<RequestListPage />} />
                   <Route path="/requests/:id" element={<RequestDetailsPage />} />
                   <Route path="/new" element={<NewRequestPage />} />
