@@ -21,16 +21,15 @@ export const STATUS_COLORS = {
   [RequestStatus.CANCELED]: 'bg-rose-100 text-rose-700 border-rose-200',
 };
 
-// Mapeamento de Cores por Cargo com tratamento de erro
+// Mapeamento de Cores por Cargo com terminologia "Gestor" para perfis Manager (Editor)
 export const ROLE_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
-  [AppRole.ADMIN]: { label: 'Administrador', color: 'bg-purple-100 text-purple-700 border-purple-200', icon: 'ShieldAlert' },
-  [AppRole.EDITOR]: { label: 'Avançado / Editor', color: 'bg-blue-100 text-blue-700 border-blue-200', icon: 'UserPen' },
-  [AppRole.OPERATOR]: { label: 'Operador Padrão', color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: 'UserCog' },
-  [AppRole.VIEWER]: { label: 'Visualizador', color: 'bg-slate-100 text-slate-700 border-slate-200', icon: 'Eye' },
-  [AppRole.RESTRICTED]: { label: 'Acesso Restrito', color: 'bg-rose-100 text-rose-700 border-rose-200', icon: 'UserMinus' },
+  [AppRole.ADMIN]: { label: 'Administrador Central', color: 'bg-purple-100 text-purple-700 border-purple-200', icon: 'ShieldAlert' },
+  [AppRole.EDITOR]: { label: 'Gestor / Avançado', color: 'bg-blue-100 text-blue-700 border-blue-200', icon: 'UserPen' },
+  [AppRole.OPERATOR]: { label: 'Técnico Operador', color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: 'UserCog' },
+  [AppRole.VIEWER]: { label: 'Visualizador / Auditor', color: 'bg-slate-100 text-slate-700 border-slate-200', icon: 'Eye' },
+  [AppRole.RESTRICTED]: { label: 'Restrito à Unidade', color: 'bg-rose-100 text-rose-700 border-rose-200', icon: 'UserMinus' },
 };
 
-// Fallback para cargos não mapeados ou em carregamento
 export const DEFAULT_ROLE_CONFIG = { 
   label: 'Usuário', 
   color: 'bg-slate-100 text-slate-500 border-slate-200', 
@@ -38,8 +37,8 @@ export const DEFAULT_ROLE_CONFIG = {
 };
 
 export const MOCK_USERS: User[] = [
-  { id: 'u1', name: 'Eng. Paulo Sérgio', role: AppRole.ADMIN, zonal: ZonalType.NORTH, registrationNumber: 'PAULO-001' },
-  { id: 'u2', name: 'Ana Oliveira', role: AppRole.EDITOR, zonal: ZonalType.NORTH, registrationNumber: '88772-1' },
+  { id: 'u1', name: 'Eng. Paulo Sérgio', role: AppRole.ADMIN, zonal: ZonalType.NORTH, registrationNumber: 'ADMIN-001' },
+  { id: 'u2', name: 'Ana Oliveira (Gestora)', role: AppRole.EDITOR, zonal: ZonalType.NORTH, registrationNumber: '88772-1' },
   { id: 'u4', name: 'Juliana Lima', role: AppRole.OPERATOR, zonal: ZonalType.SOUTH, registrationNumber: '55443-2' },
 ];
 
