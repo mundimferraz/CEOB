@@ -127,14 +127,14 @@ const Navigation = () => {
               ))}
             </select>
             
-            <div className={`flex items-center gap-3 p-2 rounded-xl border transition-all ${[AppRole.ADMIN, 'Manager'].includes(currentUser?.role || '') ? 'bg-blue-900/40 border-blue-500/50' : 'bg-slate-800/50 border-slate-700/50'}`}>
-               <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-black shadow-md flex-shrink-0 ${[AppRole.ADMIN, 'Manager'].includes(currentUser?.role || '') ? 'bg-blue-500' : 'bg-slate-700'}`}>
+            <div className={`flex items-center gap-3 p-2 rounded-xl border transition-all ${[AppRole.ADMIN, 'Manager', 'Admin'].includes(currentUser?.role || '') ? 'bg-blue-900/40 border-blue-500/50' : 'bg-slate-800/50 border-slate-700/50'}`}>
+               <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-black shadow-md flex-shrink-0 ${[AppRole.ADMIN, 'Manager', 'Admin'].includes(currentUser?.role || '') ? 'bg-blue-500' : 'bg-slate-700'}`}>
                  {currentUser?.name?.charAt(0) || '?'}
                </div>
                <div className="overflow-hidden">
                  <p className="text-[11px] font-black text-white truncate">{currentUser?.name || 'Carregando...'}</p>
                  <div className="flex items-center gap-1">
-                   {[AppRole.ADMIN, 'Manager'].includes(currentUser?.role || '') ? <ShieldAlert size={10} className="text-amber-400" /> : <ShieldCheck size={10} className="text-blue-400" />}
+                   {[AppRole.ADMIN, 'Manager', 'Admin'].includes(currentUser?.role || '') ? <ShieldAlert size={10} className="text-amber-400" /> : <ShieldCheck size={10} className="text-blue-400" />}
                    <p className="text-[9px] text-slate-400 font-bold uppercase truncate">{currentRoleConfig.label}</p>
                  </div>
                </div>
@@ -217,8 +217,11 @@ const App: React.FC = () => {
     if (!currentUser) return false;
     const role = currentUser.role as any;
 
+    // SOBERANIA ADMIN: Se for administrador ou gestor central, tem acesso total (CRUD)
     const isAdmin = [AppRole.ADMIN, 'Manager', 'Admin'].includes(role);
-    const isEditor = [AppRole.EDITOR, 'Editor'].includes(role) || isAdmin;
+    if (isAdmin) return true;
+
+    const isEditor = [AppRole.EDITOR, 'Editor'].includes(role);
     const isOperator = [AppRole.OPERATOR, 'Operator'].includes(role) || isEditor;
 
     switch (action) {
@@ -312,12 +315,9 @@ const App: React.FC = () => {
   useEffect(() => {
     initData();
 
-    // INSCRIÇÃO REALTIME DO SUPABASE
     const subscription = supabase
       .channel('repair_requests_changes')
       .on('postgres_changes', { event: '*', table: 'repair_requests', schema: 'public' }, (payload) => {
-        console.log('Realtime update received:', payload);
-        
         if (payload.eventType === 'INSERT') {
           const newReq = mapDbRequest(payload.new);
           setRequests(prev => [newReq, ...prev]);
@@ -339,7 +339,6 @@ const App: React.FC = () => {
   const addRequest = async (req: RepairRequest) => {
     try {
       await dbApi.createRequest(req);
-      // O estado é atualizado via Realtime Subscription, mas podemos antecipar se quisermos
       notify('Vistoria salva com sucesso!');
     } catch (e: any) { notify(`Erro: ${e.message}`, 'error'); }
   };
