@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
-import { MapPin, Calendar, User as UserIcon, FileText, Camera, Download, Trash2, CheckCircle, AlertTriangle, Crosshair, ImageIcon, Edit2, X, Save, ExternalLink, Loader2, ShieldCheck, UserCheck, Users, ChevronDown, Share2 } from 'lucide-react';
+import { MapPin, Calendar, User as UserIcon, FileText, Camera, Download, Trash2, CheckCircle, AlertTriangle, Crosshair, ImageIcon, Edit2, X, Save, ExternalLink, Loader2, ShieldCheck, UserCheck, Users, ChevronDown, Share2, Hash, Briefcase } from 'lucide-react';
 import { useApp } from '../App';
 import { RequestStatus } from '../types';
 import { STATUS_COLORS } from '../constants';
@@ -10,7 +10,7 @@ import { STATUS_COLORS } from '../constants';
 const RequestDetailsPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { requests, updateRequest, deleteRequest, users, zonals, getZonalName, getRoleLabel, notify } = useApp();
+  const { requests, updateRequest, deleteRequest, users, zonals, getZonalName, getRoleLabel, notify, canDo } = useApp();
   
   const request = requests.find(r => r.id === id);
   const tech = users.find(u => u.id === request?.technicianId);
@@ -18,9 +18,27 @@ const RequestDetailsPage: React.FC = () => {
   const engineer = users.find(u => u.id === zonalMeta?.managerId);
   const assistant = users.find(u => u.id === zonalMeta?.assistantId);
 
+  // Estados de Edição
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [editedAddress, setEditedAddress] = useState(request?.location.address || '');
+  
+  const [isEditingProtocol, setIsEditingProtocol] = useState(false);
+  const [editedProtocol, setEditedProtocol] = useState(request?.protocol || '');
+
+  const [isEditingSei, setIsEditingSei] = useState(false);
+  const [editedSei, setEditedSei] = useState(request?.seiNumber || '');
+
+  const [isEditingContract, setIsEditingContract] = useState(false);
+  const [editedContract, setEditedContract] = useState(request?.contract || '');
+
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [editedDescription, setEditedDescription] = useState(request?.description || '');
+
+  const [isEditingTech, setIsEditingTech] = useState(false);
+
   const [isCapturingAfter, setIsCapturingAfter] = useState(false);
+
+  const canEdit = canDo('edit_request');
 
   if (!request) {
     return (
@@ -40,8 +58,6 @@ const RequestDetailsPage: React.FC = () => {
   const handleShareImage = async (base64Data: string, title: string) => {
     try {
       if (!base64Data) return;
-
-      // Converte Base64 para Blob e depois para File para que o Share API aceite como arquivo
       const res = await fetch(base64Data);
       const blob = await res.blob();
       const file = new File([blob], `${title.replace(/\s+/g, '_')}.jpg`, { type: 'image/jpeg' });
@@ -53,7 +69,6 @@ const RequestDetailsPage: React.FC = () => {
           text: `SGR-Vias: Evidência da vistoria ${request.protocol}`,
         });
       } else {
-        // Fallback: Download se não houver suporte a compartilhamento de arquivos
         const link = document.createElement('a');
         link.href = base64Data;
         link.download = `${title}.jpg`;
@@ -73,16 +88,18 @@ const RequestDetailsPage: React.FC = () => {
     }
   };
 
+  const saveField = (field: string, value: any) => {
+    updateRequest({ ...request, [field]: value });
+    notify('Campo atualizado com sucesso!');
+  };
+
   const handleSaveAddress = () => {
     updateRequest({
       ...request,
-      location: {
-        ...request.location,
-        address: editedAddress
-      }
+      location: { ...request.location, address: editedAddress }
     });
     setIsEditingAddress(false);
-    notify('Endereço atualizado com sucesso!');
+    notify('Endereço atualizado!');
   };
 
   const handleAfterPhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -147,7 +164,6 @@ const RequestDetailsPage: React.FC = () => {
     doc.setFont('helvetica', 'normal'); doc.text(new Date(request.visitDate).toLocaleDateString('pt-BR'), margin + contentWidth / 2 + 20, y);
 
     y += 10;
-
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.text('2. LOCALIZAÇÃO E GEORREFERENCIAMENTO', margin, y);
@@ -174,10 +190,7 @@ const RequestDetailsPage: React.FC = () => {
     doc.setFontSize(8.5);
     doc.setFont('helvetica', 'normal');
     const descLines = doc.splitTextToSize(request.description, contentWidth);
-    doc.text(request.description, margin, y, {
-      maxWidth: contentWidth,
-      align: 'justify'
-    });
+    doc.text(request.description, margin, y, { maxWidth: contentWidth, align: 'justify' });
     y += (descLines.length * 4.5) + 8;
 
     doc.setFontSize(9);
@@ -192,21 +205,13 @@ const RequestDetailsPage: React.FC = () => {
     if (request.photoBefore) {
       doc.setFontSize(7.5);
       doc.text('VISTA INICIAL (ANTES)', margin + (imgWidth / 2), y + 3, { align: 'center' });
-      try {
-        doc.addImage(request.photoBefore, 'JPEG', margin, y + 5, imgWidth, imgHeight);
-      } catch (e) {
-        doc.text('[Erro na Imagem]', margin + 5, y + 20);
-      }
+      try { doc.addImage(request.photoBefore, 'JPEG', margin, y + 5, imgWidth, imgHeight); } catch (e) { doc.text('[Erro na Imagem]', margin + 5, y + 20); }
     }
 
     if (request.photoAfter) {
       doc.setFontSize(7.5);
       doc.text('VISTA FINAL (DEPOIS)', margin + contentWidth - (imgWidth / 2), y + 3, { align: 'center' });
-      try {
-        doc.addImage(request.photoAfter, 'JPEG', margin + contentWidth - imgWidth, y + 5, imgWidth, imgHeight);
-      } catch (e) {
-        doc.text('[Erro na Imagem]', margin + contentWidth - imgWidth + 5, y + 20);
-      }
+      try { doc.addImage(request.photoAfter, 'JPEG', margin + contentWidth - imgWidth, y + 5, imgWidth, imgHeight); } catch (e) { doc.text('[Erro na Imagem]', margin + contentWidth - imgWidth + 5, y + 20); }
     } else {
         doc.setFontSize(7.5);
         doc.setTextColor(160);
@@ -217,7 +222,6 @@ const RequestDetailsPage: React.FC = () => {
     }
 
     y += imgHeight + 18;
-
     if (y > 250) { doc.addPage(); y = 25; } 
 
     doc.setFontSize(9);
@@ -228,7 +232,6 @@ const RequestDetailsPage: React.FC = () => {
 
     const sigLineWidth = 90;
     const sigX = (pageWidth / 2) - (sigLineWidth / 2);
-    
     doc.setDrawColor(15, 23, 42);
     doc.setLineWidth(0.2);
     doc.line(sigX, y, sigX + sigLineWidth, y);
@@ -272,16 +275,39 @@ const RequestDetailsPage: React.FC = () => {
             </span>
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">REGISTRO: {request.id}</span>
           </div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase leading-none">{request.protocol}</h1>
+          <div className="flex items-center gap-2 group">
+            {isEditingProtocol ? (
+              <div className="flex items-center gap-2">
+                <input 
+                  className="bg-white border border-blue-500 rounded-lg px-2 py-1 font-black text-slate-900 uppercase text-2xl tracking-tight outline-none"
+                  value={editedProtocol}
+                  onChange={e => setEditedProtocol(e.target.value)}
+                />
+                <button onClick={() => { saveField('protocol', editedProtocol); setIsEditingProtocol(false); }} className="text-emerald-600"><Save size={20}/></button>
+                <button onClick={() => { setIsEditingProtocol(false); setEditedProtocol(request.protocol); }} className="text-rose-600"><X size={20}/></button>
+              </div>
+            ) : (
+              <>
+                <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase leading-none">{request.protocol}</h1>
+                {canEdit && (
+                  <button onClick={() => setIsEditingProtocol(true)} className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-blue-600 transition-all">
+                    <Edit2 size={16} />
+                  </button>
+                )}
+              </>
+            )}
+          </div>
         </div>
         <div className="flex gap-2">
-          <button 
-            onClick={handleDelete}
-            className="w-12 h-12 flex items-center justify-center bg-white border border-rose-200 text-rose-500 rounded-2xl hover:bg-rose-50 transition-all shadow-sm"
-            title="Excluir Registro"
-          >
-            <Trash2 size={20} />
-          </button>
+          {canEdit && (
+            <button 
+              onClick={handleDelete}
+              className="w-12 h-12 flex items-center justify-center bg-white border border-rose-200 text-rose-500 rounded-2xl hover:bg-rose-50 transition-all shadow-sm"
+              title="Excluir Registro"
+            >
+              <Trash2 size={20} />
+            </button>
+          )}
           <button 
             onClick={generatePDF}
             className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl hover:bg-slate-800 transition-all shadow-xl font-bold text-sm"
@@ -302,8 +328,9 @@ const RequestDetailsPage: React.FC = () => {
                 <div className="relative">
                   <select 
                     value={request.status}
+                    disabled={!canEdit}
                     onChange={e => handleStatusChange(e.target.value as RequestStatus)}
-                    className={`w-full sm:w-48 h-10 appearance-none pl-4 pr-10 rounded-xl text-xs font-black border uppercase transition-all shadow-sm outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer ${STATUS_COLORS[request.status]}`}
+                    className={`w-full sm:w-48 h-10 appearance-none pl-4 pr-10 rounded-xl text-xs font-black border uppercase transition-all shadow-sm outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer ${STATUS_COLORS[request.status]} ${!canEdit ? 'opacity-70 cursor-not-allowed' : ''}`}
                   >
                     {Object.values(RequestStatus).map(s => (
                       <option key={s} value={s} className="bg-white text-slate-900 font-bold">{s}</option>
@@ -315,13 +342,39 @@ const RequestDetailsPage: React.FC = () => {
             </div>
             <div className="p-6 space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
-                <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1.5">Processo SEI</p>
-                  <p className="font-bold text-slate-900 text-lg">{request.seiNumber}</p>
+                <div className="group">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Processo SEI</p>
+                    {canEdit && !isEditingSei && (
+                      <button onClick={() => setIsEditingSei(true)} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-blue-500"><Edit2 size={12}/></button>
+                    )}
+                  </div>
+                  {isEditingSei ? (
+                    <div className="flex items-center gap-2">
+                      <input className="w-full bg-white border border-blue-500 rounded-lg px-2 py-1 font-bold text-slate-900 text-lg outline-none" value={editedSei} onChange={e => setEditedSei(e.target.value)} />
+                      <button onClick={() => { saveField('seiNumber', editedSei); setIsEditingSei(false); }} className="text-emerald-600"><Save size={16}/></button>
+                      <button onClick={() => { setIsEditingSei(false); setEditedSei(request.seiNumber); }} className="text-rose-600"><X size={16}/></button>
+                    </div>
+                  ) : (
+                    <p className="font-bold text-slate-900 text-lg">{request.seiNumber}</p>
+                  )}
                 </div>
-                <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1.5">Contrato</p>
-                  <p className="font-bold text-slate-900 text-lg">{request.contract}</p>
+                <div className="group">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Contrato</p>
+                    {canEdit && !isEditingContract && (
+                      <button onClick={() => setIsEditingContract(true)} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-blue-500"><Edit2 size={12}/></button>
+                    )}
+                  </div>
+                  {isEditingContract ? (
+                    <div className="flex items-center gap-2">
+                      <input className="w-full bg-white border border-blue-500 rounded-lg px-2 py-1 font-bold text-slate-900 text-lg outline-none" value={editedContract} onChange={e => setEditedContract(e.target.value)} />
+                      <button onClick={() => { saveField('contract', editedContract); setIsEditingContract(false); }} className="text-emerald-600"><Save size={16}/></button>
+                      <button onClick={() => { setIsEditingContract(false); setEditedContract(request.contract); }} className="text-rose-600"><X size={16}/></button>
+                    </div>
+                  ) : (
+                    <p className="font-bold text-slate-900 text-lg">{request.contract}</p>
+                  )}
                 </div>
               </div>
 
@@ -354,47 +407,49 @@ const RequestDetailsPage: React.FC = () => {
                    <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
                         <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Logradouro</p>
-                        {!isEditingAddress ? (
-                          <button 
-                            onClick={() => setIsEditingAddress(true)}
-                            className="text-blue-600 hover:text-blue-800 p-1"
-                          >
-                            <Edit2 size={14} />
-                          </button>
+                        {canEdit && (!isEditingAddress ? (
+                          <button onClick={() => setIsEditingAddress(true)} className="text-blue-600 hover:text-blue-800 p-1"><Edit2 size={14} /></button>
                         ) : (
                           <div className="flex gap-2">
                              <button onClick={handleSaveAddress} className="text-emerald-600 hover:text-emerald-800"><Save size={14} /></button>
                              <button onClick={() => {setIsEditingAddress(false); setEditedAddress(request.location.address);}} className="text-rose-600 hover:text-rose-800"><X size={14} /></button>
                           </div>
-                        )}
+                        ))}
                       </div>
-                      
                       {isEditingAddress ? (
-                        <textarea 
-                          className="w-full text-sm font-bold text-blue-900 bg-white border border-blue-200 rounded-lg p-2 outline-none focus:ring-2 focus:ring-blue-500"
-                          value={editedAddress}
-                          onChange={(e) => setEditedAddress(e.target.value)}
-                          rows={2}
-                        />
+                        <textarea className="w-full text-sm font-bold text-blue-900 bg-white border border-blue-200 rounded-lg p-2 outline-none focus:ring-2 focus:ring-blue-500" value={editedAddress} onChange={(e) => setEditedAddress(e.target.value)} rows={2} />
                       ) : (
-                        <a 
-                          href={mapsUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="font-bold text-blue-900 text-sm leading-snug break-words block hover:underline hover:text-blue-700 transition-colors cursor-pointer"
-                        >
-                          {request.location.address}
-                        </a>
+                        <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="font-bold text-blue-900 text-sm leading-snug break-words block hover:underline hover:text-blue-700 transition-colors cursor-pointer">{request.location.address}</a>
                       )}
                    </div>
                 </div>
               </div>
 
               <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Parecer Técnico</p>
-                <div className="bg-slate-50 p-6 rounded-[2rem] text-slate-700 font-medium leading-relaxed border border-slate-100 italic">
-                  "{request.description}"
+                <div className="flex items-center gap-2 mb-2 group">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Parecer Técnico</p>
+                  {canEdit && !isEditingDescription && (
+                    <button onClick={() => setIsEditingDescription(true)} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-blue-500"><Edit2 size={12}/></button>
+                  )}
                 </div>
+                {isEditingDescription ? (
+                  <div className="space-y-2">
+                    <textarea 
+                      className="w-full p-4 border border-blue-500 rounded-2xl outline-none font-medium text-slate-700 leading-relaxed bg-white" 
+                      rows={4}
+                      value={editedDescription}
+                      onChange={e => setEditedDescription(e.target.value)}
+                    />
+                    <div className="flex justify-end gap-2">
+                       <button onClick={() => { setIsEditingDescription(false); setEditedDescription(request.description); }} className="px-4 py-2 text-rose-600 font-bold uppercase text-[10px] tracking-widest bg-rose-50 rounded-xl">Cancelar</button>
+                       <button onClick={() => { saveField('description', editedDescription); setIsEditingDescription(false); }} className="px-4 py-2 text-white font-bold uppercase text-[10px] tracking-widest bg-emerald-600 rounded-xl">Salvar Parecer</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-slate-50 p-6 rounded-[2rem] text-slate-700 font-medium leading-relaxed border border-slate-100 italic">
+                    "{request.description}"
+                  </div>
+                )}
               </div>
 
               <div>
@@ -403,51 +458,25 @@ const RequestDetailsPage: React.FC = () => {
                    <div className="relative group rounded-3xl overflow-hidden border border-slate-200 bg-slate-100">
                      <div className="absolute top-4 left-4 bg-slate-900/80 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase z-10">Estado Inicial (Antes)</div>
                      {request.photoBefore && (
-                       <button 
-                         onClick={() => handleShareImage(request.photoBefore!, 'Estado_Inicial')}
-                         className="absolute top-4 right-4 bg-white/20 backdrop-blur-md text-white p-2 rounded-xl hover:bg-blue-600 transition-all z-10 shadow-lg"
-                         title="Compartilhar imagem real"
-                       >
-                         <Share2 size={16} />
-                       </button>
+                       <button onClick={() => handleShareImage(request.photoBefore!, 'Estado_Inicial')} className="absolute top-4 right-4 bg-white/20 backdrop-blur-md text-white p-2 rounded-xl hover:bg-blue-600 transition-all z-10 shadow-lg" title="Compartilhar imagem real"><Share2 size={16} /></button>
                      )}
                      {request.photoBefore ? (
                         <img src={request.photoBefore} alt="Antes" className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-500" />
                      ) : (
-                        <div className="w-full h-64 flex flex-col items-center justify-center text-slate-300">
-                           <ImageIcon size={48} />
-                           <span className="text-xs font-black uppercase mt-2">Sem imagem</span>
-                        </div>
+                        <div className="w-full h-64 flex flex-col items-center justify-center text-slate-300"><ImageIcon size={48} /><span className="text-xs font-black uppercase mt-2">Sem imagem</span></div>
                      )}
                    </div>
-                   
                    <div className="relative group rounded-3xl overflow-hidden border border-slate-200 bg-slate-100">
-                      <div className="absolute top-4 left-4 bg-emerald-600 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase z-10">
-                        {request.photoAfter ? 'Conclusão (Depois)' : 'Aguardando Término'}
-                      </div>
-                      
+                      <div className="absolute top-4 left-4 bg-emerald-600 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase z-10">{request.photoAfter ? 'Conclusão (Depois)' : 'Aguardando Término'}</div>
                       {request.photoAfter && (
-                        <button 
-                          onClick={() => handleShareImage(request.photoAfter!, 'Conclusao_Vistoria')}
-                          className="absolute top-4 right-4 bg-white/20 backdrop-blur-md text-white p-2 rounded-xl hover:bg-emerald-600 transition-all z-10 shadow-lg"
-                          title="Compartilhar imagem real"
-                        >
-                          <Share2 size={16} />
-                        </button>
+                        <button onClick={() => handleShareImage(request.photoAfter!, 'Conclusao_Vistoria')} className="absolute top-4 right-4 bg-white/20 backdrop-blur-md text-white p-2 rounded-xl hover:bg-emerald-600 transition-all z-10 shadow-lg" title="Compartilhar imagem real"><Share2 size={16} /></button>
                       )}
-
                       {request.photoAfter ? (
                          <img src={request.photoAfter} alt="Depois" className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-500" />
                       ) : (
                          <label className="w-full h-64 bg-emerald-50 flex flex-col items-center justify-center text-emerald-600 cursor-pointer hover:bg-emerald-100 transition-colors">
-                            {isCapturingAfter ? (
-                              <Loader2 className="animate-spin" size={48} />
-                            ) : (
-                              <>
-                                <Camera size={48} strokeWidth={1.5} />
-                                <span className="text-xs font-black uppercase mt-2">Tirar Foto do Depois</span>
-                                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleAfterPhotoCapture} />
-                              </>
+                            {isCapturingAfter ? <Loader2 className="animate-spin" size={48} /> : (
+                              <><Camera size={48} strokeWidth={1.5} /><span className="text-xs font-black uppercase mt-2">Tirar Foto do Depois</span><input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleAfterPhotoCapture} /></>
                             )}
                          </label>
                       )}
@@ -465,9 +494,7 @@ const RequestDetailsPage: React.FC = () => {
             <div className="space-y-3 mb-6">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Engenheiro Titular</p>
               <div className="flex items-center gap-4 p-3.5 bg-blue-50 rounded-2xl border border-blue-100">
-                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg">
-                  <ShieldCheck size={20} />
-                </div>
+                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg"><ShieldCheck size={20} /></div>
                 <div>
                   <p className="font-black text-slate-900 text-sm leading-tight">{engineer?.name || 'Não definido'}</p>
                   <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Responsável Técnico</span>
@@ -478,9 +505,7 @@ const RequestDetailsPage: React.FC = () => {
             <div className="space-y-3 mb-6">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Assistente da Unidade</p>
               <div className="flex items-center gap-4 p-3.5 bg-indigo-50 rounded-2xl border border-indigo-100">
-                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg">
-                  <Users size={20} />
-                </div>
+                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg"><Users size={20} /></div>
                 <div>
                   <p className="font-black text-slate-900 text-sm leading-tight">{assistant?.name || 'Não definido'}</p>
                   <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">{assistant ? getRoleLabel(assistant.role) : 'Assistente'}</span>
@@ -489,16 +514,36 @@ const RequestDetailsPage: React.FC = () => {
             </div>
 
             <div className="space-y-3">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Vistoriador do Registro</p>
-              <div className="flex items-center gap-4 p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
-                <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-lg">
-                  {tech?.name.charAt(0)}
-                </div>
-                <div>
-                  <p className="font-black text-slate-900 text-sm leading-tight">{tech?.name}</p>
-                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Técnico em Campo</span>
-                </div>
+              <div className="flex items-center justify-between group">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Vistoriador do Registro</p>
+                {canEdit && !isEditingTech && (
+                  <button onClick={() => setIsEditingTech(true)} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-blue-500"><Edit2 size={12}/></button>
+                )}
               </div>
+              
+              {isEditingTech ? (
+                <div className="space-y-2">
+                  <select 
+                    className="w-full h-10 px-3 bg-white border border-blue-500 rounded-xl font-bold text-slate-900 text-xs outline-none"
+                    value={request.technicianId}
+                    onChange={e => { saveField('technicianId', e.target.value); setIsEditingTech(false); }}
+                  >
+                    <option value="">Selecione Profissional...</option>
+                    {users.filter(u => u.zonal === request.zonal).map(u => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
+                  <button onClick={() => setIsEditingTech(false)} className="w-full text-[9px] font-black text-rose-500 uppercase tracking-widest text-center">Cancelar Troca</button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-4 p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-lg">{tech?.name.charAt(0)}</div>
+                  <div>
+                    <p className="font-black text-slate-900 text-sm leading-tight">{tech?.name}</p>
+                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Técnico em Campo</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col gap-3">
@@ -515,15 +560,10 @@ const RequestDetailsPage: React.FC = () => {
 
           <div className="bg-slate-900 p-6 rounded-3xl text-white shadow-xl">
              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-slate-900">
-                   <FileText size={18} />
-                </div>
+                <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-slate-900"><FileText size={18} /></div>
                 <h3 className="font-black uppercase tracking-tight text-sm">Resumo da Ação</h3>
              </div>
-             <p className="text-xs text-slate-400 font-medium leading-relaxed mb-6">
-                Status operativo atual: <strong>{request.status.toUpperCase()}</strong>. 
-                {request.status !== RequestStatus.COMPLETED && ' Aguardando finalização técnica para encerramento de chamado.'}
-             </p>
+             <p className="text-xs text-slate-400 font-medium leading-relaxed mb-6">Status operativo atual: <strong>{request.status.toUpperCase()}</strong>. {request.status !== RequestStatus.COMPLETED && ' Aguardando finalização técnica para encerramento de chamado.'}</p>
              <div className="space-y-2">
                 <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
                    <div className={`h-full bg-emerald-500 transition-all duration-700 ${request.status === RequestStatus.COMPLETED ? 'w-full' : request.status === RequestStatus.IN_PROGRESS ? 'w-1/2' : 'w-1/4'}`}></div>
