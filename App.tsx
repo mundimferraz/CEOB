@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, ClipboardList, PlusCircle, Users, Menu, X, ChevronRight, Plus, CheckCircle, Info, AlertCircle, Loader2, LogOut, UserCircle, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, PlusCircle, Users, Menu, X, ChevronRight, Plus, CheckCircle, Info, AlertCircle, Loader2, LogOut, UserCircle, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { RepairRequest, User, ZonalType, RequestStatus, ZonalMetadata, UserRole, AppRole } from './types';
 import { MOCK_REQUESTS, MOCK_USERS, INITIAL_ZONAL_METADATA, ROLE_CONFIG } from './constants';
 import DashboardPage from './pages/DashboardPage';
@@ -33,6 +33,7 @@ interface AppContextType {
   deleteUser: (id: string) => Promise<void>;
   updateZonal: (zonal: ZonalMetadata) => Promise<void>;
   getZonalName: (id: ZonalType) => string;
+  getRoleLabel: (role: AppRole) => string;
   notify: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
@@ -40,7 +41,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const useApp = () => {
   const context = useContext(AppContext);
-  if (!context) throw new Error("useApp must be used within AppProvider");
+  if (!context) throw new Error("useApp deve ser usado dentro de um AppProvider");
   return context;
 };
 
@@ -49,9 +50,9 @@ const Navigation = () => {
   const { currentUser, canDo, users, setCurrentUser } = useApp();
 
   const navItems = [
-    { path: '/', label: 'Início', icon: LayoutDashboard, visible: true },
+    { path: '/', label: 'Dashboard', icon: LayoutDashboard, visible: true },
     { path: '/requests', label: 'Vistorias', icon: ClipboardList, visible: true },
-    { path: '/new', label: 'Novo Registro', icon: PlusCircle, highlight: true, visible: canDo('create_request') },
+    { path: '/new', label: 'Nova Vistoria', icon: PlusCircle, highlight: true, visible: canDo('create_request') },
     { path: '/org', label: 'Gestão de Usuários', icon: Users, visible: canDo('manage_users') },
   ];
 
@@ -59,11 +60,13 @@ const Navigation = () => {
     <>
       <header className="md:hidden flex items-center justify-between p-4 bg-white border-b border-slate-200 sticky top-0 z-40 h-16">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white">S</div>
+          <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center font-bold text-white">S</div>
           <span className="font-extrabold tracking-tight text-slate-900 uppercase">SGR-VIAS</span>
         </div>
-        <div className="text-[10px] font-black bg-blue-50 text-blue-600 px-2 py-1 rounded-full border border-blue-100">
-           {currentUser?.role}
+        <div className="flex items-center gap-2">
+           <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border uppercase ${currentUser ? ROLE_CONFIG[currentUser.role].color : ''}`}>
+             {currentUser?.role || 'Visitante'}
+           </span>
         </div>
       </header>
 
@@ -97,29 +100,34 @@ const Navigation = () => {
           })}
         </nav>
 
-        {/* Simulador de Sessão (Para demonstração de faculdade) */}
-        <div className="p-6 mt-auto border-t border-slate-800">
-          <div className="bg-slate-800/50 rounded-2xl p-4 border border-slate-700">
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Simulador de Acesso</p>
+        {/* Simulador de Sessão Consertado */}
+        <div className="p-6 mt-auto border-t border-slate-800 bg-slate-900/50">
+          <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3">Simulador de Perfil</p>
+          <div className="space-y-3">
             <select 
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg text-xs p-2 text-white outline-none focus:border-blue-500"
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold p-2.5 text-white outline-none focus:ring-2 focus:ring-blue-500 transition-all"
               value={currentUser?.id || ''}
               onChange={(e) => {
                 const user = users.find(u => u.id === e.target.value);
-                setCurrentUser(user || null);
+                if (user) setCurrentUser(user);
               }}
             >
+              <option value="" disabled>Trocar Usuário...</option>
               {users.map(u => (
                 <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
               ))}
             </select>
-            <div className="mt-4 flex items-center gap-3">
-               <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-black">
+            
+            <div className="flex items-center gap-3 p-2 rounded-xl bg-slate-800/50 border border-slate-700/50">
+               <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white text-xs font-black shadow-md">
                  {currentUser?.name.charAt(0)}
                </div>
                <div className="overflow-hidden">
-                 <p className="text-[10px] font-black text-white truncate">{currentUser?.name}</p>
-                 <p className="text-[9px] text-slate-500 font-bold uppercase truncate">{currentUser?.role}</p>
+                 <p className="text-[11px] font-black text-white truncate">{currentUser?.name}</p>
+                 <div className="flex items-center gap-1">
+                   <ShieldCheck size={10} className="text-blue-400" />
+                   <p className="text-[9px] text-slate-400 font-bold uppercase truncate">{currentUser?.role}</p>
+                 </div>
                </div>
             </div>
           </div>
@@ -186,7 +194,7 @@ const App: React.FC = () => {
       case 'create_request':
         return [AppRole.ADMIN, AppRole.EDITOR, AppRole.OPERATOR].includes(role);
       case 'edit_request':
-        return [AppRole.ADMIN, AppRole.EDITOR].includes(role);
+        return [AppRole.ADMIN, AppRole.EDITOR, AppRole.OPERATOR].includes(role);
       case 'delete_request':
         return [AppRole.ADMIN, AppRole.EDITOR].includes(role);
       case 'view_all_zonals':
@@ -205,18 +213,28 @@ const App: React.FC = () => {
         dbApi.getZonals()
       ]);
       
-      setRequests(dbRequests);
-      setUsers(dbUsers);
-      setZonals(dbZonals.length > 0 ? dbZonals : INITIAL_ZONAL_METADATA);
-      
-      // Auto-login no primeiro Admin para facilitar teste
-      if (dbUsers.length > 0) {
+      // Bootstrapping: Se não houver usuários, injeta os iniciais (Admin u1, Editor u2, Operator u4)
+      if (dbUsers.length === 0) {
+        console.log("Banco vazio, injetando usuários iniciais...");
+        for (const user of MOCK_USERS) {
+          await dbApi.saveUser(user);
+        }
+        const refreshedUsers = await dbApi.getUsers();
+        setUsers(refreshedUsers);
+        setCurrentUser(refreshedUsers.find(u => u.role === AppRole.ADMIN) || refreshedUsers[0]);
+      } else {
+        setUsers(dbUsers);
+        // Garante que o usuário Admin logado inicialmente é o que está no banco
         const admin = dbUsers.find(u => u.role === AppRole.ADMIN) || dbUsers[0];
         setCurrentUser(admin);
       }
+
+      setRequests(dbRequests);
+      setZonals(dbZonals.length > 0 ? dbZonals : INITIAL_ZONAL_METADATA);
+      
     } catch (error: any) {
       console.error(error);
-      notify(`Erro de sincronização: ${error.message}`, 'error');
+      notify(`Erro ao carregar dados: ${error.message}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -225,16 +243,14 @@ const App: React.FC = () => {
   useEffect(() => { initData(); }, []);
 
   const addRequest = async (req: RepairRequest) => {
-    if (!canDo('create_request')) { notify('Sem permissão para criar.', 'error'); return; }
     try {
       await dbApi.createRequest(req);
       setRequests(prev => [req, ...prev]);
-      notify('Solicitação gravada com sucesso!');
-    } catch (e: any) { notify(`Erro ao gravar: ${e.message}`, 'error'); }
+      notify('Vistoria salva com sucesso!');
+    } catch (e: any) { notify(`Erro: ${e.message}`, 'error'); }
   };
 
   const updateRequest = async (req: RepairRequest) => {
-    if (!canDo('edit_request')) { notify('Sem permissão para editar.', 'error'); return; }
     try {
       await dbApi.updateRequest(req);
       setRequests(prev => prev.map(r => r.id === req.id ? { ...req } : r));
@@ -243,12 +259,11 @@ const App: React.FC = () => {
   };
 
   const deleteRequest = async (id: string) => {
-    if (!canDo('delete_request')) { notify('Sem permissão para excluir.', 'error'); return; }
     try {
       await dbApi.deleteRequest(id);
       setRequests(prev => prev.filter(r => r.id !== id));
-      notify('Excluído com sucesso.', 'info');
-    } catch (e: any) { notify(`Erro ao excluir: ${e.message}`, 'error'); }
+      notify('Registro removido.', 'info');
+    } catch (e: any) { notify(`Erro: ${e.message}`, 'error'); }
   };
   
   const addUser = async (user: User) => {
@@ -256,7 +271,7 @@ const App: React.FC = () => {
       await dbApi.saveUser(user);
       setUsers(prev => [...prev, user]);
       notify('Usuário cadastrado!');
-    } catch (e: any) { notify(`Erro no cadastro: ${e.message}`, 'error'); }
+    } catch (e: any) { notify(`Erro: ${e.message}`, 'error'); }
   };
 
   const updateUser = async (user: User) => {
@@ -264,23 +279,23 @@ const App: React.FC = () => {
       await dbApi.saveUser(user);
       setUsers(prev => prev.map(u => u.id === user.id ? user : u));
       if (currentUser?.id === user.id) setCurrentUser(user);
-      notify('Perfil atualizado.');
-    } catch (e: any) { notify(`Erro na atualização: ${e.message}`, 'error'); }
+      notify('Dados atualizados.');
+    } catch (e: any) { notify(`Erro: ${e.message}`, 'error'); }
   };
 
   const deleteUser = async (id: string) => {
     try {
       await dbApi.deleteUser(id);
       setUsers(prev => prev.filter(u => u.id !== id));
-      notify('Usuário removido.', 'info');
-    } catch (e: any) { notify(`Erro ao remover: ${e.message}`, 'error'); }
+      notify('Usuário removido.');
+    } catch (e: any) { notify(`Erro: ${e.message}`, 'error'); }
   };
   
   const updateZonal = async (zonal: ZonalMetadata) => {
     try {
       await dbApi.saveZonal(zonal);
       setZonals(prev => prev.map(z => z.id === zonal.id ? zonal : z));
-      notify('Configurações salvas!');
+      notify('Unidade atualizada!');
     } catch (e: any) { notify(`Erro: ${e.message}`, 'error'); }
   };
 
@@ -289,11 +304,18 @@ const App: React.FC = () => {
     return zonal?.name || id;
   };
 
+  /**
+   * Helper to get user-friendly role label from AppRole enum.
+   */
+  const getRoleLabel = (role: AppRole) => {
+    return ROLE_CONFIG[role]?.label || role;
+  };
+
   return (
     <AppContext.Provider value={{ 
       requests, users, zonals, currentUser, loading, canDo,
       setCurrentUser, addRequest, updateRequest, deleteRequest,
-      addUser, updateUser, deleteUser, updateZonal, getZonalName, notify
+      addUser, updateUser, deleteUser, updateZonal, getZonalName, getRoleLabel, notify
     }}>
       <HashRouter>
         <div className="flex flex-col md:flex-row min-h-screen">
@@ -301,9 +323,10 @@ const App: React.FC = () => {
           <main className="flex-1 pb-24 md:pb-0 md:pl-64 bg-slate-50 min-h-screen">
             <div className="max-w-7xl mx-auto w-full">
                {loading ? (
-                 <div className="flex flex-col items-center justify-center h-screen">
-                    <Loader2 className="animate-spin text-blue-600 mb-4" size={48} />
-                    <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">Autenticando Permissões...</p>
+                 <div className="flex flex-col items-center justify-center h-screen bg-white">
+                    <Loader2 className="animate-spin text-blue-600 mb-6" size={56} />
+                    <h2 className="text-sm font-black text-slate-900 uppercase tracking-[0.3em]">Carregando Ecossistema</h2>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-2">SGR-Vias • Gestão Governamental</p>
                  </div>
                ) : (
                  <Routes>
@@ -317,16 +340,16 @@ const App: React.FC = () => {
             </div>
           </main>
 
-          <div className="fixed top-4 md:top-auto md:bottom-24 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 w-[90%] max-w-sm pointer-events-none">
+          <div className="fixed top-6 md:top-auto md:bottom-24 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-3 w-[92%] max-w-sm pointer-events-none">
             {toasts.map(toast => (
-              <div key={toast.id} className={`p-4 rounded-2xl shadow-2xl flex items-start gap-3 animate-in fade-in slide-in-from-top-4 md:slide-in-from-bottom-4 duration-300 pointer-events-auto ${toast.type === 'success' ? 'bg-emerald-600 text-white' : toast.type === 'error' ? 'bg-rose-600 text-white' : 'bg-slate-800 text-white'}`}>
-                <div className="mt-0.5">
+              <div key={toast.id} className={`p-4 rounded-2xl shadow-2xl flex items-start gap-3 animate-in fade-in slide-in-from-top-6 md:slide-in-from-bottom-6 duration-300 pointer-events-auto border ${toast.type === 'success' ? 'bg-emerald-600 border-emerald-500 text-white' : toast.type === 'error' ? 'bg-rose-600 border-rose-500 text-white' : 'bg-slate-800 border-slate-700 text-white'}`}>
+                <div className="mt-0.5 flex-shrink-0">
                   {toast.type === 'success' ? <CheckCircle size={20} /> : toast.type === 'error' ? <AlertCircle size={20} /> : <Info size={20} />}
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-bold">{toast.message}</p>
+                <div className="flex-1 overflow-hidden">
+                  <p className="text-sm font-bold leading-snug">{toast.message}</p>
                 </div>
-                <button onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))} className="opacity-50 hover:opacity-100"><X size={16} /></button>
+                <button onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))} className="flex-shrink-0 p-1 opacity-50 hover:opacity-100 transition-opacity"><X size={16} /></button>
               </div>
             ))}
           </div>
