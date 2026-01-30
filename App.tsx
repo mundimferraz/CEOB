@@ -3,7 +3,7 @@ import React, { useState, useEffect, createContext, useContext, useCallback } fr
 import { HashRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, ClipboardList, PlusCircle, Users, Menu, X, ChevronRight, Plus, CheckCircle, Info, AlertCircle, Loader2, LogOut, UserCircle, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { RepairRequest, User, ZonalType, RequestStatus, ZonalMetadata, UserRole, AppRole } from './types';
-import { MOCK_REQUESTS, MOCK_USERS, INITIAL_ZONAL_METADATA, ROLE_CONFIG } from './constants';
+import { MOCK_REQUESTS, MOCK_USERS, INITIAL_ZONAL_METADATA, ROLE_CONFIG, DEFAULT_ROLE_CONFIG } from './constants';
 import DashboardPage from './pages/DashboardPage';
 import RequestListPage from './pages/RequestListPage';
 import NewRequestPage from './pages/NewRequestPage';
@@ -56,10 +56,10 @@ const Navigation = () => {
     { path: '/org', label: 'Gestão de Usuários', icon: Users, visible: canDo('manage_users') },
   ];
 
-  // Defesa contra erro de leitura de propriedade 'color' de undefined
-  const currentRoleConfig = currentUser && ROLE_CONFIG[currentUser.role] 
+  // Blindagem extrema contra erro de leitura de 'color'
+  const currentRoleConfig = (currentUser && currentUser.role && ROLE_CONFIG[currentUser.role]) 
     ? ROLE_CONFIG[currentUser.role] 
-    : { color: 'bg-slate-100 text-slate-400 border-slate-200', label: 'Carregando...' };
+    : DEFAULT_ROLE_CONFIG;
 
   return (
     <>
@@ -70,7 +70,7 @@ const Navigation = () => {
         </div>
         <div className="flex items-center gap-2">
            <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border uppercase ${currentRoleConfig.color}`}>
-             {currentUser?.role || 'Visitante'}
+             {currentRoleConfig.label}
            </span>
         </div>
       </header>
@@ -128,10 +128,10 @@ const Navigation = () => {
                  {currentUser?.name?.charAt(0) || '?'}
                </div>
                <div className="overflow-hidden">
-                 <p className="text-[11px] font-black text-white truncate">{currentUser?.name || 'Sistema'}</p>
+                 <p className="text-[11px] font-black text-white truncate">{currentUser?.name || 'Aguardando...'}</p>
                  <div className="flex items-center gap-1">
                    <ShieldCheck size={10} className="text-blue-400" />
-                   <p className="text-[9px] text-slate-400 font-bold uppercase truncate">{currentUser?.role || 'Aguardando'}</p>
+                   <p className="text-[9px] text-slate-400 font-bold uppercase truncate">{currentRoleConfig.label}</p>
                  </div>
                </div>
             </div>
@@ -218,7 +218,6 @@ const App: React.FC = () => {
         dbApi.getZonals()
       ]);
       
-      // Bootstrapping de Usuários: Garante que o Admin (u1) sempre exista
       let currentUsers = dbUsers;
       if (dbUsers.length === 0) {
         console.log("Sistema limpo detectado. Injetando carga inicial...");
@@ -232,9 +231,9 @@ const App: React.FC = () => {
       setRequests(dbRequests);
       setZonals(dbZonals.length > 0 ? dbZonals : INITIAL_ZONAL_METADATA);
       
-      // Define o usuário Admin como logado inicialmente
-      const admin = currentUsers.find(u => u.role === AppRole.ADMIN) || currentUsers[0];
-      if (admin) setCurrentUser(admin);
+      // Paulo Sérgio (u1) como Admin Logado Padrão
+      const pauloSergio = currentUsers.find(u => u.id === 'u1') || currentUsers.find(u => u.role === AppRole.ADMIN) || currentUsers[0];
+      if (pauloSergio) setCurrentUser(pauloSergio);
       
     } catch (error: any) {
       console.error("Erro Crítico de Inicialização:", error);
