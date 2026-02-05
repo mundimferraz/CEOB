@@ -67,7 +67,7 @@ export const addWatermarkToImage = (
       const marginX = TARGET_WIDTH * 0.065; 
       const marginY = TARGET_WIDTH * 0.065; 
 
-      // 1. Painel de Fundo (Aumentamos a opacidade para 0.8 para garantir contraste)
+      // 1. Painel de Fundo
       const panelWidth = TARGET_WIDTH - (marginX * 2);
       const panelHeight = 210 * scale;
       const panelX = marginX;
@@ -101,7 +101,8 @@ export const addWatermarkToImage = (
       ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
       
       const fullAddress = addressParts.slice(1).join(',').trim() || data.address;
-      const maxTextWidth = panelWidth - (textPadding * 2) - (160 * scale);
+      // Ajustado maxTextWidth para ocupar o painel todo agora que não tem logo
+      const maxTextWidth = panelWidth - (textPadding * 2);
       const wrappedLines = wrapText(ctx, fullAddress, maxTextWidth);
       
       let currentY = startY + (42 * scale);
@@ -123,25 +124,6 @@ export const addWatermarkToImage = (
       ctx.font = `bold ${18 * scale}px "Inter", sans-serif, system-ui`;
       ctx.fillStyle = '#facc15'; 
       ctx.fillText(footerText, startX, panelY + panelHeight - textPadding);
-
-      // 6. BOX DO LOGO (SGR)
-      const logoSize = 115 * scale;
-      const logoX = panelX + panelWidth - logoSize - textPadding;
-      const logoY = panelY + (panelHeight - logoSize) / 2;
-
-      drawRoundedRect(ctx, logoX, logoY, logoSize, logoSize, 12 * scale);
-      ctx.fillStyle = '#ffffff';
-      ctx.fill();
-      
-      ctx.strokeStyle = '#facc15';
-      ctx.lineWidth = 3 * scale;
-      ctx.stroke();
-
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#0f172a';
-      ctx.font = `black ${38 * scale}px "Inter", sans-serif`;
-      ctx.fillText("SGR", logoX + logoSize/2, logoY + logoSize/2);
 
       // Retorna a imagem finalizada
       resolve(canvas.toDataURL('image/jpeg', 0.88));
