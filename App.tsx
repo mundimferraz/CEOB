@@ -30,6 +30,7 @@ interface AppContextType {
   addRequest: (req: RepairRequest) => Promise<void>;
   updateRequest: (req: RepairRequest) => Promise<void>;
   deleteRequest: (id: string) => Promise<void>;
+  refreshRequests: () => Promise<void>;
   addUser: (user: User) => Promise<void>;
   updateUser: (user: User) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
@@ -213,6 +214,15 @@ const App: React.FC = () => {
     }, 5000);
   }, []);
 
+  const refreshRequests = useCallback(async () => {
+    try {
+      const dbRequests = await dbApi.getRequests();
+      setRequests(dbRequests);
+    } catch (e) {
+      console.error("Erro ao sincronizar lista:", e);
+    }
+  }, []);
+
   const canDo = useCallback((action: 'manage_users' | 'create_request' | 'edit_request' | 'delete_request' | 'view_all_zonals') => {
     if (!currentUser) return false;
     const role = currentUser.role as any;
@@ -336,21 +346,20 @@ const App: React.FC = () => {
   const addRequest = async (req: RepairRequest) => {
     try {
       await dbApi.createRequest(req);
+      await refreshRequests();
       notify('Vistoria salva com sucesso!');
     } catch (e: any) { notify(`Erro: ${e.message}`, 'error'); }
   };
 
   const updateRequest = async (req: RepairRequest) => {
     try {
-      // ATUALIZAÇÃO OTIMISTA: Atualiza o estado local imediatamente
       setRequests(prev => prev.map(r => r.id === req.id ? req : r));
-      
-      // Persiste no banco de dados
       await dbApi.updateRequest(req);
+      await refreshRequests();
       notify('Registro atualizado com sucesso no banco de dados.');
     } catch (e: any) { 
       notify(`Erro ao sincronizar com banco: ${e.message}`, 'error'); 
-      // Em caso de erro, os dados serão corrigidos na próxima atualização do Realtime
+      await refreshRequests();
     }
   };
 
@@ -358,6 +367,7 @@ const App: React.FC = () => {
     try {
       setRequests(prev => prev.filter(r => r.id !== id));
       await dbApi.deleteRequest(id);
+      await refreshRequests();
     } catch (e: any) { notify(`Erro: ${e.message}`, 'error'); }
   };
   
@@ -406,7 +416,7 @@ const App: React.FC = () => {
   return (
     <AppContext.Provider value={{ 
       requests, users, zonals, currentUser, loading, canDo,
-      setCurrentUser, addRequest, updateRequest, deleteRequest,
+      setCurrentUser, addRequest, updateRequest, deleteRequest, refreshRequests,
       addUser, updateUser, deleteUser, updateZonal, getZonalName, getRoleLabel, notify
     }}>
       <HashRouter>

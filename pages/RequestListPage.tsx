@@ -1,18 +1,19 @@
 
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Filter, Download, Plus, ChevronRight, MapPin, Calendar, User as UserIcon, ClipboardList, ImageIcon, ShieldCheck, Users, FileText, FileSpreadsheet, ChevronDown, ShieldAlert, Trash2, Loader2 } from 'lucide-react';
+import { Search, Filter, Download, Plus, ChevronRight, MapPin, Calendar, User as UserIcon, ClipboardList, ImageIcon, ShieldCheck, Users, FileText, FileSpreadsheet, ChevronDown, ShieldAlert, Trash2, Loader2, RotateCw } from 'lucide-react';
 import { useApp } from '../App';
 import { RequestStatus, ZonalType, AppRole } from '../types';
 import { STATUS_COLORS, ZONALS_LIST } from '../constants';
 import * as XLSX from 'xlsx';
 
 const RequestListPage: React.FC = () => {
-  const { requests, users, zonals, currentUser, canDo, getZonalName, updateRequest, deleteRequest, notify } = useApp();
+  const { requests, users, zonals, currentUser, canDo, getZonalName, updateRequest, deleteRequest, refreshRequests, notify } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [zonalFilter, setZonalFilter] = useState<string>('all');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const filteredRequests = useMemo(() => {
     return requests.filter(req => {
@@ -32,6 +33,18 @@ const RequestListPage: React.FC = () => {
     });
   }, [requests, searchTerm, statusFilter, zonalFilter, currentUser]);
 
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshRequests();
+      notify("Lista sincronizada com sucesso!");
+    } catch (e) {
+      notify("Erro ao sincronizar.", "error");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   const handleQuickStatusChange = (e: React.ChangeEvent<HTMLSelectElement>, req: any) => {
     e.preventDefault();
     e.stopPropagation();
@@ -43,7 +56,6 @@ const RequestListPage: React.FC = () => {
 
     const newStatus = e.target.value as RequestStatus;
     updateRequest({ ...req, status: newStatus });
-    notify(`Status de ${req.protocol} alterado para ${newStatus}`);
   };
 
   const handleQuickDelete = async (e: React.MouseEvent, id: string, protocol: string) => {
@@ -103,6 +115,15 @@ const RequestListPage: React.FC = () => {
         </div>
         <div className="flex flex-wrap gap-2">
           <button 
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
+            className="flex items-center justify-center w-11 h-11 bg-white text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all shadow-sm active:scale-95 disabled:opacity-50"
+            title="Sincronizar Manualmente"
+          >
+            <RotateCw size={18} className={isRefreshing ? "animate-spin text-blue-600" : ""} />
+          </button>
+
+          <button 
             onClick={exportToCSV}
             className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 font-bold transition-all shadow-sm text-sm"
           >
@@ -158,7 +179,6 @@ const RequestListPage: React.FC = () => {
                 to={`/requests/${req.id}`}
                 className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-xl hover:-translate-y-1 transition-all active:scale-[0.98] flex gap-4 relative group overflow-hidden"
               >
-                {/* BOTÃO EXCLUIR RÁPIDO - POSICIONADO NO CANTO SUPERIOR DIREITO SEM CONFLITOS */}
                 <button
                   onClick={(e) => handleQuickDelete(e, req.id, req.protocol)}
                   disabled={isDeleting}
@@ -185,7 +205,6 @@ const RequestListPage: React.FC = () => {
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate mb-1">
                         {req.protocol}
                       </span>
-                      {/* STATUS MOVIDO PARA A ESQUERDA PARA EVITAR O BOTÃO DE EXCLUIR */}
                       <div 
                         className="relative w-fit"
                         onClick={e => e.preventDefault()}
