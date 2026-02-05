@@ -217,7 +217,6 @@ const App: React.FC = () => {
     if (!currentUser) return false;
     const role = currentUser.role as any;
 
-    // SOBERANIA ADMIN: Se for administrador ou gestor central, tem acesso total (CRUD)
     const isAdmin = [AppRole.ADMIN, 'Manager', 'Admin'].includes(role);
     if (isAdmin) return true;
 
@@ -232,7 +231,7 @@ const App: React.FC = () => {
       case 'edit_request':
         return isOperator;
       case 'delete_request':
-        return true; // TODOS podem excluir conforme solicitado
+        return true; 
       case 'view_all_zonals':
         return role !== AppRole.RESTRICTED && role !== 'Intern';
       default:
@@ -240,7 +239,6 @@ const App: React.FC = () => {
     }
   }, [currentUser]);
 
-  // Função para mapear dados do DB para o tipo RepairRequest
   const mapDbRequest = (req: any): RepairRequest => ({
     id: req.id,
     protocol: req.protocol,
@@ -321,7 +319,6 @@ const App: React.FC = () => {
         if (payload.eventType === 'INSERT') {
           const newReq = mapDbRequest(payload.new);
           setRequests(prev => [newReq, ...prev]);
-          notify(`Novo registro inserido: ${newReq.protocol}`, 'info');
         } else if (payload.eventType === 'UPDATE') {
           const updatedReq = mapDbRequest(payload.new);
           setRequests(prev => prev.map(r => r.id === updatedReq.id ? updatedReq : r));
@@ -345,15 +342,22 @@ const App: React.FC = () => {
 
   const updateRequest = async (req: RepairRequest) => {
     try {
+      // ATUALIZAÇÃO OTIMISTA: Atualiza o estado local imediatamente
+      setRequests(prev => prev.map(r => r.id === req.id ? req : r));
+      
+      // Persiste no banco de dados
       await dbApi.updateRequest(req);
-      notify('Registro atualizado.');
-    } catch (e: any) { notify(`Erro ao atualizar: ${e.message}`, 'error'); }
+      notify('Registro atualizado com sucesso no banco de dados.');
+    } catch (e: any) { 
+      notify(`Erro ao sincronizar com banco: ${e.message}`, 'error'); 
+      // Em caso de erro, os dados serão corrigidos na próxima atualização do Realtime
+    }
   };
 
   const deleteRequest = async (id: string) => {
     try {
+      setRequests(prev => prev.filter(r => r.id !== id));
       await dbApi.deleteRequest(id);
-      // Notificação será enviada na confirmação da lista
     } catch (e: any) { notify(`Erro: ${e.message}`, 'error'); }
   };
   

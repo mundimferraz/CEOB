@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import { MapPin, Calendar, User as UserIcon, FileText, Camera, Download, Trash2, CheckCircle, AlertTriangle, Crosshair, ImageIcon, Edit2, X, Save, ExternalLink, Loader2, ShieldCheck, UserCheck, Users, ChevronDown, Share2, Hash, Briefcase, ClipboardList } from 'lucide-react';
@@ -19,24 +19,30 @@ const RequestDetailsPage: React.FC = () => {
   const assistant = users.find(u => u.id === zonalMeta?.assistantId);
 
   // Estados de Edição
+  const [editedAddress, setEditedAddress] = useState('');
+  const [editedProtocol, setEditedProtocol] = useState('');
+  const [editedSei, setEditedSei] = useState('');
+  const [editedContract, setEditedContract] = useState('');
+  const [editedDescription, setEditedDescription] = useState('');
+
   const [isEditingAddress, setIsEditingAddress] = useState(false);
-  const [editedAddress, setEditedAddress] = useState(request?.location.address || '');
-  
   const [isEditingProtocol, setIsEditingProtocol] = useState(false);
-  const [editedProtocol, setEditedProtocol] = useState(request?.protocol || '');
-
   const [isEditingSei, setIsEditingSei] = useState(false);
-  const [editedSei, setEditedSei] = useState(request?.seiNumber || '');
-
   const [isEditingContract, setIsEditingContract] = useState(false);
-  const [editedContract, setEditedContract] = useState(request?.contract || '');
-
   const [isEditingDescription, setIsEditingDescription] = useState(false);
-  const [editedDescription, setEditedDescription] = useState(request?.description || '');
-
   const [isEditingTech, setIsEditingTech] = useState(false);
-
   const [isCapturingAfter, setIsCapturingAfter] = useState(false);
+
+  // SINCRONIZAÇÃO DE ESTADOS: Garante que os campos de edição reflitam os dados atuais do contexto
+  useEffect(() => {
+    if (request) {
+      setEditedAddress(request.location.address || '');
+      setEditedProtocol(request.protocol || '');
+      setEditedSei(request.seiNumber || '');
+      setEditedContract(request.contract || '');
+      setEditedDescription(request.description || '');
+    }
+  }, [request?.id, request?.seiNumber, request?.contract, request?.protocol, request?.description, request?.location.address]);
 
   const canEdit = canDo('edit_request');
 
@@ -52,7 +58,6 @@ const RequestDetailsPage: React.FC = () => {
 
   const handleStatusChange = (newStatus: RequestStatus) => {
     updateRequest({ ...request, status: newStatus });
-    notify(`Status atualizado para: ${newStatus}`, 'success');
   };
 
   const handleShareImage = async (base64Data: string, title: string) => {
@@ -82,33 +87,35 @@ const RequestDetailsPage: React.FC = () => {
   };
 
   const handleDelete = async () => {
-    if (window.confirm('Tem certeza que deseja excluir permanentemente esta vistoria? Esta ação não pode ser desfeita.')) {
+    if (window.confirm('⚠️ AVISO: Deseja excluir permanentemente esta vistoria?')) {
       await deleteRequest(request.id);
       navigate('/requests');
+      notify('Registro removido do sistema.');
     }
   };
 
-  const saveField = (field: string, value: any) => {
-    updateRequest({ ...request, [field]: value });
-    notify('Campo atualizado com sucesso!');
+  const saveField = async (field: string, value: any) => {
+    try {
+      await updateRequest({ ...request, [field]: value });
+    } catch (err) {
+      console.error("Erro ao salvar campo:", err);
+    }
   };
 
-  const handleSaveAddress = () => {
-    updateRequest({
+  const handleSaveAddress = async () => {
+    await updateRequest({
       ...request,
       location: { ...request.location, address: editedAddress }
     });
     setIsEditingAddress(false);
-    notify('Endereço atualizado!');
   };
 
-  const handleSaveDescription = () => {
-    updateRequest({
+  const handleSaveDescription = async () => {
+    await updateRequest({
       ...request,
       description: editedDescription
     });
     setIsEditingDescription(false);
-    notify('Parecer Técnico atualizado!');
   };
 
   const handleAfterPhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -116,9 +123,9 @@ const RequestDetailsPage: React.FC = () => {
     if (file) {
       setIsCapturingAfter(true);
       const reader = new FileReader();
-      reader.onloadend = () => {
+      reader.onloadend = async () => {
         const base64 = reader.result as string;
-        updateRequest({
+        await updateRequest({
           ...request,
           photoAfter: base64,
           status: RequestStatus.COMPLETED
