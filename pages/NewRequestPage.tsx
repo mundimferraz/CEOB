@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, MapPin, Save, Loader2, Navigation as NavigationIcon, Crosshair, Check } from 'lucide-react';
+import { Camera, MapPin, Save, Loader2, Navigation as NavigationIcon, Crosshair, Check, UploadCloud, ImageIcon, Trash2 } from 'lucide-react';
 import { useApp } from '../App';
 import { RequestStatus, ZonalType, RepairRequest } from '../types';
 import { ZONALS_LIST } from '../constants';
@@ -13,6 +13,9 @@ const NewRequestPage: React.FC = () => {
   
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+
   const [locating, setLocating] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -116,7 +119,7 @@ const NewRequestPage: React.FC = () => {
     );
   }, [notify]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSource = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setIsProcessingImage(true);
@@ -124,7 +127,6 @@ const NewRequestPage: React.FC = () => {
       reader.onloadend = async () => {
         const rawBase64 = reader.result as string;
         try {
-          // Aplica a marca d'água com dados reais
           const techName = users.find(u => u.id === formData.technicianId)?.name || currentUser?.name || 'Técnico';
           const watermarked = await addWatermarkToImage(rawBase64, {
             address: formData.address || 'Endereço não identificado',
@@ -136,10 +138,10 @@ const NewRequestPage: React.FC = () => {
           
           setFormData(prev => ({ ...prev, photoBefore: watermarked }));
           setImagePreview(watermarked);
-          notify("Foto processada com selo de geolocalização!");
+          notify("Evidência processada com sucesso!");
         } catch (err) {
           console.error(err);
-          notify("Erro ao processar imagem", "error");
+          notify("Aviso: Imagem salva sem selo digital.", "info");
           setFormData(prev => ({ ...prev, photoBefore: rawBase64 }));
           setImagePreview(rawBase64);
         } finally {
@@ -192,25 +194,26 @@ const NewRequestPage: React.FC = () => {
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto w-full">
       <header className="mb-8">
-        <h1 className="text-3xl font-black text-slate-900 tracking-tight">Vistoria de Campo</h1>
-        <p className="text-slate-500 font-medium tracking-tight">Georreferenciamento e registro de demanda técnica.</p>
+        <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase italic">Vistoria de Campo</h1>
+        <p className="text-slate-500 font-medium tracking-tight uppercase text-[10px] tracking-widest">Georreferenciamento e Registro Governamental</p>
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-6 pb-24">
+        {/* Mapa de Localização */}
         <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-            <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+            <h2 className="text-sm font-black text-slate-900 flex items-center gap-2 uppercase tracking-tight">
               <div className="w-1.5 h-6 bg-emerald-600 rounded-full"></div>
-              Mapa de Georreferenciamento
+              Cartografia e GPS
             </h2>
             <button 
               type="button"
               onClick={handleCaptureLocation}
               disabled={locating || isSaving || isSaved}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-100 transition-all active:scale-95 disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-100 transition-all active:scale-95 disabled:opacity-50 border border-emerald-100"
             >
               {locating ? <Loader2 size={14} className="animate-spin" /> : <NavigationIcon size={14} />}
-              Recalibrar GPS
+              Recalibrar Sinal
             </button>
           </div>
 
@@ -229,11 +232,10 @@ const NewRequestPage: React.FC = () => {
                   <Crosshair size={20} />
                </div>
                <div>
-                  <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Coordenadas GPS</p>
+                  <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Coordenadas WGS84</p>
                   <p className="text-sm font-bold text-white tracking-wider leading-none">
                     {formData.latitude.toFixed(6)}, {formData.longitude.toFixed(6)}
                   </p>
-                  <p className="text-[9px] text-slate-500 font-bold mt-2 uppercase">WGS84 / Geodésico</p>
                </div>
             </div>
 
@@ -242,9 +244,9 @@ const NewRequestPage: React.FC = () => {
                   <MapPin size={20} />
                </div>
                <div>
-                  <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Endereço Logradouro</p>
-                  <p className="text-sm font-bold text-blue-900 leading-snug">
-                    {formData.address || (locating ? 'Identificando...' : 'Arraste o pino no mapa')}
+                  <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Logradouro Atual</p>
+                  <p className="text-sm font-bold text-blue-900 leading-snug line-clamp-2">
+                    {formData.address || (locating ? 'Capturando endereço...' : 'Ajuste o pino no mapa')}
                   </p>
                </div>
             </div>
@@ -253,16 +255,16 @@ const NewRequestPage: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-5">
-            <h2 className="text-lg font-black text-slate-900 border-b border-slate-100 pb-4 flex items-center gap-2">
+            <h2 className="text-sm font-black text-slate-900 border-b border-slate-100 pb-4 flex items-center gap-2 uppercase tracking-tight">
               <div className="w-1.5 h-6 bg-blue-600 rounded-full"></div>
-              Identificação Administrativa
+              Identificação do Processo
             </h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Número do Processo SEI</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Processo SEI</label>
                 <input 
                   type="text" 
-                  className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900"
+                  className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900 uppercase"
                   placeholder="00.000.000/0000-00"
                   value={formData.seiNumber}
                   onChange={e => setFormData({...formData, seiNumber: e.target.value})}
@@ -273,7 +275,7 @@ const NewRequestPage: React.FC = () => {
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Número do Contrato</label>
                 <input 
                   type="text" 
-                  className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900"
+                  className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900 uppercase"
                   placeholder="Ex: CTR-05/2023"
                   value={formData.contract}
                   onChange={e => setFormData({...formData, contract: e.target.value})}
@@ -284,15 +286,15 @@ const NewRequestPage: React.FC = () => {
           </div>
 
           <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-5">
-            <h2 className="text-lg font-black text-slate-900 border-b border-slate-100 pb-4 flex items-center gap-2">
+            <h2 className="text-sm font-black text-slate-900 border-b border-slate-100 pb-4 flex items-center gap-2 uppercase tracking-tight">
                <div className="w-1.5 h-6 bg-indigo-600 rounded-full"></div>
-               Atribuição da Equipe
+               Responsabilidade Técnica
             </h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Unidade Executora (Zonal)</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Unidade Executora</label>
                 <select 
-                  className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900 appearance-none bg-slate-50"
+                  className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900 appearance-none bg-slate-50 uppercase text-xs"
                   value={formData.zonal}
                   onChange={e => setFormData({...formData, zonal: e.target.value as ZonalType, technicianId: ''})}
                 >
@@ -300,16 +302,16 @@ const NewRequestPage: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Técnico Responsável</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Vistoriador Designado</label>
                 <select 
-                  className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900 appearance-none bg-slate-50"
+                  className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900 appearance-none bg-slate-50 uppercase text-xs"
                   value={formData.technicianId}
                   onChange={e => setFormData({...formData, technicianId: e.target.value})}
                   required
                 >
-                  <option value="">Selecione o profissional...</option>
+                  <option value="">-- Selecione Profissional --</option>
                   {filteredPersonnel.map(u => (
-                    <option key={u.id} value={u.id}>{u.name} ({getRoleLabel(u.role)})</option>
+                    <option key={u.id} value={u.id}>{u.name}</option>
                   ))}
                 </select>
               </div>
@@ -317,36 +319,86 @@ const NewRequestPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm space-y-6">
-           <h2 className="text-lg font-black text-slate-900 border-b border-slate-100 pb-4 flex items-center gap-2">
+        {/* Registro Fotográfico Dual */}
+        <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm space-y-6">
+           <h2 className="text-sm font-black text-slate-900 border-b border-slate-100 pb-4 flex items-center gap-2 uppercase tracking-tight">
              <div className="w-1.5 h-6 bg-rose-600 rounded-full"></div>
-             Registro de Evidências (Antes)
+             Evidência do Local (Estado Inicial)
           </h2>
-          <label className={`flex flex-col items-center justify-center w-full h-64 border-2 border-slate-200 border-dashed rounded-[2rem] cursor-pointer bg-slate-50 hover:bg-slate-100 overflow-hidden relative group transition-all ${isSaving || isSaved || isProcessingImage ? 'pointer-events-none opacity-80' : ''}`}>
+          
+          <div className="relative group rounded-[2rem] overflow-hidden border-2 border-slate-200 bg-slate-50 min-h-[280px] flex flex-col items-center justify-center transition-all">
             {isProcessingImage ? (
-              <div className="flex flex-col items-center gap-2">
-                <Loader2 className="animate-spin text-blue-600" size={32} />
-                <span className="text-[10px] font-black uppercase text-slate-400">Processando Selo Digital...</span>
+              <div className="flex flex-col items-center gap-4">
+                <Loader2 className="animate-spin text-blue-600" size={48} />
+                <span className="text-[11px] font-black uppercase text-slate-500 tracking-widest">Sincronizando Selo GPS...</span>
               </div>
             ) : imagePreview ? (
-              <img src={imagePreview} alt="Preview" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
-            ) : (
-              <div className="flex flex-col items-center justify-center p-6 text-center">
-                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-md mb-4">
-                   <Camera className="w-8 h-8 text-blue-600" />
+              <>
+                <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 backdrop-blur-sm">
+                   <button 
+                    type="button"
+                    onClick={() => { setImagePreview(null); setFormData(p => ({...p, photoBefore: ''})); }}
+                    className="p-4 bg-rose-600 text-white rounded-2xl shadow-xl hover:scale-110 transition-transform"
+                   >
+                     <Trash2 size={24} />
+                   </button>
                 </div>
-                <p className="text-sm text-slate-900 font-black uppercase tracking-widest">Tirar Foto do Local</p>
-                <p className="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-widest">O selo de geolocalização será aplicado automaticamente</p>
+              </>
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center space-y-8">
+                <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center shadow-md">
+                   <ImageIcon className="w-10 h-10 text-slate-300" />
+                </div>
+                
+                <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
+                   <button 
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="flex-1 flex items-center justify-center gap-3 h-14 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all"
+                   >
+                     <Camera size={18} />
+                     Tirar Foto
+                   </button>
+                   
+                   <button 
+                    type="button"
+                    onClick={() => galleryInputRef.current?.click()}
+                    className="flex-1 flex items-center justify-center gap-3 h-14 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-slate-200 hover:bg-slate-800 active:scale-95 transition-all"
+                   >
+                     <UploadCloud size={18} />
+                     Galeria
+                   </button>
+                </div>
+
+                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.2em]">O SELO DIGITAL SERÁ APLICADO AO SELECIONAR</p>
               </div>
             )}
-            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} disabled={isSaving || isSaved || isProcessingImage} />
-          </label>
+            
+            {/* Inputs Ocultos */}
+            <input 
+              ref={cameraInputRef}
+              type="file" 
+              accept="image/*" 
+              capture="environment" 
+              className="hidden" 
+              onChange={handleImageSource} 
+            />
+            <input 
+              ref={galleryInputRef}
+              type="file" 
+              accept="image/*" 
+              className="hidden" 
+              onChange={handleImageSource} 
+            />
+          </div>
+
           <div className="space-y-2">
-            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Parecer Técnico / Observações</label>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Parecer Técnico Descritivo</label>
             <textarea 
               rows={4}
-              className="w-full p-5 border border-slate-200 rounded-[2rem] focus:ring-2 focus:ring-blue-500 outline-none transition-all font-medium text-slate-700 leading-relaxed"
-              placeholder="Descreva as anomalias observadas..."
+              className="w-full p-5 border border-slate-200 rounded-[2rem] focus:ring-2 focus:ring-blue-500 outline-none transition-all font-medium text-slate-700 leading-relaxed text-sm"
+              placeholder="Descreva as anomalias, patologias e necessidades de reparo observadas..."
               value={formData.description}
               onChange={e => setFormData({...formData, description: e.target.value})}
               required
@@ -354,17 +406,18 @@ const NewRequestPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="fixed bottom-0 left-0 right-0 md:relative p-4 md:p-0 bg-white/80 backdrop-blur-md md:bg-transparent border-t md:border-t-0 flex gap-4 z-[100] safe-bottom">
-          <button type="button" onClick={() => navigate(-1)} className="flex-1 h-16 bg-white border border-slate-200 rounded-2xl font-black uppercase tracking-widest text-[10px] text-slate-500">Descartar</button>
+        {/* Botões de Ação Final */}
+        <div className="fixed bottom-0 left-0 right-0 md:relative p-4 md:p-0 bg-white/90 backdrop-blur-md md:bg-transparent border-t md:border-t-0 flex gap-4 z-[100] safe-bottom">
+          <button type="button" onClick={() => navigate(-1)} className="flex-1 h-16 bg-white border border-slate-200 rounded-2xl font-black uppercase tracking-widest text-[10px] text-slate-500 hover:bg-slate-50">Descartar</button>
           <button 
             type="submit" 
             disabled={isSaving || isSaved || isProcessingImage}
-            className={`flex-2 md:flex-1 h-16 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl flex items-center justify-center gap-3 px-8 transition-all duration-300 ${
+            className={`flex-[2] md:flex-1 h-16 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-2xl flex items-center justify-center gap-3 px-8 transition-all duration-300 ${
               isSaved ? 'bg-emerald-600 text-white shadow-emerald-200' : 'bg-blue-600 text-white shadow-blue-200'
             }`}
           >
             {isSaving ? <Loader2 size={20} className="animate-spin" /> : isSaved ? <Check size={20} /> : <Save size={20} />}
-            {isSaving ? 'Gravando...' : isSaved ? 'Gravado!' : 'Gravar Vistoria'}
+            {isSaving ? 'Gravando Dados...' : isSaved ? 'Registro Salvo!' : 'Finalizar Lançamento'}
           </button>
         </div>
       </form>

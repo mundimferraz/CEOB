@@ -1,8 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
-import { MapPin, Calendar, User as UserIcon, FileText, Camera, Download, Trash2, CheckCircle, AlertTriangle, Crosshair, ImageIcon, Edit2, X, Save, ExternalLink, Loader2, ShieldCheck, UserCheck, Users, ChevronDown, Share2, Hash, Briefcase, ClipboardList } from 'lucide-react';
+import { MapPin, Calendar, User as UserIcon, FileText, Camera, Download, Trash2, CheckCircle, AlertTriangle, Crosshair, ImageIcon, Edit2, X, Save, ExternalLink, Loader2, ShieldCheck, UserCheck, Users, ChevronDown, Share2, Hash, Briefcase, ClipboardList, UploadCloud } from 'lucide-react';
 import { useApp } from '../App';
 import { RequestStatus } from '../types';
 import { STATUS_COLORS } from '../constants';
@@ -13,6 +13,9 @@ const RequestDetailsPage: React.FC = () => {
   const navigate = useNavigate();
   const { requests, updateRequest, deleteRequest, users, zonals, currentUser, getZonalName, getRoleLabel, notify, canDo } = useApp();
   
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+
   const request = requests.find(r => r.id === id);
   const tech = users.find(u => u.id === request?.technicianId);
   const zonalMeta = zonals.find(z => z.id === request?.zonal);
@@ -117,7 +120,7 @@ const RequestDetailsPage: React.FC = () => {
     setIsEditingDescription(false);
   };
 
-  const handleAfterPhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAfterPhotoProcess = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && request) {
       setIsCapturingAfter(true);
@@ -142,7 +145,7 @@ const RequestDetailsPage: React.FC = () => {
           notify('Evidência de conclusão salva com selo digital!', 'success');
         } catch (err) {
           console.error(err);
-          notify("Erro ao processar selo digital. Salvando imagem original.", "error");
+          notify("Imagem salva sem selo devido a erro de processamento.", "info");
           await updateRequest({
             ...request,
             photoAfter: rawBase64,
@@ -302,6 +305,7 @@ const RequestDetailsPage: React.FC = () => {
 
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto w-full space-y-8 pb-24">
+      {/* Header com Status e Título */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
@@ -323,7 +327,7 @@ const RequestDetailsPage: React.FC = () => {
               </div>
             ) : (
               <>
-                <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase leading-none">{request.protocol}</h1>
+                <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase leading-none italic">{request.protocol}</h1>
                 {canEdit && (
                   <button onClick={() => setIsEditingProtocol(true)} className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-blue-600 transition-all">
                     <Edit2 size={16} />
@@ -345,7 +349,7 @@ const RequestDetailsPage: React.FC = () => {
           )}
           <button 
             onClick={generatePDF}
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl hover:bg-slate-800 transition-all shadow-xl font-bold text-sm"
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl hover:bg-slate-800 transition-all shadow-xl font-bold text-sm uppercase tracking-widest"
           >
             <Download size={18} />
             Gerar Laudo PDF
@@ -355,9 +359,9 @@ const RequestDetailsPage: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-50/50">
-              <h2 className="font-black text-slate-900 uppercase tracking-tight">Memorial Descritivo</h2>
+              <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight">Relatório de Campo</h2>
               <div className="flex flex-col gap-1 w-full sm:w-auto">
                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Status Operativo</label>
                 <div className="relative">
@@ -375,146 +379,159 @@ const RequestDetailsPage: React.FC = () => {
                 </div>
               </div>
             </div>
-            <div className="p-6 space-y-8">
+            
+            <div className="p-6 md:p-8 space-y-10">
+              {/* Informações Básicas */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
                 <div className="group">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Processo SEI</p>
-                    {canEdit && !isEditingSei && (
-                      <button onClick={() => setIsEditingSei(true)} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-blue-500"><Edit2 size={12}/></button>
-                    )}
-                  </div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Processo SEI</p>
                   {isEditingSei ? (
                     <div className="flex items-center gap-2">
                       <input className="w-full bg-white border border-blue-500 rounded-lg px-2 py-1 font-bold text-slate-900 text-lg outline-none" value={editedSei} onChange={e => setEditedSei(e.target.value)} />
                       <button onClick={() => { saveField('seiNumber', editedSei); setIsEditingSei(false); }} className="text-emerald-600"><Save size={16}/></button>
-                      <button onClick={() => { setIsEditingSei(false); setEditedSei(request.seiNumber); }} className="text-rose-600"><X size={16}/></button>
                     </div>
                   ) : (
-                    <p className="font-bold text-slate-900 text-lg">{request.seiNumber}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-slate-900 text-lg">{request.seiNumber}</p>
+                      {canEdit && <button onClick={() => setIsEditingSei(true)} className="text-slate-300 hover:text-blue-500"><Edit2 size={14}/></button>}
+                    </div>
                   )}
                 </div>
                 <div className="group">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Contrato</p>
-                    {canEdit && !isEditingContract && (
-                      <button onClick={() => setIsEditingContract(true)} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-blue-500"><Edit2 size={12}/></button>
-                    )}
-                  </div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Instrumento Contratual</p>
                   {isEditingContract ? (
                     <div className="flex items-center gap-2">
                       <input className="w-full bg-white border border-blue-500 rounded-lg px-2 py-1 font-bold text-slate-900 text-lg outline-none" value={editedContract} onChange={e => setEditedContract(e.target.value)} />
                       <button onClick={() => { saveField('contract', editedContract); setIsEditingContract(false); }} className="text-emerald-600"><Save size={16}/></button>
-                      <button onClick={() => { setIsEditingContract(false); setEditedContract(request.contract); }} className="text-rose-600"><X size={16}/></button>
                     </div>
                   ) : (
-                    <p className="font-bold text-slate-900 text-lg">{request.contract}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-slate-900 text-lg">{request.contract}</p>
+                      {canEdit && <button onClick={() => setIsEditingContract(true)} className="text-slate-300 hover:text-blue-500"><Edit2 size={14}/></button>}
+                    </div>
                   )}
                 </div>
               </div>
 
+              {/* Localização */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <a 
                   href={mapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-5 bg-slate-900 rounded-2xl border border-slate-800 flex items-start gap-4 transition-all hover:bg-slate-800 group"
+                  className="p-5 bg-slate-900 rounded-3xl border border-slate-800 flex items-start gap-4 transition-all hover:bg-slate-800 group shadow-lg"
                 >
                    <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white flex-shrink-0 shadow-lg group-hover:scale-110 transition-transform">
                       <Crosshair size={24} />
                    </div>
                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Coordenadas GPS</p>
-                        <ExternalLink size={12} className="text-emerald-400 opacity-50" />
-                      </div>
+                      <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Coordenadas Geodésicas</p>
                       <p className="font-bold text-white text-sm tracking-widest">
                         {request.location.latitude.toFixed(6)}, {request.location.longitude.toFixed(6)}
                       </p>
-                      <p className="text-[8px] text-emerald-600 font-bold uppercase mt-1">Clique para abrir no Maps</p>
+                      <p className="text-[8px] text-emerald-600 font-bold uppercase mt-1">Abrir Rota no GPS</p>
                    </div>
                 </a>
 
-                <div className="p-5 bg-blue-50 rounded-2xl border border-blue-100 flex items-start gap-4">
-                   <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white flex-shrink-0">
+                <div className="p-5 bg-blue-50 rounded-3xl border border-blue-100 flex items-start gap-4 shadow-sm">
+                   <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white flex-shrink-0 shadow-lg">
                       <MapPin size={24} />
                    </div>
                    <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Logradouro</p>
-                        {canEdit && (!isEditingAddress ? (
-                          <button onClick={() => setIsEditingAddress(true)} className="text-blue-600 hover:text-blue-800 p-1"><Edit2 size={14} /></button>
-                        ) : (
-                          <div className="flex gap-2">
-                             <button onClick={handleSaveAddress} className="text-emerald-600 hover:text-emerald-800"><Save size={14} /></button>
-                             <button onClick={() => {setIsEditingAddress(false); setEditedAddress(request.location.address);}} className="text-rose-600 hover:text-rose-800"><X size={14} /></button>
-                          </div>
-                        ))}
+                        <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Logradouro / Endereço</p>
+                        {canEdit && <button onClick={() => setIsEditingAddress(!isEditingAddress)} className="text-blue-600 hover:text-blue-800"><Edit2 size={14} /></button>}
                       </div>
                       {isEditingAddress ? (
-                        <textarea className="w-full text-sm font-bold text-blue-900 bg-white border border-blue-200 rounded-lg p-2 outline-none focus:ring-2 focus:ring-blue-500" value={editedAddress} onChange={(e) => setEditedAddress(e.target.value)} rows={2} />
+                        <div className="flex flex-col gap-2">
+                          <textarea className="w-full text-sm font-bold text-blue-900 bg-white border border-blue-200 rounded-lg p-2 outline-none" value={editedAddress} onChange={(e) => setEditedAddress(e.target.value)} rows={2} />
+                          <button onClick={handleSaveAddress} className="bg-blue-600 text-white text-[10px] font-black uppercase py-2 rounded-lg">Salvar Endereço</button>
+                        </div>
                       ) : (
-                        <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="font-bold text-blue-900 text-sm leading-snug break-words block hover:underline hover:text-blue-700 transition-colors cursor-pointer">{request.location.address}</a>
+                        <p className="font-bold text-blue-900 text-sm leading-snug line-clamp-2">{request.location.address}</p>
                       )}
                    </div>
                 </div>
               </div>
 
+              {/* Parecer Técnico */}
               <div>
-                <div className="p-5 bg-blue-50 rounded-2xl border border-blue-100 flex items-start gap-4">
-                  <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white flex-shrink-0">
-                    <ClipboardList size={24} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Parecer Técnico</p>
-                      {canEdit && (!isEditingDescription ? (
-                        <button onClick={() => setIsEditingDescription(true)} className="text-blue-600 hover:text-blue-800 p-1"><Edit2 size={14} /></button>
-                      ) : (
-                        <div className="flex gap-2">
-                           <button onClick={handleSaveDescription} className="text-emerald-600 hover:text-emerald-800"><Save size={14} /></button>
-                           <button onClick={() => {setIsEditingDescription(false); setEditedDescription(request.description);}} className="text-rose-600 hover:text-rose-800"><X size={14} /></button>
-                        </div>
-                      ))}
-                    </div>
-                    {isEditingDescription ? (
-                      <textarea className="w-full text-sm font-bold text-blue-900 bg-white border border-blue-200 rounded-lg p-2 outline-none focus:ring-2 focus:ring-blue-500" value={editedDescription} onChange={(e) => setEditedDescription(e.target.value)} rows={4} />
-                    ) : (
-                      <div className="text-sm font-bold text-blue-900 leading-relaxed italic">
-                        "{request.description}"
+                <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 shadow-inner">
+                  <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                         <ClipboardList size={20} className="text-slate-400" />
+                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Parecer Técnico Detalhado</p>
                       </div>
-                    )}
+                      {canEdit && <button onClick={() => setIsEditingDescription(!isEditingDescription)} className="text-blue-600 hover:text-blue-800"><Edit2 size={16} /></button>}
                   </div>
+                  {isEditingDescription ? (
+                    <div className="space-y-3">
+                      <textarea className="w-full text-sm font-bold text-slate-800 bg-white border border-slate-200 rounded-2xl p-4 outline-none focus:ring-4 focus:ring-blue-500/10" value={editedDescription} onChange={(e) => setEditedDescription(e.target.value)} rows={4} />
+                      <button onClick={handleSaveDescription} className="w-full bg-slate-900 text-white text-[10px] font-black uppercase py-4 rounded-2xl shadow-xl">Confirmar Parecer</button>
+                    </div>
+                  ) : (
+                    <div className="text-sm font-bold text-slate-800 leading-relaxed italic border-l-4 border-blue-400 pl-4 py-2">
+                      "{request.description}"
+                    </div>
+                  )}
                 </div>
               </div>
 
+              {/* Galeria Dual */}
               <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Galeria de Evidências</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 ml-1">Galeria de Evidências Fotográficas</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                   <div className="relative group rounded-3xl overflow-hidden border border-slate-200 bg-slate-100">
-                     <div className="absolute top-4 left-4 bg-slate-900/80 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase z-10">Estado Inicial (Antes)</div>
+                   <div className="relative group rounded-[2rem] overflow-hidden border border-slate-200 bg-slate-100 h-64 shadow-md">
+                     <div className="absolute top-4 left-4 bg-slate-900/80 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase z-10 backdrop-blur-md">Vistoria Inicial</div>
                      {request.photoBefore && (
-                       <button onClick={() => handleShareImage(request.photoBefore!, 'Estado_Inicial')} className="absolute top-4 right-4 bg-white/20 backdrop-blur-md text-white p-2 rounded-xl hover:bg-blue-600 transition-all z-10 shadow-lg" title="Compartilhar imagem real"><Share2 size={16} /></button>
+                       <button onClick={() => handleShareImage(request.photoBefore!, 'Vistoria_Inicial')} className="absolute top-4 right-4 bg-white/20 backdrop-blur-md text-white p-2 rounded-xl hover:bg-blue-600 transition-all z-10 shadow-lg"><Share2 size={16} /></button>
                      )}
                      {request.photoBefore ? (
-                        <img src={request.photoBefore} alt="Antes" className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-500" />
+                        <img src={request.photoBefore} alt="Antes" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                      ) : (
-                        <div className="w-full h-64 flex flex-col items-center justify-center text-slate-300"><ImageIcon size={48} /><span className="text-xs font-black uppercase mt-2">Sem imagem</span></div>
+                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-300"><ImageIcon size={48} /><span className="text-[9px] font-black uppercase mt-2">Sem Registro</span></div>
                      )}
                    </div>
-                   <div className="relative group rounded-3xl overflow-hidden border border-slate-200 bg-slate-100">
-                      <div className="absolute top-4 left-4 bg-emerald-600 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase z-10">{request.photoAfter ? 'Conclusão (Depois)' : 'Aguardando Término'}</div>
-                      {request.photoAfter && (
-                        <button onClick={() => handleShareImage(request.photoAfter!, 'Conclusao_Vistoria')} className="absolute top-4 right-4 bg-white/20 backdrop-blur-md text-white p-2 rounded-xl hover:bg-emerald-600 transition-all z-10 shadow-lg" title="Compartilhar imagem real"><Share2 size={16} /></button>
-                      )}
+                   
+                   <div className="relative group rounded-[2rem] overflow-hidden border border-slate-200 bg-slate-100 h-64 shadow-md">
+                      <div className={`absolute top-4 left-4 ${request.photoAfter ? 'bg-emerald-600' : 'bg-amber-600'} text-white px-3 py-1 rounded-full text-[10px] font-black uppercase z-10 backdrop-blur-md shadow-lg`}>
+                        {request.photoAfter ? 'Conclusão da Obra' : 'Aguardando Término'}
+                      </div>
+                      
                       {request.photoAfter ? (
-                         <img src={request.photoAfter} alt="Depois" className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-500" />
+                         <>
+                           <img src={request.photoAfter} alt="Depois" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                           <button onClick={() => handleShareImage(request.photoAfter!, 'Vistoria_Conclusao')} className="absolute top-4 right-4 bg-white/20 backdrop-blur-md text-white p-2 rounded-xl hover:bg-emerald-600 transition-all z-10 shadow-lg"><Share2 size={16} /></button>
+                         </>
                       ) : (
-                         <label className="w-full h-64 bg-emerald-50 flex flex-col items-center justify-center text-emerald-600 cursor-pointer hover:bg-emerald-100 transition-colors">
-                            {isCapturingAfter ? <Loader2 className="animate-spin" size={48} /> : (
-                              <><Camera size={48} strokeWidth={1.5} /><span className="text-xs font-black uppercase mt-2">Tirar Foto do Depois</span><input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleAfterPhotoCapture} /></>
+                         <div className="w-full h-full bg-emerald-50 flex flex-col items-center justify-center p-6 text-center">
+                            {isCapturingAfter ? (
+                              <Loader2 className="animate-spin text-emerald-600" size={48} />
+                            ) : (
+                              <div className="space-y-4 w-full">
+                                <div className="flex flex-col gap-2">
+                                  <button 
+                                    onClick={() => cameraInputRef.current?.click()}
+                                    className="h-14 bg-emerald-600 text-white rounded-2xl flex items-center justify-center gap-3 font-black uppercase text-[10px] tracking-widest shadow-xl shadow-emerald-200 hover:bg-emerald-700 transition-all"
+                                  >
+                                    <Camera size={18} />
+                                    Tirar Foto (Câmera)
+                                  </button>
+                                  <button 
+                                    onClick={() => galleryInputRef.current?.click()}
+                                    className="h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center gap-3 font-black uppercase text-[10px] tracking-widest shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all"
+                                  >
+                                    <UploadCloud size={18} />
+                                    Subir Arquivo
+                                  </button>
+                                </div>
+                                <p className="text-[8px] font-black text-emerald-700 uppercase tracking-widest">O selo digital será aplicado</p>
+                              </div>
                             )}
-                         </label>
+                            
+                            <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleAfterPhotoProcess} />
+                            <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handleAfterPhotoProcess} />
+                         </div>
                       )}
                    </div>
                 </div>
@@ -523,60 +540,47 @@ const RequestDetailsPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Sidebar Técnica */}
         <div className="space-y-6">
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-            <h2 className="font-black text-slate-900 uppercase tracking-tight mb-6">Equipe Técnica</h2>
+          <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm">
+            <h2 className="font-black text-slate-900 uppercase tracking-tight mb-6 flex items-center gap-2">
+               <Briefcase size={20} className="text-blue-600" />
+               Conselho Técnico
+            </h2>
             
             <div className="space-y-3 mb-6">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Engenheiro Titular</p>
-              <div className="flex items-center gap-4 p-3.5 bg-blue-50 rounded-2xl border border-blue-100">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Responsável pela Unidade</p>
+              <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-2xl border border-blue-100 shadow-sm">
                 <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg"><ShieldCheck size={20} /></div>
-                <div>
-                  <p className="font-black text-slate-900 text-sm leading-tight">{engineer?.name || 'Não definido'}</p>
-                  <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Responsável Técnico</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-3 mb-6">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Assistente da Unidade</p>
-              <div className="flex items-center gap-4 p-3.5 bg-indigo-50 rounded-2xl border border-indigo-100">
-                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg"><Users size={20} /></div>
-                <div>
-                  <p className="font-black text-slate-900 text-sm leading-tight">{assistant?.name || 'Não definido'}</p>
-                  <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">{assistant ? getRoleLabel(assistant.role) : 'Assistente'}</span>
+                <div className="overflow-hidden">
+                  <p className="font-black text-slate-900 text-sm leading-tight truncate">{engineer?.name || 'Não definido'}</p>
+                  <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Titular da Engenharia</span>
                 </div>
               </div>
             </div>
 
             <div className="space-y-3">
               <div className="flex items-center justify-between group">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Vistoriador do Registro</p>
-                {canEdit && !isEditingTech && (
-                  <button onClick={() => setIsEditingTech(true)} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-blue-500"><Edit2 size={12}/></button>
-                )}
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Vistoriador de Campo</p>
+                {canEdit && !isEditingTech && <button onClick={() => setIsEditingTech(true)} className="opacity-0 group-hover:opacity-100 text-blue-500"><Edit2 size={12}/></button>}
               </div>
               
               {isEditingTech ? (
                 <div className="space-y-2">
-                  <select 
-                    className="w-full h-10 px-3 bg-white border border-blue-500 rounded-xl font-bold text-slate-900 text-xs outline-none"
-                    value={request.technicianId}
-                    onChange={e => { saveField('technicianId', e.target.value); setIsEditingTech(false); }}
-                  >
-                    <option value="">Selecione Profissional...</option>
+                  <select className="w-full h-12 px-3 bg-white border-2 border-blue-500 rounded-xl font-bold text-slate-900 text-xs outline-none" value={request.technicianId} onChange={e => { saveField('technicianId', e.target.value); setIsEditingTech(false); }}>
+                    <option value="">-- Trocar Profissional --</option>
                     {users.filter(u => u.zonal === request.zonal).map(u => (
                       <option key={u.id} value={u.id}>{u.name}</option>
                     ))}
                   </select>
-                  <button onClick={() => setIsEditingTech(false)} className="w-full text-[9px] font-black text-rose-500 uppercase tracking-widest text-center">Cancelar Troca</button>
+                  <button onClick={() => setIsEditingTech(false)} className="w-full text-[9px] font-black text-rose-500 uppercase tracking-widest text-center">Cancelar</button>
                 </div>
               ) : (
-                <div className="flex items-center gap-4 p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
-                  <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-lg">{tech?.name.charAt(0)}</div>
-                  <div>
-                    <p className="font-black text-slate-900 text-sm leading-tight">{tech?.name}</p>
-                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Técnico em Campo</span>
+                <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm">
+                  <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-lg">{tech?.name.charAt(0) || '?'}</div>
+                  <div className="overflow-hidden">
+                    <p className="font-black text-slate-900 text-sm leading-tight truncate">{tech?.name}</p>
+                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Técnico Operacional</span>
                   </div>
                 </div>
               )}
@@ -584,27 +588,31 @@ const RequestDetailsPage: React.FC = () => {
 
             <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col gap-3">
               <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
-                <span className="text-slate-400">Data da Vistoria</span>
+                <span className="text-slate-400">Data de Registro</span>
                 <span className="text-slate-900 font-bold">{new Date(request.visitDate).toLocaleDateString('pt-BR')}</span>
               </div>
               <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
-                <span className="text-slate-400">Unidade Lotação</span>
+                <span className="text-slate-400">Jurisdição Zonal</span>
                 <span className="text-slate-900 font-bold">{getZonalName(request.zonal)}</span>
               </div>
             </div>
           </div>
 
-          <div className="bg-slate-900 p-6 rounded-3xl text-white shadow-xl">
-             <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-slate-900"><FileText size={18} /></div>
-                <h3 className="font-black uppercase tracking-tight text-sm">Resumo da Ação</h3>
+          <div className="bg-slate-900 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group">
+             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><FileText size={120} /></div>
+             <div className="flex items-center gap-2 mb-4 relative z-10">
+                <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-slate-900"><CheckCircle size={18} /></div>
+                <h3 className="font-black uppercase tracking-tight text-sm">Resumo Executivo</h3>
              </div>
-             <p className="text-xs text-slate-400 font-medium leading-relaxed mb-6">Status operativo atual: <strong>{request.status.toUpperCase()}</strong>. {request.status !== RequestStatus.COMPLETED && ' Aguardando finalização técnica para encerramento de chamado.'}</p>
-             <div className="space-y-2">
-                <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-                   <div className={`h-full bg-emerald-500 transition-all duration-700 ${request.status === RequestStatus.COMPLETED ? 'w-full' : request.status === RequestStatus.IN_PROGRESS ? 'w-1/2' : 'w-1/4'}`}></div>
+             <p className="text-xs text-slate-400 font-medium leading-relaxed mb-8 relative z-10">Situação atual da ordem de serviço: <strong>{request.status.toUpperCase()}</strong>. {request.status !== RequestStatus.COMPLETED ? 'Aguardando validação final em campo.' : 'Obra finalizada e georreferenciada.'}</p>
+             <div className="space-y-2 relative z-10">
+                <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden shadow-inner">
+                   <div className={`h-full bg-emerald-500 transition-all duration-1000 ${request.status === RequestStatus.COMPLETED ? 'w-full' : request.status === RequestStatus.IN_PROGRESS ? 'w-1/2' : 'w-1/4'}`}></div>
                 </div>
-                <p className="text-[10px] font-black text-slate-500 text-right uppercase tracking-widest">{request.status}</p>
+                <div className="flex justify-between items-center">
+                   <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Eficiência</p>
+                   <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">{request.status}</p>
+                </div>
              </div>
           </div>
         </div>
