@@ -1,6 +1,7 @@
 
 /**
  * Utilitário para adicionar marca d'água (Timestamp e Geolocalização) em imagens
+ * Otimizado para evitar cortes e garantir legibilidade em qualquer resolução.
  */
 
 interface WatermarkData {
@@ -17,6 +18,7 @@ export const addWatermarkToImage = (
 ): Promise<string> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
+    img.crossOrigin = "anonymous";
     img.onload = () => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
@@ -25,70 +27,102 @@ export const addWatermarkToImage = (
         return;
       }
 
-      // Define o tamanho do canvas igual ao da imagem original
-      canvas.width = img.width;
-      canvas.height = img.height;
+      // Mantém a proporção original, mas limita para um tamanho gerenciável se for muito grande
+      const MAX_WIDTH = 1920;
+      let targetWidth = img.width;
+      let targetHeight = img.height;
 
-      // Desenha a imagem original
-      ctx.drawImage(img, 0, 0);
+      if (img.width > MAX_WIDTH) {
+        const ratio = MAX_WIDTH / img.width;
+        targetWidth = MAX_WIDTH;
+        targetHeight = img.height * ratio;
+      }
 
-      // Configurações de escala baseadas no tamanho da imagem (para manter proporção em fotos HD)
-      const scale = canvas.width / 1000; 
-      const padding = 30 * scale;
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
 
-      // 1. Sombra/Gradiente no rodapé para legibilidade
-      const gradient = ctx.createLinearGradient(0, canvas.height, 0, canvas.height - (300 * scale));
-      gradient.addColorStop(0, 'rgba(0,0,0,0.7)');
+      // Desenha a imagem
+      ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+
+      // Fator de escala dinâmico baseado na largura final
+      const scale = targetWidth / 1000;
+      const padding = 40 * scale;
+
+      // 1. Fundo escuro semi-transparente para contraste total
+      // Criamos um retângulo com degradê no canto inferior esquerdo
+      const boxHeight = 350 * scale;
+      const gradient = ctx.createLinearGradient(0, targetHeight, 0, targetHeight - boxHeight);
+      gradient.addColorStop(0, 'rgba(0,0,0,0.8)');
       gradient.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = gradient;
-      ctx.fillRect(0, canvas.height - (300 * scale), canvas.width, 300 * scale);
+      ctx.fillRect(0, targetHeight - boxHeight, targetWidth, boxHeight);
 
-      // 2. Desenhar a HORA (Grande)
+      // 2. Renderização da HORA (Grande, Estilo Digital)
       const timeStr = data.date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
       ctx.fillStyle = 'white';
-      ctx.font = `bold ${80 * scale}px Inter, sans-serif`;
-      ctx.textBaseline = 'bottom';
-      ctx.fillText(timeStr, padding, canvas.height - (padding + 140 * scale));
+      ctx.font = `bold ${100 * scale}px sans-serif`;
+      ctx.textBaseline = 'top';
+      const timeMetrics = ctx.measureText(timeStr);
+      const timeY = targetHeight - (padding + 220 * scale);
+      ctx.fillText(timeStr, padding, timeY);
 
-      // 3. Desenhar DATA e DIA DA SEMANA
-      const dayOfWeek = data.date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
-      const dateStr = data.date.toLocaleDateString('pt-BR');
-      ctx.font = `bold ${28 * scale}px Inter, sans-serif`;
-      
-      // Linha vertical separadora (amarela como na imagem de referência)
-      ctx.fillStyle = '#facc15';
-      ctx.fillRect(padding + (240 * scale), canvas.height - (padding + 225 * scale), 4 * scale, 80 * scale);
+      // 3. BARRA AMARELA SEPARADORA
+      const barX = padding + timeMetrics.width + (25 * scale);
+      const barY = timeY + (10 * scale);
+      const barHeight = 85 * scale;
+      ctx.fillStyle = '#facc15'; // Amarelo vibrante
+      ctx.fillRect(barX, barY, 5 * scale, barHeight);
 
+      // 4. DATA E DIA (Lado da barra)
       ctx.fillStyle = 'white';
-      ctx.fillText(dateStr, padding + (260 * scale), canvas.height - (padding + 185 * scale));
-      ctx.fillText(dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1), padding + (260 * scale), canvas.height - (padding + 145 * scale));
-
-      // 4. Desenhar ENDEREÇO (Quebra de linha se necessário)
-      ctx.font = `${22 * scale}px Inter, sans-serif`;
-      const maxWidth = canvas.width - (padding * 2);
-      const addressLines = wrapText(ctx, data.address, maxWidth);
+      ctx.font = `bold ${32 * scale}px sans-serif`;
+      const dateStr = data.date.toLocaleDateString('pt-BR');
+      const dayOfWeek = data.date.toLocaleDateString('pt-BR', { weekday: 'short' }).toUpperCase().replace('.', '');
       
-      let currentY = canvas.height - (padding + 80 * scale);
-      addressLines.forEach(line => {
-        ctx.fillText(line, padding, currentY);
-        currentY += 30 * scale;
+      ctx.fillText(dateStr, barX + (20 * scale), barY);
+      ctx.fillText(dayOfWeek, barX + (20 * scale), barY + (45 * scale));
+
+      // 5. ENDEREÇO (Resumido e com quebra)
+      ctx.font = `500 ${26 * scale}px sans-serif`;
+      // Resumo básico: se o endereço for gigante (coordenadas repetidas etc), cortamos
+      const cleanAddress = data.address.length > 120 ? data.address.substring(0, 117) + '...' : data.address;
+      
+      const maxWidth = targetWidth - (padding * 2);
+      const addressLines = wrapText(ctx, cleanAddress, maxWidth);
+      
+      // Limitamos a 2 linhas de endereço para não poluir
+      const displayLines = addressLines.slice(0, 2);
+      let currentY = targetHeight - (padding + 90 * scale);
+      
+      displayLines.forEach((line, idx) => {
+        const text = idx === 1 && addressLines.length > 2 ? line + '...' : line;
+        ctx.fillText(text, padding, currentY);
+        currentY += 35 * scale;
       });
 
-      // 5. Desenhar TÉCNICO E COORDENADAS
-      ctx.font = `bold ${20 * scale}px Inter, sans-serif`;
+      // 6. RODAPÉ (Técnico e Coordenadas)
+      ctx.font = `bold ${22 * scale}px sans-serif`;
       ctx.fillStyle = 'rgba(255,255,255,0.9)';
-      const footerText = `Técnico: ${data.userName} | GPS: ${data.lat.toFixed(6)}, ${data.lng.toFixed(6)}`;
-      ctx.fillText(footerText, padding, canvas.height - padding);
+      const footerText = `Nota: Responsável Técnico / ${data.userName}`;
+      const gpsText = `LAT: ${data.lat.toFixed(6)} LNG: ${data.lng.toFixed(6)}`;
+      
+      ctx.fillText(footerText, padding, targetHeight - (padding + 10 * scale));
+      
+      // GPS no canto direito
+      const gpsWidth = ctx.measureText(gpsText).width;
+      ctx.fillText(gpsText, targetWidth - padding - gpsWidth, targetHeight - (padding + 10 * scale));
 
-      resolve(canvas.toDataURL('image/jpeg', 0.85));
+      resolve(canvas.toDataURL('image/jpeg', 0.8));
     };
 
-    img.onerror = () => reject(new Error('Erro ao carregar imagem para processamento'));
+    img.onerror = () => reject(new Error('Erro ao carregar imagem para marca d\'água'));
     img.src = base64Image;
   });
 };
 
-// Função auxiliar para quebra de texto
+/**
+ * Função auxiliar para quebra de texto inteligente
+ */
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
   const words = text.split(' ');
   const lines: string[] = [];
