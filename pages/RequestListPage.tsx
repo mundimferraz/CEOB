@@ -1,22 +1,22 @@
 
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Filter, Download, Plus, ChevronRight, MapPin, Calendar, User as UserIcon, ClipboardList, ImageIcon, ShieldCheck, Users, FileText, FileSpreadsheet, ChevronDown, ShieldAlert } from 'lucide-react';
+import { Search, Filter, Download, Plus, ChevronRight, MapPin, Calendar, User as UserIcon, ClipboardList, ImageIcon, ShieldCheck, Users, FileText, FileSpreadsheet, ChevronDown, ShieldAlert, Trash2, Loader2 } from 'lucide-react';
 import { useApp } from '../App';
 import { RequestStatus, ZonalType, AppRole } from '../types';
 import { STATUS_COLORS, ZONALS_LIST } from '../constants';
 import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
 
 const RequestListPage: React.FC = () => {
-  const { requests, users, zonals, currentUser, canDo, getZonalName, updateRequest, notify } = useApp();
+  const { requests, users, zonals, currentUser, canDo, getZonalName, updateRequest, deleteRequest, notify } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [zonalFilter, setZonalFilter] = useState<string>('all');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const filteredRequests = useMemo(() => {
     return requests.filter(req => {
-      // Regra de Acesso Restrito: Só vê a própria Zonal
+      // Regra de Acesso Restrito: Só vê a própria Zonal (Ignorado se for Admin via canDo)
       if (currentUser?.role === AppRole.RESTRICTED && req.zonal !== currentUser.zonal) {
         return false;
       }
@@ -45,6 +45,25 @@ const RequestListPage: React.FC = () => {
     const newStatus = e.target.value as RequestStatus;
     updateRequest({ ...req, status: newStatus });
     notify(`Status de ${req.protocol} alterado para ${newStatus}`);
+  };
+
+  const handleQuickDelete = async (e: React.MouseEvent, id: string, protocol: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const confirmed = window.confirm(`ATENÇÃO: Deseja excluir permanentemente a vistoria ${protocol}? Esta ação é irreversível.`);
+    
+    if (confirmed) {
+      try {
+        setDeletingId(id);
+        await deleteRequest(id);
+        notify(`Vistoria ${protocol} excluída com sucesso!`, 'success');
+      } catch (error) {
+        notify(`Erro ao excluir vistoria.`, 'error');
+      } finally {
+        setDeletingId(null);
+      }
+    }
   };
 
   const exportToCSV = () => {
@@ -146,13 +165,24 @@ const RequestListPage: React.FC = () => {
             const tech = users.find(u => u.id === req.technicianId);
             const zonalMeta = zonals.find(z => z.id === req.zonal);
             const canEdit = canDo('edit_request');
+            const isDeleting = deletingId === req.id;
 
             return (
               <Link 
                 key={req.id} 
                 to={`/requests/${req.id}`}
-                className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-xl hover:-translate-y-1 transition-all active:scale-[0.98] flex gap-4"
+                className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-xl hover:-translate-y-1 transition-all active:scale-[0.98] flex gap-4 relative group"
               >
+                {/* BOTÃO EXCLUIR RÁPIDO */}
+                <button
+                  onClick={(e) => handleQuickDelete(e, req.id, req.protocol)}
+                  disabled={isDeleting}
+                  className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center bg-rose-50 text-rose-500 rounded-xl opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-500 hover:text-white z-10 shadow-sm"
+                  title="Excluir Vistoria"
+                >
+                  {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                </button>
+
                 <div className="w-24 h-24 md:w-32 md:h-32 rounded-xl bg-slate-100 flex-shrink-0 overflow-hidden border border-slate-100 shadow-inner">
                   {req.photoBefore ? (
                     <img src={req.photoBefore} alt="Miniatura" className="w-full h-full object-cover" />
@@ -164,7 +194,7 @@ const RequestListPage: React.FC = () => {
                   )}
                 </div>
 
-                <div className="flex-1 flex flex-col justify-between overflow-hidden">
+                <div className="flex-1 flex flex-col justify-between overflow-hidden pr-8">
                   <div>
                     <div className="flex justify-between items-start mb-1 gap-2">
                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest truncate">{req.protocol}</span>
