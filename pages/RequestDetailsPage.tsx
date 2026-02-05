@@ -6,11 +6,12 @@ import { MapPin, Calendar, User as UserIcon, FileText, Camera, Download, Trash2,
 import { useApp } from '../App';
 import { RequestStatus } from '../types';
 import { STATUS_COLORS } from '../constants';
+import { addWatermarkToImage } from '../services/imageUtils';
 
 const RequestDetailsPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { requests, updateRequest, deleteRequest, users, zonals, getZonalName, getRoleLabel, notify, canDo } = useApp();
+  const { requests, updateRequest, deleteRequest, users, zonals, currentUser, getZonalName, getRoleLabel, notify, canDo } = useApp();
   
   const request = requests.find(r => r.id === id);
   const tech = users.find(u => u.id === request?.technicianId);
@@ -18,7 +19,6 @@ const RequestDetailsPage: React.FC = () => {
   const engineer = users.find(u => u.id === zonalMeta?.managerId);
   const assistant = users.find(u => u.id === zonalMeta?.assistantId);
 
-  // Estados de Edição
   const [editedAddress, setEditedAddress] = useState('');
   const [editedProtocol, setEditedProtocol] = useState('');
   const [editedSei, setEditedSei] = useState('');
@@ -33,7 +33,6 @@ const RequestDetailsPage: React.FC = () => {
   const [isEditingTech, setIsEditingTech] = useState(false);
   const [isCapturingAfter, setIsCapturingAfter] = useState(false);
 
-  // SINCRONIZAÇÃO DE ESTADOS: Garante que os campos de edição reflitam os dados atuais do contexto
   useEffect(() => {
     if (request) {
       setEditedAddress(request.location.address || '');
@@ -120,18 +119,38 @@ const RequestDetailsPage: React.FC = () => {
 
   const handleAfterPhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
+    if (file && request) {
       setIsCapturingAfter(true);
       const reader = new FileReader();
       reader.onloadend = async () => {
-        const base64 = reader.result as string;
-        await updateRequest({
-          ...request,
-          photoAfter: base64,
-          status: RequestStatus.COMPLETED
-        });
-        setIsCapturingAfter(false);
-        notify('Evidência de conclusão salva com sucesso!', 'success');
+        const rawBase64 = reader.result as string;
+        try {
+          const techName = tech?.name || currentUser?.name || 'Técnico';
+          const watermarked = await addWatermarkToImage(rawBase64, {
+            address: request.location.address || 'Endereço não identificado',
+            lat: request.location.latitude,
+            lng: request.location.longitude,
+            userName: techName,
+            date: new Date()
+          });
+          
+          await updateRequest({
+            ...request,
+            photoAfter: watermarked,
+            status: RequestStatus.COMPLETED
+          });
+          notify('Evidência de conclusão salva com selo digital!', 'success');
+        } catch (err) {
+          console.error(err);
+          notify("Erro ao processar selo digital. Salvando imagem original.", "error");
+          await updateRequest({
+            ...request,
+            photoAfter: rawBase64,
+            status: RequestStatus.COMPLETED
+          });
+        } finally {
+          setIsCapturingAfter(false);
+        }
       };
       reader.readAsDataURL(file);
     }
