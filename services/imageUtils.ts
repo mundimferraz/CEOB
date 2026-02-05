@@ -2,7 +2,7 @@
 /**
  * Utilitário para adicionar marca d'água (Timestamp e Geolocalização) em imagens
  * Reposicionado para a parte inferior seguindo o padrão "GPS Map Camera".
- * Margens aproximadas de 2cm (proporcionais à resolução).
+ * Margens de 2cm (aprox. 7.5% da largura) conforme solicitado.
  */
 
 interface WatermarkData {
@@ -13,54 +13,72 @@ interface WatermarkData {
   date: Date;
 }
 
+/**
+ * Desenha um retângulo com cantos arredondados compatível com navegadores antigos
+ */
+function drawRoundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
 export const addWatermarkToImage = (
   base64Image: string,
   data: WatermarkData
 ): Promise<string> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    // Importante: remover crossOrigin se for base64 local para evitar problemas de segurança em alguns browsers
+    if (!base64Image.startsWith('data:')) {
+      img.crossOrigin = "anonymous";
+    }
+    
     img.onload = () => {
       const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext('2d', { alpha: false });
       if (!ctx) {
         reject(new Error('Não foi possível obter o contexto do canvas'));
         return;
       }
 
-      // Define a resolução alvo (máximo 1920px de largura)
-      const TARGET_WIDTH = Math.min(img.width, 1920);
+      // Redimensionamento inteligente para manter performance e nitidez
+      const TARGET_WIDTH = Math.min(img.width, 1600); 
       const ratio = TARGET_WIDTH / img.width;
       const TARGET_HEIGHT = img.height * ratio;
 
       canvas.width = TARGET_WIDTH;
       canvas.height = TARGET_HEIGHT;
 
-      // Desenha a imagem original
+      // Desenha a imagem base
       ctx.drawImage(img, 0, 0, TARGET_WIDTH, TARGET_HEIGHT);
 
-      // Fator de escala baseado na largura (1000px como base unitária)
+      // Fator de escala baseado na largura
       const scale = TARGET_WIDTH / 1000;
       
-      // Margens de "2cm" convertidas para escala (aprox 75px em 1000px de largura)
-      const marginX = 60 * scale; 
-      const marginY = 60 * scale; 
+      // Margens de 2cm aproximadas (7.5% da largura do canvas)
+      const marginX = TARGET_WIDTH * 0.065; 
+      const marginY = TARGET_WIDTH * 0.065; 
 
-      // 1. Painel de Fundo (Translúcido Escuro)
-      // O painel ocupa a largura entre as margens laterais
+      // 1. Painel de Fundo (Aumentamos a opacidade para 0.8 para garantir contraste)
       const panelWidth = TARGET_WIDTH - (marginX * 2);
-      const panelHeight = 220 * scale;
+      const panelHeight = 210 * scale;
       const panelX = marginX;
       const panelY = TARGET_HEIGHT - marginY - panelHeight;
 
-      // Desenha o box com cantos levemente arredondados
-      ctx.beginPath();
-      ctx.roundRect(panelX, panelY, panelWidth, panelHeight, 20 * scale);
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+      drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 18 * scale);
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.78)';
       ctx.fill();
       
-      // Borda decorativa (opcional, estilo premium)
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+      // Borda do painel
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
       ctx.lineWidth = 1 * scale;
       ctx.stroke();
 
@@ -68,71 +86,72 @@ export const addWatermarkToImage = (
       const startX = panelX + textPadding;
       const startY = panelY + textPadding;
 
-      // 2. TÍTULO DO LOCAL (Negrito)
+      // 2. TÍTULO (Logradouro Principal)
       const addressParts = data.address.split(',');
-      const locationTitle = addressParts[0] || "Localização Identificada";
+      const locationTitle = addressParts[0] || "Vistoria Identificada";
       
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
       ctx.fillStyle = '#ffffff';
-      ctx.font = `bold ${32 * scale}px "Inter", sans-serif`;
+      ctx.font = `bold ${32 * scale}px "Inter", sans-serif, system-ui`;
       ctx.fillText(locationTitle, startX, startY);
 
-      // 3. ENDEREÇO COMPLETO (Corpo)
-      ctx.font = `500 ${22 * scale}px "Inter", sans-serif`;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      // 3. ENDEREÇO DETALHADO
+      ctx.font = `500 ${21 * scale}px "Inter", sans-serif, system-ui`;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
       
       const fullAddress = addressParts.slice(1).join(',').trim() || data.address;
-      const maxTextWidth = panelWidth - (textPadding * 2) - (150 * scale); // Reserva espaço para o "box" da direita se houver
-      const wrappedAddress = wrapText(ctx, fullAddress, maxTextWidth);
+      const maxTextWidth = panelWidth - (textPadding * 2) - (160 * scale);
+      const wrappedLines = wrapText(ctx, fullAddress, maxTextWidth);
       
-      let currentY = startY + (45 * scale);
-      wrappedAddress.slice(0, 2).forEach(line => {
+      let currentY = startY + (42 * scale);
+      wrappedLines.slice(0, 2).forEach(line => {
         ctx.fillText(line, startX, currentY);
-        currentY += 28 * scale;
+        currentY += 26 * scale;
       });
 
-      // 4. DATA, HORA E GPS (Linha Inferior)
+      // 4. DATA E HORA
       const dateStr = data.date.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' });
       const timeStr = data.date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      const footerInfo = `${dateStr}  ${timeStr}`;
       
-      ctx.font = `500 ${20 * scale}px "Inter", sans-serif`;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-      ctx.fillText(footerInfo, startX, panelY + panelHeight - (textPadding + 35 * scale));
+      ctx.font = `500 ${19 * scale}px "Inter", sans-serif, system-ui`;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+      ctx.fillText(`${dateStr}  ${timeStr}`, startX, panelY + panelHeight - (textPadding + 32 * scale));
 
-      // 5. NOTA / TÉCNICO E GPS
-      const noteInfo = `Nota: ${data.userName} | GPS: ${data.lat.toFixed(6)}, ${data.lng.toFixed(6)}`;
-      ctx.font = `bold ${18 * scale}px "Inter", sans-serif`;
-      ctx.fillStyle = '#facc15'; // Amarelo destaque
-      ctx.fillText(noteInfo, startX, panelY + panelHeight - textPadding);
+      // 5. RODAPÉ (Técnico e GPS)
+      const footerText = `Resp: ${data.userName}  |  GPS: ${data.lat.toFixed(6)}, ${data.lng.toFixed(6)}`;
+      ctx.font = `bold ${18 * scale}px "Inter", sans-serif, system-ui`;
+      ctx.fillStyle = '#facc15'; 
+      ctx.fillText(footerText, startX, panelY + panelHeight - textPadding);
 
-      // 6. BOX DE LOGO / ICONE (Lado Direito do Painel)
-      const logoBoxSize = 120 * scale;
-      const logoBoxX = panelX + panelWidth - logoBoxSize - textPadding;
-      const logoBoxY = panelY + (panelHeight - logoBoxSize) / 2;
+      // 6. BOX DO LOGO (SGR)
+      const logoSize = 115 * scale;
+      const logoX = panelX + panelWidth - logoSize - textPadding;
+      const logoY = panelY + (panelHeight - logoSize) / 2;
 
-      ctx.beginPath();
-      ctx.roundRect(logoBoxX, logoBoxY, logoBoxSize, logoBoxSize, 12 * scale);
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+      drawRoundedRect(ctx, logoX, logoY, logoSize, logoSize, 12 * scale);
+      ctx.fillStyle = '#ffffff';
       ctx.fill();
       
-      // Borda do box do logo
       ctx.strokeStyle = '#facc15';
       ctx.lineWidth = 3 * scale;
       ctx.stroke();
 
-      // Placeholder de Ícone no Box (SGR)
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#0f172a';
-      ctx.font = `bold ${40 * scale}px "Inter", sans-serif`;
-      ctx.fillText("SGR", logoBoxX + logoBoxSize/2, logoBoxY + logoBoxSize/2);
+      ctx.font = `black ${38 * scale}px "Inter", sans-serif`;
+      ctx.fillText("SGR", logoX + logoSize/2, logoY + logoSize/2);
 
-      resolve(canvas.toDataURL('image/jpeg', 0.85));
+      // Retorna a imagem finalizada
+      resolve(canvas.toDataURL('image/jpeg', 0.88));
     };
 
-    img.onerror = () => reject(new Error('Erro no processamento da imagem'));
+    img.onerror = () => {
+      console.error("Erro ao carregar imagem para marca d'água");
+      reject(new Error('Erro no carregamento da imagem original'));
+    };
+
     img.src = base64Image;
   });
 };
