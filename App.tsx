@@ -232,8 +232,7 @@ const App: React.FC = () => {
       case 'edit_request':
         return isOperator;
       case 'delete_request':
-        // ALTERAÇÃO SOLICITADA: Todos os níveis agora podem excluir registros
-        return true; 
+        return true; // TODOS podem excluir conforme solicitado
       case 'view_all_zonals':
         return role !== AppRole.RESTRICTED && role !== 'Intern';
       default:
@@ -354,7 +353,7 @@ const App: React.FC = () => {
   const deleteRequest = async (id: string) => {
     try {
       await dbApi.deleteRequest(id);
-      // A confirmação visual será enviada via notificação
+      // Notificação será enviada na confirmação da lista
     } catch (e: any) { notify(`Erro: ${e.message}`, 'error'); }
   };
   

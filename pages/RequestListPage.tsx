@@ -16,7 +16,6 @@ const RequestListPage: React.FC = () => {
 
   const filteredRequests = useMemo(() => {
     return requests.filter(req => {
-      // Regra de Acesso Restrito: Só vê a própria Zonal (Ignorado se for Admin via canDo)
       if (currentUser?.role === AppRole.RESTRICTED && req.zonal !== currentUser.zonal) {
         return false;
       }
@@ -51,15 +50,17 @@ const RequestListPage: React.FC = () => {
     e.preventDefault();
     e.stopPropagation();
 
-    const confirmed = window.confirm(`ATENÇÃO: Deseja excluir permanentemente a vistoria ${protocol}? Esta ação é irreversível.`);
+    // Mensagem de Alerta ANTES de excluir
+    const confirmed = window.confirm(`⚠️ AVISO CRÍTICO:\n\nDeseja excluir permanentemente a vistoria "${protocol}"?\n\nEsta ação não poderá ser desfeita.`);
     
     if (confirmed) {
       try {
         setDeletingId(id);
         await deleteRequest(id);
-        notify(`Vistoria ${protocol} excluída com sucesso!`, 'success');
+        // Mensagem de Confirmação APÓS persistir no banco
+        notify(`✅ Registro ${protocol} removido do banco de dados com sucesso!`, 'success');
       } catch (error) {
-        notify(`Erro ao excluir vistoria.`, 'error');
+        notify(`❌ Falha na comunicação com o servidor. Tente novamente.`, 'error');
       } finally {
         setDeletingId(null);
       }
@@ -173,11 +174,11 @@ const RequestListPage: React.FC = () => {
                 to={`/requests/${req.id}`}
                 className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-xl hover:-translate-y-1 transition-all active:scale-[0.98] flex gap-4 relative group"
               >
-                {/* BOTÃO EXCLUIR RÁPIDO */}
+                {/* BOTÃO EXCLUIR RÁPIDO - CSS MELHORADO E VISIBILIDADE SEMPRE ATIVA */}
                 <button
                   onClick={(e) => handleQuickDelete(e, req.id, req.protocol)}
                   disabled={isDeleting}
-                  className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center bg-rose-50 text-rose-500 rounded-xl opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-500 hover:text-white z-10 shadow-sm"
+                  className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center bg-rose-50 text-rose-600 rounded-xl border border-rose-100 shadow-sm transition-all hover:bg-rose-600 hover:text-white active:scale-90 z-20"
                   title="Excluir Vistoria"
                 >
                   {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
