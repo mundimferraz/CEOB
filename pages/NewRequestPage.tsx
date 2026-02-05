@@ -5,9 +5,10 @@ import { Camera, MapPin, Save, Loader2, Navigation as NavigationIcon, Crosshair,
 import { useApp } from '../App';
 import { RequestStatus, ZonalType, RepairRequest } from '../types';
 import { ZONALS_LIST } from '../constants';
+import { addWatermarkToImage } from '../services/imageUtils';
 
 const NewRequestPage: React.FC = () => {
-  const { addRequest, users, getZonalName, getRoleLabel, notify } = useApp();
+  const { addRequest, users, currentUser, getZonalName, getRoleLabel, notify } = useApp();
   const navigate = useNavigate();
   
   const mapRef = useRef<any>(null);
@@ -16,6 +17,7 @@ const NewRequestPage: React.FC = () => {
   const [isMapReady, setIsMapReady] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
   
   const [formData, setFormData] = useState({
     protocol: '',
@@ -25,7 +27,7 @@ const NewRequestPage: React.FC = () => {
     zonal: ZonalType.NORTH,
     technicianId: '',
     visitDate: new Date().toISOString().split('T')[0],
-    latitude: -23.5505, // Default SP
+    latitude: -23.5505,
     longitude: -46.6333,
     address: '',
     photoBefore: ''
@@ -39,7 +41,6 @@ const NewRequestPage: React.FC = () => {
       if (!L) return;
 
       mapRef.current = L.map('map-container').setView([formData.latitude, formData.longitude], 15);
-
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
       }).addTo(mapRef.current);
@@ -118,11 +119,32 @@ const NewRequestPage: React.FC = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setIsProcessingImage(true);
       const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        setFormData(prev => ({ ...prev, photoBefore: base64 }));
-        setImagePreview(base64);
+      reader.onloadend = async () => {
+        const rawBase64 = reader.result as string;
+        try {
+          // Aplica a marca d'água com dados reais
+          const techName = users.find(u => u.id === formData.technicianId)?.name || currentUser?.name || 'Técnico';
+          const watermarked = await addWatermarkToImage(rawBase64, {
+            address: formData.address || 'Endereço não identificado',
+            lat: formData.latitude,
+            lng: formData.longitude,
+            userName: techName,
+            date: new Date()
+          });
+          
+          setFormData(prev => ({ ...prev, photoBefore: watermarked }));
+          setImagePreview(watermarked);
+          notify("Foto processada com selo de geolocalização!");
+        } catch (err) {
+          console.error(err);
+          notify("Erro ao processar imagem", "error");
+          setFormData(prev => ({ ...prev, photoBefore: rawBase64 }));
+          setImagePreview(rawBase64);
+        } finally {
+          setIsProcessingImage(false);
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -159,11 +181,7 @@ const NewRequestPage: React.FC = () => {
       await addRequest(newRequest);
       setIsSaving(false);
       setIsSaved(true);
-      
-      // Atraso discreto para exibir o checkmark antes de navegar
-      setTimeout(() => {
-        navigate('/requests');
-      }, 1000);
+      setTimeout(() => { navigate('/requests'); }, 1000);
     } catch (error) {
       setIsSaving(false);
     }
@@ -231,10 +249,6 @@ const NewRequestPage: React.FC = () => {
                </div>
             </div>
           </div>
-          
-          <p className="text-[9px] text-slate-400 font-bold text-center uppercase tracking-[0.2em] italic mt-2">
-            Importante: O marcador deve estar posicionado sobre o ponto exato da ocorrência
-          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -253,7 +267,6 @@ const NewRequestPage: React.FC = () => {
                   value={formData.seiNumber}
                   onChange={e => setFormData({...formData, seiNumber: e.target.value})}
                   required
-                  disabled={isSaving || isSaved}
                 />
               </div>
               <div>
@@ -265,7 +278,6 @@ const NewRequestPage: React.FC = () => {
                   value={formData.contract}
                   onChange={e => setFormData({...formData, contract: e.target.value})}
                   required
-                  disabled={isSaving || isSaved}
                 />
               </div>
             </div>
@@ -283,7 +295,6 @@ const NewRequestPage: React.FC = () => {
                   className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900 appearance-none bg-slate-50"
                   value={formData.zonal}
                   onChange={e => setFormData({...formData, zonal: e.target.value as ZonalType, technicianId: ''})}
-                  disabled={isSaving || isSaved}
                 >
                   {ZONALS_LIST.map(z => <option key={z} value={z}>{getZonalName(z)}</option>)}
                 </select>
@@ -295,7 +306,6 @@ const NewRequestPage: React.FC = () => {
                   value={formData.technicianId}
                   onChange={e => setFormData({...formData, technicianId: e.target.value})}
                   required
-                  disabled={isSaving || isSaved}
                 >
                   <option value="">Selecione o profissional...</option>
                   {filteredPersonnel.map(u => (
@@ -312,8 +322,13 @@ const NewRequestPage: React.FC = () => {
              <div className="w-1.5 h-6 bg-rose-600 rounded-full"></div>
              Registro de Evidências (Antes)
           </h2>
-          <label className={`flex flex-col items-center justify-center w-full h-64 border-2 border-slate-200 border-dashed rounded-[2rem] cursor-pointer bg-slate-50 hover:bg-slate-100 overflow-hidden relative group transition-all ${isSaving || isSaved ? 'pointer-events-none opacity-80' : ''}`}>
-            {imagePreview ? (
+          <label className={`flex flex-col items-center justify-center w-full h-64 border-2 border-slate-200 border-dashed rounded-[2rem] cursor-pointer bg-slate-50 hover:bg-slate-100 overflow-hidden relative group transition-all ${isSaving || isSaved || isProcessingImage ? 'pointer-events-none opacity-80' : ''}`}>
+            {isProcessingImage ? (
+              <div className="flex flex-col items-center gap-2">
+                <Loader2 className="animate-spin text-blue-600" size={32} />
+                <span className="text-[10px] font-black uppercase text-slate-400">Processando Selo Digital...</span>
+              </div>
+            ) : imagePreview ? (
               <img src={imagePreview} alt="Preview" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
             ) : (
               <div className="flex flex-col items-center justify-center p-6 text-center">
@@ -321,50 +336,34 @@ const NewRequestPage: React.FC = () => {
                    <Camera className="w-8 h-8 text-blue-600" />
                 </div>
                 <p className="text-sm text-slate-900 font-black uppercase tracking-widest">Tirar Foto do Local</p>
-                <p className="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-widest">Clique aqui para abrir a câmera</p>
+                <p className="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-widest">O selo de geolocalização será aplicado automaticamente</p>
               </div>
             )}
-            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} disabled={isSaving || isSaved} />
+            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} disabled={isSaving || isSaved || isProcessingImage} />
           </label>
           <div className="space-y-2">
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Parecer Técnico / Observações</label>
             <textarea 
               rows={4}
-              className="w-full p-5 border border-slate-200 rounded-[2rem] focus:ring-2 focus:ring-blue-500 outline-none transition-all font-medium text-slate-700 leading-relaxed disabled:bg-slate-50 disabled:text-slate-400"
+              className="w-full p-5 border border-slate-200 rounded-[2rem] focus:ring-2 focus:ring-blue-500 outline-none transition-all font-medium text-slate-700 leading-relaxed"
               placeholder="Descreva as anomalias observadas..."
               value={formData.description}
               onChange={e => setFormData({...formData, description: e.target.value})}
               required
-              disabled={isSaving || isSaved}
             />
           </div>
         </div>
 
         <div className="fixed bottom-0 left-0 right-0 md:relative p-4 md:p-0 bg-white/80 backdrop-blur-md md:bg-transparent border-t md:border-t-0 flex gap-4 z-[100] safe-bottom">
-          <button 
-            type="button" 
-            onClick={() => navigate(-1)} 
-            disabled={isSaving || isSaved}
-            className="flex-1 h-16 bg-white border border-slate-200 rounded-2xl font-black uppercase tracking-widest text-[10px] text-slate-500 disabled:opacity-50"
-          >
-            Descartar
-          </button>
+          <button type="button" onClick={() => navigate(-1)} className="flex-1 h-16 bg-white border border-slate-200 rounded-2xl font-black uppercase tracking-widest text-[10px] text-slate-500">Descartar</button>
           <button 
             type="submit" 
-            disabled={isSaving || isSaved}
+            disabled={isSaving || isSaved || isProcessingImage}
             className={`flex-2 md:flex-1 h-16 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl flex items-center justify-center gap-3 px-8 transition-all duration-300 ${
-              isSaved 
-                ? 'bg-emerald-600 text-white shadow-emerald-200' 
-                : 'bg-blue-600 text-white shadow-blue-200'
+              isSaved ? 'bg-emerald-600 text-white shadow-emerald-200' : 'bg-blue-600 text-white shadow-blue-200'
             }`}
           >
-            {isSaving ? (
-              <Loader2 size={20} className="animate-spin" />
-            ) : isSaved ? (
-              <Check size={20} className="animate-in zoom-in duration-300" />
-            ) : (
-              <Save size={20} />
-            )}
+            {isSaving ? <Loader2 size={20} className="animate-spin" /> : isSaved ? <Check size={20} /> : <Save size={20} />}
             {isSaving ? 'Gravando...' : isSaved ? 'Gravado!' : 'Gravar Vistoria'}
           </button>
         </div>
