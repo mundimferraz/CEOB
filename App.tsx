@@ -3,7 +3,7 @@ import React, { useState, useEffect, createContext, useContext, useCallback } fr
 import { HashRouter, Routes, Route, Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { LayoutDashboard, ClipboardList, PlusCircle, Users, Menu, X, ChevronRight, Plus, CheckCircle, Info, AlertCircle, Loader2, LogOut, UserCircle, ShieldCheck, ShieldAlert, Map as MapIcon, History, Lock, User as UserIcon, Eye, EyeOff } from 'lucide-react';
 import { RepairRequest, User, ZonalType, RequestStatus, ZonalMetadata, UserRole, AppRole, AuditAction, AuditEntity } from './types';
-import { ROLE_CONFIG, DEFAULT_ROLE_CONFIG, INITIAL_ZONAL_METADATA, MOCK_USERS } from './constants';
+import { ROLE_CONFIG, DEFAULT_ROLE_CONFIG, INITIAL_ZONAL_METADATA } from './constants';
 import DashboardPage from './pages/DashboardPage';
 import RequestListPage from './pages/RequestListPage';
 import NewRequestPage from './pages/NewRequestPage';
@@ -24,15 +24,20 @@ const LoginPage = () => {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username || !password) {
-      notify("Preencha todos os campos", "error");
+    if (!username.trim() || !password.trim()) {
+      notify("Preencha usuário e senha separadamente", "error");
       return;
     }
     setLoading(true);
-    const success = await handleLogin(username, password);
-    setLoading(false);
-    if (!success) {
-      notify("Credenciais inválidas. Tente admin/admin", "error");
+    try {
+      const success = await handleLogin(username.trim(), password.trim());
+      if (!success) {
+        notify("Credenciais inválidas. Tente admin / admin", "error");
+      }
+    } catch (err) {
+      notify("Erro de conexão com o servidor", "error");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -49,26 +54,27 @@ const LoginPage = () => {
                 <ShieldCheck size={32} className="text-white" />
              </div>
              <h1 className="text-2xl font-black text-white tracking-tight uppercase italic">SGR-Vias</h1>
-             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1">Gestão de Zeladoria Urbana</p>
+             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1">Portal de Autenticação</p>
           </div>
 
           <form onSubmit={onSubmit} className="space-y-5">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Usuário ou Matrícula</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Usuário / Matrícula</label>
               <div className="relative">
                 <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                 <input 
                   type="text" 
                   value={username}
                   onChange={e => setUsername(e.target.value)}
-                  placeholder="Ex: admin"
+                  placeholder="admin"
+                  autoComplete="username"
                   className="w-full h-14 pl-12 pr-4 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-medium"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Senha Privada</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Senha</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                 <input 
@@ -76,6 +82,7 @@ const LoginPage = () => {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
+                  autoComplete="current-password"
                   className="w-full h-14 pl-12 pr-12 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-medium"
                 />
                 <button 
@@ -93,12 +100,12 @@ const LoginPage = () => {
               disabled={loading}
               className="w-full h-16 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-2xl shadow-blue-500/20 transition-all active:scale-95 flex items-center justify-center gap-3 mt-8"
             >
-              {loading ? <Loader2 className="animate-spin" size={20} /> : "Autenticar no Sistema"}
+              {loading ? <Loader2 className="animate-spin" size={20} /> : "Entrar no Sistema"}
             </button>
           </form>
 
           <div className="mt-10 pt-8 border-t border-white/5 text-center">
-             <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Acesso restrito a servidores autorizados</p>
+             <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Credenciais de teste: admin / admin</p>
           </div>
         </div>
       </div>
@@ -144,16 +151,16 @@ export const useApp = () => {
 };
 
 // --- PROTEÇÃO DE ROTAS ---
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+// Fix: Added optional children to ProtectedRoute props type to resolve potential TypeScript errors.
+const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
   const { currentUser, loading } = useApp();
   if (loading) return null;
   if (!currentUser) return <Navigate to="/login" replace />;
   return <>{children}</>;
 };
 
-// Fix: Navigation component doesn't take props but React.FC or similar typing might be expecting it. 
-// Adding explicit React.FC type or props interface to ensure type safety.
-const Navigation: React.FC = () => {
+// Fix: Removed explicit React.FC typing to resolve potential "missing children" errors in certain build environments.
+const Navigation = () => {
   const location = useLocation();
   const { currentUser, canDo, logout } = useApp();
 
@@ -249,7 +256,8 @@ const Navigation: React.FC = () => {
   );
 };
 
-const App: React.FC = () => {
+// Fix: Removed explicit React.FC typing for the App component as well.
+const App = () => {
   const [requests, setRequests] = useState<RepairRequest[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [zonals, setZonals] = useState<ZonalMetadata[]>(INITIAL_ZONAL_METADATA);

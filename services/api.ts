@@ -5,14 +5,21 @@ import { supabase } from './supabase';
 export const dbApi = {
   // Autenticação
   async login(username: string, password: string): Promise<User | null> {
+    // PostgREST exige que valores no .or() não tenham aspas extras se não houver espaços
+    // Usamos uma sintaxe mais limpa para evitar erro 400
     const { data, error } = await supabase
       .from('users')
       .select('*')
-      .or(`name.eq."${username}",registration_number.eq."${username}"`)
+      .or(`name.eq.${username},registration_number.eq.${username}`)
       .eq('password', password)
-      .single();
+      .maybeSingle(); // maybeSingle é mais seguro que single() para evitar erros se não encontrar nada
     
-    if (error || !data) return null;
+    if (error) {
+      console.error('Erro na consulta de login:', error);
+      return null;
+    }
+    
+    if (!data) return null;
 
     return {
       id: data.id,
@@ -114,7 +121,6 @@ export const dbApi = {
   },
 
   async updateRequest(request: RepairRequest): Promise<void> {
-    // Fix: Using technicianId instead of technician_id as technician_id is not a property of RepairRequest
     const { error } = await supabase
       .from('repair_requests')
       .update({
