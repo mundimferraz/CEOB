@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../App';
 import { ZonalType, User, ZonalMetadata, AppRole } from '../types';
 import { ROLE_CONFIG } from '../constants';
@@ -7,7 +7,7 @@ import {
   UserPlus, Settings, Shield, Map as MapIcon, Edit2, Trash2, X, 
   Save, Search, UserCog, ShieldCheck, ShieldAlert, ArrowLeft, 
   ChevronDown, Lock, Users as UsersIcon, Database, Plus, Briefcase, Info,
-  Loader2
+  Loader2, Radio, Clock
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -38,6 +38,25 @@ const OrgSetupPage: React.FC = () => {
     if (tab === 'zonals' || tab === 'personnel') setActiveTab(tab as any);
   }, [location.search]);
 
+  // Lógica de Atividade em Tempo Real
+  const isUserOnline = (lastActive: string | undefined) => {
+    if (!lastActive) return false;
+    const diff = Date.now() - new Date(lastActive).getTime();
+    return diff < 5 * 60 * 1000; // 5 minutos threshold
+  };
+
+  const getRelativeTime = (lastActive: string | undefined) => {
+    if (!lastActive) return 'Nenhuma atividade';
+    const diff = Math.floor((Date.now() - new Date(lastActive).getTime()) / 1000 / 60);
+    if (diff < 1) return 'Agora mesmo';
+    if (diff < 60) return `Há ${diff} min`;
+    const hours = Math.floor(diff / 60);
+    if (hours < 24) return `Há ${hours}h`;
+    return new Date(lastActive).toLocaleDateString('pt-BR');
+  };
+
+  const onlineCount = useMemo(() => users.filter(u => isUserOnline(u.lastActiveAt)).length, [users]);
+
   if (currentUser?.role !== AppRole.ADMIN) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] p-8 text-center bg-white m-4 md:m-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
@@ -53,7 +72,6 @@ const OrgSetupPage: React.FC = () => {
     );
   }
 
-  // --- HANDLERS USUÁRIO (ASSÍNCRONOS PARA PERSISTÊNCIA) ---
   const handleSaveUser = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -73,21 +91,19 @@ const OrgSetupPage: React.FC = () => {
 
       if (editingUser) {
         await updateUser(userData);
-        notify("Registro atualizado com sucesso no banco de dados.");
+        notify("Registro atualizado com sucesso.");
       } else {
         await addUser(userData);
-        notify("Colaborador cadastrado (Senha padrão: 123456).");
+        notify("Colaborador cadastrado.");
       }
       setIsUserModalOpen(false);
     } catch (error) {
-      console.error(error);
-      notify("Erro ao persistir dados. Verifique a conexão ou colunas do banco.", "error");
+      notify("Erro ao persistir dados.", "error");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // --- HANDLERS ZONAL ---
   const handleSaveZonal = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -120,10 +136,10 @@ const OrgSetupPage: React.FC = () => {
         <div>
           <div className="flex items-center gap-2 mb-1.5">
             <ShieldCheck size={18} className="text-blue-600" />
-            <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em]">Administração e RH</span>
+            <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em]">Administração e Monitoramento Live</span>
           </div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight italic uppercase">Configurações do Sistema</h1>
-          <p className="text-slate-500 font-medium">Gestão de estrutura organizacional, permissões e pessoal.</p>
+          <p className="text-slate-500 font-medium">Gestão de estrutura organizacional, permissões e sessões ativas.</p>
         </div>
         <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 shadow-inner">
           <button onClick={() => setActiveTab('personnel')} className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'personnel' ? 'bg-white text-slate-900 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}>
@@ -136,72 +152,107 @@ const OrgSetupPage: React.FC = () => {
       </header>
 
       {activeTab === 'personnel' ? (
-        <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden border-b-4 border-b-blue-600">
-          <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row gap-4 justify-between bg-slate-50/50">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input 
-                type="text" placeholder="Buscar por nome ou RF..." 
-                className="w-full h-12 pl-12 pr-4 bg-white border border-slate-200 rounded-2xl focus:border-blue-500 outline-none font-medium text-sm"
-                value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <button onClick={() => { setEditingUser(null); setIsUserModalOpen(true); }} className="flex items-center justify-center gap-2 h-12 px-8 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-100 hover:bg-blue-700 active:scale-95 transition-all">
-              <UserPlus size={18} /> Novo Colaborador
-            </button>
+        <div className="space-y-6">
+          {/* Dashboard de Atividade */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+             <div className="bg-emerald-600 p-6 rounded-[2rem] text-white shadow-xl shadow-emerald-100 relative overflow-hidden group">
+                <Radio className="absolute right-[-10px] top-[-10px] w-24 h-24 opacity-10 group-hover:scale-110 transition-transform" />
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-1">Usuários Online Agora</p>
+                <div className="flex items-end gap-2">
+                   <h2 className="text-4xl font-black">{onlineCount}</h2>
+                   <span className="text-xs font-bold mb-1.5">Sessões Ativas</span>
+                </div>
+             </div>
+             <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm col-span-1 md:col-span-2 flex items-center gap-6">
+                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center flex-shrink-0">
+                   <Info size={24} />
+                </div>
+                <p className="text-[11px] font-bold text-slate-500 leading-tight">
+                  O monitor de atividade exibe usuários que interagiram com o SGR-Vias nos últimos 5 minutos.
+                  Isso ajuda a identificar quem está operando em campo em tempo real.
+                </p>
+             </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-100">
-                  <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Colaborador</th>
-                  <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Cargo / Função</th>
-                  <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Permissão</th>
-                  <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredUsers.map(user => {
-                  const isRoot = user.name === 'claudioasousa' || user.id === 'root_master_id';
-                  return (
-                    <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-8 py-5">
-                        <div className="flex items-center gap-3">
-                           <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${isRoot ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
-                             {user.name?.charAt(0)}
-                           </div>
-                           <div>
-                             <div className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                               {user.name} {isRoot && <ShieldCheck size={14} className="text-amber-600" />}
+
+          <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden border-b-4 border-b-blue-600">
+            <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row gap-4 justify-between bg-slate-50/50">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input 
+                  type="text" placeholder="Buscar por nome ou RF..." 
+                  className="w-full h-12 pl-12 pr-4 bg-white border border-slate-200 rounded-2xl focus:border-blue-500 outline-none font-medium text-sm"
+                  value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <button onClick={() => { setEditingUser(null); setIsUserModalOpen(true); }} className="flex items-center justify-center gap-2 h-12 px-8 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-100 hover:bg-blue-700 active:scale-95 transition-all">
+                <UserPlus size={18} /> Novo Colaborador
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100">
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Colaborador</th>
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Atividade</th>
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Permissão</th>
+                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredUsers.map(user => {
+                    const isRoot = user.name === 'claudioasousa' || user.id === 'root_master_id';
+                    const online = isUserOnline(user.lastActiveAt);
+                    return (
+                      <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-8 py-5">
+                          <div className="flex items-center gap-3">
+                             <div className={`relative w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${isRoot ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                               {user.name?.charAt(0)}
+                               {online && (
+                                 <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full animate-pulse shadow-sm"></span>
+                               )}
                              </div>
-                             <div className="text-[10px] text-slate-400 font-bold">RF: {user.registrationNumber || '---'}</div>
-                           </div>
-                        </div>
-                      </td>
-                      <td className="px-8 py-5">
-                        <div>
-                          <p className="text-xs font-bold text-slate-700 uppercase tracking-tight">{user.position || '---'}</p>
-                          <p className="text-[9px] text-slate-400 font-bold uppercase">{user.function || '---'}</p>
-                        </div>
-                      </td>
-                      <td className="px-8 py-5">
-                        <span className={`px-3 py-1 rounded-full text-[9px] font-black border uppercase tracking-widest ${ROLE_CONFIG[user.role]?.color}`}>
-                          {ROLE_CONFIG[user.role]?.label}
-                        </span>
-                      </td>
-                      <td className="px-8 py-5 text-right">
-                        <div className="flex justify-end gap-1">
-                          <button onClick={() => { setEditingUser(user); setIsUserModalOpen(true); }} className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"><Edit2 size={14} /></button>
-                          {!isRoot && (
-                            <button onClick={() => { if(window.confirm(`Excluir ${user.name}?`)) deleteUser(user.id); }} className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"><Trash2 size={14} /></button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                             <div>
+                               <div className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                                 {user.name} {isRoot && <ShieldCheck size={14} className="text-amber-600" />}
+                               </div>
+                               <div className="text-[10px] text-slate-400 font-bold uppercase">RF: {user.registrationNumber || '---'}</div>
+                             </div>
+                          </div>
+                        </td>
+                        <td className="px-8 py-5">
+                          <div className="flex flex-col">
+                            {online ? (
+                              <div className="flex items-center gap-1.5 text-emerald-600 font-black text-[10px] uppercase tracking-widest">
+                                <Radio size={12} /> Online Agora
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1.5 text-slate-400 font-bold text-[10px] uppercase tracking-widest">
+                                <Clock size={12} /> {getRelativeTime(user.lastActiveAt)}
+                              </div>
+                            )}
+                            <p className="text-[8px] text-slate-400 mt-1 uppercase">{user.position}</p>
+                          </div>
+                        </td>
+                        <td className="px-8 py-5">
+                          <span className={`px-3 py-1 rounded-full text-[9px] font-black border uppercase tracking-widest ${ROLE_CONFIG[user.role]?.color}`}>
+                            {ROLE_CONFIG[user.role]?.label}
+                          </span>
+                        </td>
+                        <td className="px-8 py-5 text-right">
+                          <div className="flex justify-end gap-1">
+                            <button onClick={() => { setEditingUser(user); setIsUserModalOpen(true); }} className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"><Edit2 size={14} /></button>
+                            {!isRoot && (
+                              <button onClick={() => { if(window.confirm(`Excluir ${user.name}?`)) deleteUser(user.id); }} className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"><Trash2 size={14} /></button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       ) : (
@@ -247,7 +298,7 @@ const OrgSetupPage: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL USUÁRIO (COLABORADOR) */}
+      {/* MODAL USUÁRIO */}
       {isUserModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-300">
@@ -314,7 +365,7 @@ const OrgSetupPage: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL UNIDADE (ZONAL) */}
+      {/* MODAL UNIDADE */}
       {isZonalModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-300">

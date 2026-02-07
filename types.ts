@@ -31,8 +31,9 @@ export interface User {
   email?: string;
   registrationNumber?: string;
   password?: string;
-  position?: string; // Cargo (ex: Engenheiro, Técnico, Estagiário)
-  function?: string; // Função (ex: Fiscal de Campo, Gestor de Contratos)
+  position?: string; 
+  function?: string; 
+  lastActiveAt?: string; // Timestamp da última atividade
 }
 
 export interface LocationData {

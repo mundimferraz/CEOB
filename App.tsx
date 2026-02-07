@@ -219,8 +219,8 @@ const Navigation = () => {
 
       {/* ADMIN HUB CENTRALIZADO */}
       <NavGroup label="Configurações" icon={Settings} visible={isAdmin} defaultOpen={location.pathname.startsWith('/org') || location.pathname.startsWith('/audit')}>
-        <NavSubItem to="/org?tab=zonals" label="Gestão Unidades" icon={Database} onClick={closeMobileMenu} />
         <NavSubItem to="/org?tab=personnel" label="Gestão Equipe" icon={UserCog} onClick={closeMobileMenu} />
+        <NavSubItem to="/org?tab=zonals" label="Gestão Unidades" icon={Database} onClick={closeMobileMenu} />
         <NavSubItem to="/audit" label="Auditoria" icon={History} onClick={closeMobileMenu} />
       </NavGroup>
     </>
@@ -352,6 +352,19 @@ const App = () => {
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 5000);
   }, []);
 
+  // --- HEARTBEAT DE ATIVIDADE ---
+  useEffect(() => {
+    if (!currentUser) return;
+
+    // Atualiza agora e depois a cada 60s
+    dbApi.updateUserActivity(currentUser.id);
+    const interval = setInterval(() => {
+      dbApi.updateUserActivity(currentUser.id);
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [currentUser]);
+
   const handleLogin = async (u: string, p: string) => {
     try {
       const user = await dbApi.login(u, p);
@@ -410,7 +423,6 @@ const App = () => {
 
   const refreshRequests = async () => { setRequests(await dbApi.getRequests()); };
   
-  // --- FUNÇÕES COM LOG DE AUDITORIA ENRIQUECIDO ---
   const addRequest = async (req: RepairRequest) => { 
     await dbApi.createRequest(req); 
     if (currentUser) {

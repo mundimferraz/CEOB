@@ -15,6 +15,9 @@ export const dbApi = {
     if (error) return null;
     if (!data) return null;
 
+    // Atualiza atividade no login
+    await this.updateUserActivity(data.id);
+
     return {
       id: data.id,
       name: data.name,
@@ -23,12 +26,20 @@ export const dbApi = {
       registrationNumber: data.registration_number,
       email: data.email,
       position: data.position,
-      function: data.function
+      function: data.function,
+      lastActiveAt: new Date().toISOString()
     };
   },
 
   async updatePassword(userId: string, newPassword: string): Promise<void> {
     await supabase.from('users').update({ password: newPassword }).eq('id', userId);
+  },
+
+  async updateUserActivity(userId: string): Promise<void> {
+    await supabase
+      .from('users')
+      .update({ last_active_at: new Date().toISOString() })
+      .eq('id', userId);
   },
 
   // Usuários
@@ -44,7 +55,8 @@ export const dbApi = {
       registrationNumber: u.registration_number,
       email: u.email,
       position: u.position,
-      function: u.function
+      function: u.function,
+      lastActiveAt: u.last_active_at
     }));
   },
 
@@ -75,7 +87,7 @@ export const dbApi = {
     await supabase.from('users').delete().eq('id', id);
   },
 
-  // Zonais (CRUD Completo)
+  // Zonais
   async getZonals(): Promise<ZonalMetadata[]> {
     const { data, error } = await supabase.from('zonals').select('*').order('name');
     if (error) throw error;
@@ -95,6 +107,7 @@ export const dbApi = {
         id: zonal.id,
         name: zonal.name,
         manager_id: zonal.managerId || null,
+        // Fixed: Mapping domain assistantId to database assistant_id
         assistant_id: zonal.assistantId || null,
         description: zonal.description || null
       }], { onConflict: 'id' });
@@ -131,6 +144,7 @@ export const dbApi = {
       status: req.status,
       technicianId: req.technician_id,
       zonal: req.zonal,
+      // Fixed: Mapping database snake_case to domain camelCase
       photoBefore: req.photo_before,
       photoAfter: req.photo_after,
       createdAt: req.created_at
@@ -147,7 +161,7 @@ export const dbApi = {
       latitude: request.location.latitude,
       longitude: request.location.longitude,
       address: request.location.address,
-      visit_date: request.visitDate,
+      visit_date: request.visit_date,
       status: request.status,
       technician_id: request.technicianId,
       zonal: request.zonal,
