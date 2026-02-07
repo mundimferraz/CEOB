@@ -7,7 +7,7 @@ import {
   UserPlus, Settings, Shield, Map as MapIcon, Edit2, Trash2, X, 
   Save, Search, UserCog, ShieldCheck, ShieldAlert, ArrowLeft, 
   ChevronDown, Lock, Users as UsersIcon, Database, Plus, Briefcase, Info,
-  Loader2, Radio, Clock
+  Loader2, Radio, Clock, UserCheck
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -113,6 +113,7 @@ const OrgSetupPage: React.FC = () => {
         id: editingZonal?.id || `zonal_${Date.now()}`,
         name: formData.get('name') as string,
         managerId: formData.get('managerId') as string,
+        assistantId: formData.get('assistantId') as string,
         description: formData.get('description') as string,
       };
       await updateZonal(zonalData);
@@ -265,6 +266,7 @@ const OrgSetupPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {zonals.map(z => {
               const manager = users.find(u => u.id === z.managerId);
+              const assistant = users.find(u => u.id === z.assistantId);
               return (
                 <div key={z.id} className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden group hover:border-blue-400 transition-all flex flex-col">
                   <div className="bg-slate-950 p-6 text-white flex items-center justify-between">
@@ -280,15 +282,28 @@ const OrgSetupPage: React.FC = () => {
                     </div>
                   </div>
                   <div className="p-6 space-y-4 flex-1">
-                    <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5"><Shield size={12}/> Responsável Técnico</p>
-                      <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                        <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 font-black text-xs">{manager?.name.charAt(0) || '?'}</div>
-                        <span className="text-xs font-bold text-slate-800">{manager?.name || 'Não designado'}</span>
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><Shield size={12}/> Responsável Técnico</p>
+                        <div className="flex items-center gap-3 p-3 bg-blue-50/50 rounded-xl border border-blue-100/50">
+                          <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white font-black text-[10px] shadow-sm">{manager?.name.charAt(0) || '?'}</div>
+                          <span className="text-xs font-bold text-slate-800 truncate">{manager?.name || 'Não designado'}</span>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><UserCheck size={12}/> Técnico de Campo</p>
+                        <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                          <div className="w-7 h-7 rounded-lg bg-slate-900 flex items-center justify-center text-white font-black text-[10px] shadow-sm">{assistant?.name.charAt(0) || '?'}</div>
+                          <span className="text-xs font-bold text-slate-800 truncate">{assistant?.name || 'Não designado'}</span>
+                        </div>
                       </div>
                     </div>
+
                     {z.description && (
-                      <p className="text-[10px] text-slate-500 leading-relaxed font-medium line-clamp-2 italic">"{z.description}"</p>
+                      <div className="pt-2 border-t border-slate-50">
+                        <p className="text-[10px] text-slate-500 leading-relaxed font-medium line-clamp-2 italic">"{z.description}"</p>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -368,7 +383,7 @@ const OrgSetupPage: React.FC = () => {
       {/* MODAL UNIDADE */}
       {isZonalModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-300">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-300 border border-white/20">
             <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white shadow-lg"><Database size={24} /></div>
@@ -383,22 +398,41 @@ const OrgSetupPage: React.FC = () => {
             <form onSubmit={handleSaveZonal} className="p-8 space-y-6">
               <div>
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 block">Nome da Unidade Zonal</label>
-                <input name="name" defaultValue={editingZonal?.name} required placeholder="Ex: Zonal Centro-Sul" className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500/20" />
+                <input name="name" defaultValue={editingZonal?.name} required placeholder="Ex: Zonal Centro-Sul" className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500/20 shadow-inner" />
               </div>
 
-              <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 block">Engenheiro Responsável</label>
-                <select name="managerId" defaultValue={editingZonal?.managerId} className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm appearance-none bg-white outline-none focus:ring-2 focus:ring-blue-500/20">
-                  <option value="">Aguardando Designação</option>
-                  {users.filter(u => u.role === AppRole.ADMIN || u.role === AppRole.EDITOR).map(u => (
-                    <option key={u.id} value={u.id}>{u.name} ({ROLE_CONFIG[u.role]?.label})</option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 block flex items-center gap-2">
+                    <Shield size={10} className="text-blue-600" />
+                    Engenheiro Responsável (RT)
+                  </label>
+                  <select name="managerId" defaultValue={editingZonal?.managerId} className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm appearance-none bg-white outline-none focus:ring-2 focus:ring-blue-500/20">
+                    <option value="">Aguardando Designação</option>
+                    {users.filter(u => u.role === AppRole.ADMIN || u.role === AppRole.EDITOR).map(u => (
+                      <option key={u.id} value={u.id}>{u.name} ({ROLE_CONFIG[u.role]?.label})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 block flex items-center gap-2">
+                    <UserCheck size={10} className="text-slate-900" />
+                    Técnico de Campo (Assistente)
+                  </label>
+                  <select name="assistantId" defaultValue={editingZonal?.assistantId} className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm appearance-none bg-white outline-none focus:ring-2 focus:ring-blue-500/20">
+                    <option value="">Nenhum Técnico Vinculado</option>
+                    {/* Filtra para exibir apenas não administradores conforme solicitado */}
+                    {users.filter(u => u.role !== AppRole.ADMIN).map(u => (
+                      <option key={u.id} value={u.id}>{u.name} ({ROLE_CONFIG[u.role]?.label})</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div>
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 block">Observações / Jurisdição</label>
-                <textarea name="description" defaultValue={editingZonal?.description} rows={3} placeholder="Descrição da abrangência territorial..." className="w-full p-4 border border-slate-200 rounded-xl font-medium text-sm text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20" />
+                <textarea name="description" defaultValue={editingZonal?.description} rows={3} placeholder="Descrição da abrangência territorial..." className="w-full p-4 border border-slate-200 rounded-xl font-medium text-sm text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 shadow-inner" />
               </div>
 
               <div className="flex gap-4 pt-4">
