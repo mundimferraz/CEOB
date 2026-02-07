@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, MapPin, Save, Loader2, Navigation as NavigationIcon, Crosshair, Check, UploadCloud, ImageIcon, Trash2 } from 'lucide-react';
+import { Camera, MapPin, Save, Loader2, Navigation as NavigationIcon, Crosshair, Check, UploadCloud, ImageIcon, Trash2, RefreshCw } from 'lucide-react';
 import { useApp } from '../App';
 import { RequestStatus, ZonalType, RepairRequest } from '../types';
 import { ZONALS_LIST } from '../constants';
@@ -20,8 +20,12 @@ const NewRequestPage: React.FC = () => {
   const [isMapReady, setIsMapReady] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
-  const [isProcessingImage, setIsProcessingImage] = useState(false);
   
+  // Estados para processamento de imagem
+  const [isProcessingBefore, setIsProcessingBefore] = useState(false);
+  const [isProcessingAfter, setIsProcessingAfter] = useState(false);
+  const [activePhotoSlot, setActivePhotoSlot] = useState<'before' | 'after' | null>(null);
+
   const [formData, setFormData] = useState({
     protocol: '',
     seiNumber: '',
@@ -33,10 +37,12 @@ const NewRequestPage: React.FC = () => {
     latitude: -23.5505,
     longitude: -46.6333,
     address: '',
-    photoBefore: ''
+    photoBefore: '',
+    photoAfter: ''
   });
 
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imagePreviewBefore, setImagePreviewBefore] = useState<string | null>(null);
+  const [imagePreviewAfter, setImagePreviewAfter] = useState<string | null>(null);
 
   useEffect(() => {
     if (!mapRef.current) {
@@ -121,8 +127,10 @@ const NewRequestPage: React.FC = () => {
 
   const handleImageSource = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setIsProcessingImage(true);
+    if (file && activePhotoSlot) {
+      const isBefore = activePhotoSlot === 'before';
+      if (isBefore) setIsProcessingBefore(true); else setIsProcessingAfter(true);
+      
       const reader = new FileReader();
       reader.onloadend = async () => {
         const rawBase64 = reader.result as string;
@@ -136,26 +144,44 @@ const NewRequestPage: React.FC = () => {
             date: new Date()
           });
           
-          setFormData(prev => ({ ...prev, photoBefore: watermarked }));
-          setImagePreview(watermarked);
-          notify("Evidência processada com sucesso!");
+          if (isBefore) {
+            setFormData(prev => ({ ...prev, photoBefore: watermarked }));
+            setImagePreviewBefore(watermarked);
+          } else {
+            setFormData(prev => ({ ...prev, photoAfter: watermarked }));
+            setImagePreviewAfter(watermarked);
+          }
+          notify(`Evidência ${isBefore ? 'inicial' : 'final'} processada com sucesso!`);
         } catch (err) {
           console.error(err);
           notify("Aviso: Imagem salva sem selo digital.", "info");
-          setFormData(prev => ({ ...prev, photoBefore: rawBase64 }));
-          setImagePreview(rawBase64);
+          if (isBefore) {
+            setFormData(prev => ({ ...prev, photoBefore: rawBase64 }));
+            setImagePreviewBefore(rawBase64);
+          } else {
+            setFormData(prev => ({ ...prev, photoAfter: rawBase64 }));
+            setImagePreviewAfter(rawBase64);
+          }
         } finally {
-          setIsProcessingImage(false);
+          setIsProcessingBefore(false);
+          setIsProcessingAfter(false);
+          setActivePhotoSlot(null);
         }
       };
       reader.readAsDataURL(file);
     }
   };
 
+  const triggerPhotoSelection = (slot: 'before' | 'after', type: 'camera' | 'gallery') => {
+    setActivePhotoSlot(slot);
+    if (type === 'camera') cameraInputRef.current?.click();
+    else galleryInputRef.current?.click();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.photoBefore) {
-      notify("A foto do local é obrigatória.", "error");
+      notify("A foto do local (Antes) é obrigatória.", "error");
       return;
     }
 
@@ -172,10 +198,11 @@ const NewRequestPage: React.FC = () => {
         address: formData.address || 'Endereço não identificado',
       },
       visitDate: formData.visitDate,
-      status: RequestStatus.OPEN,
+      status: formData.photoAfter ? RequestStatus.COMPLETED : RequestStatus.OPEN,
       technicianId: formData.technicianId,
       zonal: formData.zonal,
       photoBefore: formData.photoBefore,
+      photoAfter: formData.photoAfter || undefined,
       createdAt: new Date().toISOString(),
     };
 
@@ -319,79 +346,133 @@ const NewRequestPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Registro Fotográfico Dual */}
+        {/* Registro Fotográfico Dual (Antes e Depois clonados) */}
         <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm space-y-6">
            <h2 className="text-sm font-black text-slate-900 border-b border-slate-100 pb-4 flex items-center gap-2 uppercase tracking-tight">
              <div className="w-1.5 h-6 bg-rose-600 rounded-full"></div>
-             Evidência do Local (Estado Inicial)
+             Evidências do Local (Dual)
           </h2>
           
-          <div className="relative group rounded-[2rem] overflow-hidden border-2 border-slate-200 bg-slate-50 min-h-[280px] flex flex-col items-center justify-center transition-all">
-            {isProcessingImage ? (
-              <div className="flex flex-col items-center gap-4">
-                <Loader2 className="animate-spin text-blue-600" size={48} />
-                <span className="text-[11px] font-black uppercase text-slate-500 tracking-widest">Sincronizando Selo GPS...</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Slot ANTES */}
+            <div className="space-y-3">
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Vista Inicial (Antes)</label>
+              <div className="relative group rounded-[2rem] overflow-hidden border-2 border-slate-200 bg-slate-50 min-h-[240px] flex flex-col items-center justify-center transition-all">
+                {isProcessingBefore ? (
+                  <div className="flex flex-col items-center gap-4">
+                    <Loader2 className="animate-spin text-blue-600" size={32} />
+                    <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest text-center">Sincronizando Selo...</span>
+                  </div>
+                ) : imagePreviewBefore ? (
+                  <>
+                    <img src={imagePreviewBefore} alt="Preview Antes" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 backdrop-blur-sm">
+                       <button 
+                        type="button"
+                        onClick={() => { setImagePreviewBefore(null); setFormData(p => ({...p, photoBefore: ''})); }}
+                        className="p-4 bg-rose-600 text-white rounded-2xl shadow-xl hover:scale-110 transition-transform"
+                       >
+                         <Trash2 size={24} />
+                       </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center space-y-6">
+                    <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-md">
+                       <ImageIcon className="w-8 h-8 text-slate-300" />
+                    </div>
+                    
+                    <div className="flex flex-col gap-2 w-full max-w-[200px]">
+                       <button 
+                        type="button"
+                        onClick={() => triggerPhotoSelection('before', 'camera')}
+                        className="flex items-center justify-center gap-2 h-10 bg-blue-600 text-white rounded-xl font-black uppercase text-[9px] tracking-widest shadow-lg hover:bg-blue-700 active:scale-95 transition-all"
+                       >
+                         <Camera size={14} />
+                         Câmera
+                       </button>
+                       <button 
+                        type="button"
+                        onClick={() => triggerPhotoSelection('before', 'gallery')}
+                        className="flex items-center justify-center gap-2 h-10 bg-slate-900 text-white rounded-xl font-black uppercase text-[9px] tracking-widest shadow-lg hover:bg-slate-800 active:scale-95 transition-all"
+                       >
+                         <UploadCloud size={14} />
+                         Galeria
+                       </button>
+                    </div>
+                  </div>
+                )}
               </div>
-            ) : imagePreview ? (
-              <>
-                <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 backdrop-blur-sm">
-                   <button 
-                    type="button"
-                    onClick={() => { setImagePreview(null); setFormData(p => ({...p, photoBefore: ''})); }}
-                    className="p-4 bg-rose-600 text-white rounded-2xl shadow-xl hover:scale-110 transition-transform"
-                   >
-                     <Trash2 size={24} />
-                   </button>
-                </div>
-              </>
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center space-y-8">
-                <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center shadow-md">
-                   <ImageIcon className="w-10 h-10 text-slate-300" />
-                </div>
-                
-                <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
-                   <button 
-                    type="button"
-                    onClick={() => cameraInputRef.current?.click()}
-                    className="flex-1 flex items-center justify-center gap-3 h-14 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all"
-                   >
-                     <Camera size={18} />
-                     Tirar Foto
-                   </button>
-                   
-                   <button 
-                    type="button"
-                    onClick={() => galleryInputRef.current?.click()}
-                    className="flex-1 flex items-center justify-center gap-3 h-14 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-slate-200 hover:bg-slate-800 active:scale-95 transition-all"
-                   >
-                     <UploadCloud size={18} />
-                     Galeria
-                   </button>
-                </div>
+            </div>
 
-                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-[0.2em]">O SELO DIGITAL SERÁ APLICADO AO SELECIONAR</p>
+            {/* Slot DEPOIS (Clonado do Antes) */}
+            <div className="space-y-3">
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Vista Final (Depois)</label>
+              <div className="relative group rounded-[2rem] overflow-hidden border-2 border-slate-200 bg-slate-50 min-h-[240px] flex flex-col items-center justify-center transition-all">
+                {isProcessingAfter ? (
+                  <div className="flex flex-col items-center gap-4">
+                    <Loader2 className="animate-spin text-blue-600" size={32} />
+                    <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest text-center">Sincronizando Selo...</span>
+                  </div>
+                ) : imagePreviewAfter ? (
+                  <>
+                    <img src={imagePreviewAfter} alt="Preview Depois" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 backdrop-blur-sm">
+                       <button 
+                        type="button"
+                        onClick={() => { setImagePreviewAfter(null); setFormData(p => ({...p, photoAfter: ''})); }}
+                        className="p-4 bg-rose-600 text-white rounded-2xl shadow-xl hover:scale-110 transition-transform"
+                       >
+                         <Trash2 size={24} />
+                       </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center space-y-6">
+                    <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-md">
+                       <ImageIcon className="w-8 h-8 text-slate-300" />
+                    </div>
+                    
+                    <div className="flex flex-col gap-2 w-full max-w-[200px]">
+                       <button 
+                        type="button"
+                        onClick={() => triggerPhotoSelection('after', 'camera')}
+                        className="flex items-center justify-center gap-2 h-10 bg-blue-600 text-white rounded-xl font-black uppercase text-[9px] tracking-widest shadow-lg hover:bg-blue-700 active:scale-95 transition-all"
+                       >
+                         <Camera size={14} />
+                         Câmera
+                       </button>
+                       <button 
+                        type="button"
+                        onClick={() => triggerPhotoSelection('after', 'gallery')}
+                        className="flex items-center justify-center gap-2 h-10 bg-slate-900 text-white rounded-xl font-black uppercase text-[9px] tracking-widest shadow-lg hover:bg-slate-800 active:scale-95 transition-all"
+                       >
+                         <UploadCloud size={14} />
+                         Galeria
+                       </button>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-            
-            {/* Inputs Ocultos */}
-            <input 
-              ref={cameraInputRef}
-              type="file" 
-              accept="image/*" 
-              capture="environment" 
-              className="hidden" 
-              onChange={handleImageSource} 
-            />
-            <input 
-              ref={galleryInputRef}
-              type="file" 
-              accept="image/*" 
-              className="hidden" 
-              onChange={handleImageSource} 
-            />
+            </div>
           </div>
+
+          {/* Inputs Ocultos Reutilizáveis */}
+          <input 
+            ref={cameraInputRef}
+            type="file" 
+            accept="image/*" 
+            capture="environment" 
+            className="hidden" 
+            onChange={handleImageSource} 
+          />
+          <input 
+            ref={galleryInputRef}
+            type="file" 
+            accept="image/*" 
+            className="hidden" 
+            onChange={handleImageSource} 
+          />
 
           <div className="space-y-2">
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Parecer Técnico Descritivo</label>
@@ -411,7 +492,7 @@ const NewRequestPage: React.FC = () => {
           <button type="button" onClick={() => navigate(-1)} className="flex-1 h-16 bg-white border border-slate-200 rounded-2xl font-black uppercase tracking-widest text-[10px] text-slate-500 hover:bg-slate-50">Descartar</button>
           <button 
             type="submit" 
-            disabled={isSaving || isSaved || isProcessingImage}
+            disabled={isSaving || isSaved || isProcessingBefore || isProcessingAfter}
             className={`flex-[2] md:flex-1 h-16 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-2xl flex items-center justify-center gap-3 px-8 transition-all duration-300 ${
               isSaved ? 'bg-emerald-600 text-white shadow-emerald-200' : 'bg-blue-600 text-white shadow-blue-200'
             }`}

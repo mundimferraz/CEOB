@@ -161,7 +161,8 @@ export const dbApi = {
       latitude: request.location.latitude,
       longitude: request.location.longitude,
       address: request.location.address,
-      visit_date: request.visit_date,
+      // Fixed property access: changed request.visit_date to request.visitDate
+      visit_date: request.visitDate,
       status: request.status,
       technician_id: request.technicianId,
       zonal: request.zonal,

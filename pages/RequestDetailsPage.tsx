@@ -621,7 +621,7 @@ const RequestDetailsPage: React.FC = () => {
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 ml-1">Galeria de Evidências Fotográficas</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                    <div className="relative group rounded-[2rem] overflow-hidden border border-slate-200 bg-slate-100 h-64 shadow-md flex items-center justify-center">
-                     <div className="absolute top-4 left-4 bg-slate-900/80 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase z-10 backdrop-blur-md">Vistoria Inicial</div>
+                     <div className="absolute top-4 left-4 bg-slate-900/80 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase z-10 backdrop-blur-md">Vistoria Inicial (Antes)</div>
                      {isProcessingBefore ? (
                        <Loader2 className="animate-spin text-blue-600" size={32} />
                      ) : request.photoBefore ? (
@@ -636,9 +636,9 @@ const RequestDetailsPage: React.FC = () => {
                         <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center space-y-4">
                            <ImageIcon size={48} className="text-slate-300" />
                            {canEdit && (
-                             <div className="flex flex-col gap-2 w-full">
-                               <button onClick={() => triggerPhotoSelection('before', 'camera')} className="h-10 bg-blue-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest">Tirar Foto</button>
-                               <button onClick={() => triggerPhotoSelection('before', 'gallery')} className="h-10 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest">Galeria</button>
+                             <div className="flex flex-col gap-2 w-full max-w-[180px]">
+                               <button onClick={() => triggerPhotoSelection('before', 'camera')} className="h-10 bg-blue-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-md">Tirar Foto</button>
+                               <button onClick={() => triggerPhotoSelection('before', 'gallery')} className="h-10 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-md">Galeria</button>
                              </div>
                            )}
                         </div>
@@ -646,11 +646,11 @@ const RequestDetailsPage: React.FC = () => {
                    </div>
                    
                    <div className="relative group rounded-[2rem] overflow-hidden border border-slate-200 bg-slate-100 h-64 shadow-md flex items-center justify-center">
-                      <div className={`absolute top-4 left-4 ${request.photoAfter ? 'bg-emerald-600' : 'bg-amber-600'} text-white px-3 py-1 rounded-full text-[10px] font-black uppercase z-10 backdrop-blur-md shadow-lg`}>
-                        {request.photoAfter ? 'Conclusão da Obra' : 'Aguardando Término'}
+                      <div className={`absolute top-4 left-4 ${request.photoAfter ? 'bg-slate-900/80' : 'bg-slate-900/40'} text-white px-3 py-1 rounded-full text-[10px] font-black uppercase z-10 backdrop-blur-md shadow-lg`}>
+                        {request.photoAfter ? 'Conclusão (Depois)' : 'Aguardando Término'}
                       </div>
                       {isProcessingAfter ? (
-                        <Loader2 className="animate-spin text-emerald-600" size={32} />
+                        <Loader2 className="animate-spin text-blue-600" size={32} />
                       ) : request.photoAfter ? (
                          <>
                            <img src={request.photoAfter} alt="Depois" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
@@ -660,12 +660,12 @@ const RequestDetailsPage: React.FC = () => {
                            </div>
                          </>
                       ) : (
-                         <div className="w-full h-full bg-emerald-50 flex flex-col items-center justify-center p-6 text-center space-y-4">
-                            <ImageIcon size={48} className="text-emerald-200" />
+                         <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center space-y-4">
+                            <ImageIcon size={48} className="text-slate-300" />
                             {canEdit && (
-                              <div className="flex flex-col gap-2 w-full">
-                                <button onClick={() => triggerPhotoSelection('after', 'camera')} className="h-10 bg-emerald-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest">Registrar Final</button>
-                                <button onClick={() => triggerPhotoSelection('after', 'gallery')} className="h-10 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest">Subir Arquivo</button>
+                              <div className="flex flex-col gap-2 w-full max-w-[180px]">
+                                <button onClick={() => triggerPhotoSelection('after', 'camera')} className="h-10 bg-blue-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-md">Registrar Final</button>
+                                <button onClick={() => triggerPhotoSelection('after', 'gallery')} className="h-10 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-md">Subir Arquivo</button>
                               </div>
                             )}
                          </div>
