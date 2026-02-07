@@ -65,7 +65,7 @@ const LoginPage = () => {
                   type="text" 
                   value={username}
                   onChange={e => setUsername(e.target.value)}
-                  placeholder="admin"
+                  placeholder="Seu usuário"
                   className="w-full h-14 pl-12 pr-4 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-medium"
                 />
               </div>
@@ -348,9 +348,23 @@ const App = () => {
   const addRequest = async (req: RepairRequest) => { await dbApi.createRequest(req); refreshRequests(); };
   const updateRequest = async (req: RepairRequest) => { await dbApi.updateRequest(req); refreshRequests(); };
   const deleteRequest = async (id: string) => { await dbApi.deleteRequest(id); refreshRequests(); };
+  
   const addUser = async (u: User) => { await dbApi.saveUser(u); setUsers(await dbApi.getUsers()); };
   const updateUser = async (u: User) => { await dbApi.saveUser(u); setUsers(await dbApi.getUsers()); };
-  const deleteUser = async (id: string) => { await dbApi.deleteUser(id); setUsers(await dbApi.getUsers()); };
+  
+  const deleteUser = async (id: string) => { 
+    // Proteção Root: Não permitir excluir o usuário claudioasousa ou o admin inicial
+    const userToDelete = users.find(u => u.id === id);
+    if (userToDelete?.name === 'claudioasousa' || userToDelete?.id === 'root_master_id') {
+      notify("Erro: Este usuário é Root do sistema e não pode ser excluído.", "error");
+      return;
+    }
+
+    await dbApi.deleteUser(id); 
+    setUsers(await dbApi.getUsers()); 
+    notify("Usuário removido com sucesso.");
+  };
+
   const updateZonal = async (z: ZonalMetadata) => { await dbApi.saveZonal(z); setZonals(await dbApi.getZonals()); };
   const getZonalName = (id: ZonalType) => zonals.find(z => z.id === id)?.name || id;
   const getRoleLabel = (role: AppRole) => ROLE_CONFIG[role]?.label || role;

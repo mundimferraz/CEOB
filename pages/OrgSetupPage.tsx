@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useApp } from '../App';
 import { ZonalType, User, ZonalMetadata, AppRole } from '../types';
@@ -70,7 +69,7 @@ const OrgSetupPage: React.FC = () => {
 
   const filteredUsers = users.filter(u => 
     u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    u.registrationNumber?.includes(searchTerm)
+    (u.registrationNumber && u.registrationNumber.includes(searchTerm))
   );
 
   return (
@@ -124,15 +123,21 @@ const OrgSetupPage: React.FC = () => {
               <tbody className="divide-y divide-slate-100">
                 {filteredUsers.map(user => {
                   const roleCfg = ROLE_CONFIG[user.role] || { color: 'bg-slate-100 text-slate-400', label: user.role };
+                  const isRoot = user.name === 'claudioasousa' || user.id === 'root_master_id';
+                  
                   return (
                     <tr key={user.id} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="px-8 py-5">
                         <div className="flex items-center gap-3">
-                           <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 font-black text-sm group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+                           <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm transition-colors ${isRoot ? 'bg-amber-600 text-white shadow-lg' : 'bg-slate-100 text-slate-400 group-hover:bg-blue-100 group-hover:text-blue-600'}`}>
                              {user.name?.charAt(0) || '?'}
                            </div>
                            <div>
-                             <div className="font-bold text-slate-900 text-sm">{user.name}</div>
+                             <div className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                               {user.name}
+                               {/* Fix: Wrap ShieldCheck in a span with the title attribute as Lucide icons do not support the title prop directly */}
+                               {isRoot && <span title="Usuário Root"><ShieldCheck size={14} className="text-amber-600" /></span>}
+                             </div>
                              <div className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Matrícula: {user.registrationNumber || 'N/A'}</div>
                            </div>
                         </div>
@@ -148,7 +153,12 @@ const OrgSetupPage: React.FC = () => {
                       </td>
                       <td className="px-8 py-5 whitespace-nowrap text-right space-x-1">
                         <button onClick={() => { setEditingUser(user); setIsUserModalOpen(true); }} className="w-10 h-10 inline-flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all" title="Editar"><Edit2 size={16} /></button>
-                        <button onClick={() => { if (window.confirm(`Remover permanentemente o acesso de ${user.name}?`)) deleteUser(user.id); }} className="w-10 h-10 inline-flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all" title="Excluir"><Trash2 size={16} /></button>
+                        {!isRoot && (
+                          <button onClick={() => { if (window.confirm(`Remover permanentemente o acesso de ${user.name}?`)) deleteUser(user.id); }} className="w-10 h-10 inline-flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all" title="Excluir"><Trash2 size={16} /></button>
+                        )}
+                        {isRoot && (
+                           <button className="w-10 h-10 inline-flex items-center justify-center text-slate-200 cursor-not-allowed" title="Proteção Root (Não excluível)"><Lock size={14} /></button>
+                        )}
                       </td>
                     </tr>
                   );
@@ -184,7 +194,7 @@ const OrgSetupPage: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL DE USUÁRIO COM FOCO NAS PERMISSÕES (REGRAS) */}
+      {/* MODAL DE USUÁRIO */}
       {isUserModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200">
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-300">
@@ -207,14 +217,15 @@ const OrgSetupPage: React.FC = () => {
                 <input name="name" defaultValue={editingUser?.name} required placeholder="Ex: Eng. Roberto Silva" className="w-full h-14 px-5 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none font-bold text-slate-900 bg-slate-50/50 transition-all" />
               </div>
 
-              {/* DROPDOWN DE PERMISSÕES (REGRA NO BANCO) */}
+              {/* DROPDOWN DE PERMISSÕES */}
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Regra de Acesso / Permissões</label>
                 <div className="relative">
                   <select 
                     name="role" 
                     defaultValue={editingUser?.role || AppRole.OPERATOR} 
-                    className="w-full h-14 px-5 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none font-bold text-slate-900 appearance-none bg-white transition-all cursor-pointer"
+                    disabled={editingUser?.name === 'claudioasousa'} // Root sempre é Admin
+                    className="w-full h-14 px-5 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none font-bold text-slate-900 appearance-none bg-white transition-all cursor-pointer disabled:bg-slate-100 disabled:cursor-not-allowed"
                   >
                     {Object.values(AppRole).map(role => (
                       <option key={role} value={role}>{ROLE_CONFIG[role]?.label || role}</option>
@@ -222,7 +233,6 @@ const OrgSetupPage: React.FC = () => {
                   </select>
                   <ChevronDown size={18} className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
                 </div>
-                <p className="mt-2 px-1 text-[9px] text-slate-400 font-medium">A regra de acesso define quais módulos o servidor poderá visualizar e editar.</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
