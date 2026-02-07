@@ -1,8 +1,15 @@
 
 import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
-import { LayoutDashboard, ClipboardList, PlusCircle, Users, Menu, X, ChevronRight, Plus, CheckCircle, Info, AlertCircle, Loader2, LogOut, UserCircle, ShieldCheck, ShieldAlert, Map as MapIcon, History, Lock, User as UserIcon, Eye, EyeOff, Settings } from 'lucide-react';
-import { RepairRequest, User, ZonalType, RequestStatus, ZonalMetadata, UserRole, AppRole, AuditAction, AuditEntity } from './types';
+import { 
+  LayoutDashboard, ClipboardList, PlusCircle, Users, Menu, X, 
+  ChevronRight, ChevronDown, Plus, CheckCircle, AlertCircle, 
+  Loader2, LogOut, ShieldCheck, Map as MapIcon, History, 
+  Lock, User as UserIcon, Eye, EyeOff, Settings, 
+  Briefcase, FileText, Navigation as NavIcon, Route as RouteIcon,
+  Database, UserCog, UserCheck
+} from 'lucide-react';
+import { RepairRequest, User, ZonalType, RequestStatus, ZonalMetadata, AppRole, AuditAction, AuditEntity } from './types';
 import { ROLE_CONFIG, DEFAULT_ROLE_CONFIG, INITIAL_ZONAL_METADATA } from './constants';
 import DashboardPage from './pages/DashboardPage';
 import RequestListPage from './pages/RequestListPage';
@@ -32,10 +39,10 @@ const LoginPage = () => {
     try {
       const success = await handleLogin(username.trim(), password.trim());
       if (!success) {
-        notify("Usuário ou senha incorretos", "error");
+        notify("Credenciais inválidas. Tente admin / admin", "error");
       }
     } catch (err) {
-      notify("Erro na comunicação com o servidor", "error");
+      notify("Erro de conexão", "error");
     } finally {
       setLoading(false);
     }
@@ -53,12 +60,12 @@ const LoginPage = () => {
                 <ShieldCheck size={32} className="text-white" />
              </div>
              <h1 className="text-2xl font-black text-white tracking-tight uppercase italic">SGR-Vias</h1>
-             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1">Gestão de Zeladoria Urbana</p>
+             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1">Portal de Autenticação</p>
           </div>
 
           <form onSubmit={onSubmit} className="space-y-5">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Matrícula ou Usuário</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Usuário / Matrícula</label>
               <div className="relative">
                 <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                 <input 
@@ -72,7 +79,7 @@ const LoginPage = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Senha de Acesso</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Senha</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                 <input 
@@ -83,7 +90,7 @@ const LoginPage = () => {
                   className="w-full h-14 pl-12 pr-12 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-medium"
                 />
                 <button 
-                  type="button"
+                  type="button" 
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
                 >
@@ -97,7 +104,7 @@ const LoginPage = () => {
               disabled={loading}
               className="w-full h-16 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-2xl shadow-blue-500/20 transition-all active:scale-95 flex items-center justify-center gap-3 mt-8"
             >
-              {loading ? <Loader2 className="animate-spin" size={20} /> : "Autenticar no Sistema"}
+              {loading ? <Loader2 className="animate-spin" size={20} /> : "Acessar Sistema"}
             </button>
           </form>
         </div>
@@ -106,12 +113,149 @@ const LoginPage = () => {
   );
 };
 
-// --- CONTEXTO E PROVEDOR ---
-interface Toast {
-  id: string;
-  message: string;
-  type: 'success' | 'error' | 'info';
-}
+// --- COMPONENTE DE NAVEGAÇÃO ---
+const NavGroup = ({ label, icon: Icon, children, defaultOpen = false, visible = true }: any) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  if (!visible) return null;
+
+  return (
+    <div className="space-y-1">
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition-all group"
+      >
+        <Icon size={18} className="text-slate-500 group-hover:text-blue-400" />
+        <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 group-hover:text-white flex-1 text-left">{label}</span>
+        <ChevronDown size={14} className={`text-slate-600 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      {isOpen && (
+        <div className="pl-11 pr-4 space-y-1 animate-in slide-in-from-top-2 duration-200">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const NavSubItem = ({ to, label, icon: Icon }: any) => {
+  const location = useLocation();
+  const isActive = location.pathname === to;
+  
+  return (
+    <Link
+      to={to}
+      className={`
+        flex items-center gap-3 py-2.5 px-3 rounded-lg transition-all text-[11px] font-bold uppercase tracking-tight
+        ${isActive ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-500 hover:text-white hover:bg-slate-800'}
+      `}
+    >
+      <Icon size={14} className={isActive ? 'text-white' : 'text-slate-600'} />
+      {label}
+    </Link>
+  );
+};
+
+const Navigation = () => {
+  const location = useLocation();
+  const { currentUser, canDo, logout } = useApp();
+
+  const currentRoleConfig = (currentUser && currentUser.role && ROLE_CONFIG[currentUser.role]) 
+    ? ROLE_CONFIG[currentUser.role] 
+    : DEFAULT_ROLE_CONFIG;
+
+  const isAdmin = currentUser?.role === AppRole.ADMIN;
+
+  return (
+    <>
+      <header className="md:hidden flex items-center justify-between p-4 bg-white border-b border-slate-200 sticky top-0 z-40 h-16">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center font-bold text-white">S</div>
+          <span className="font-extrabold tracking-tight text-slate-900 uppercase">SGR-VIAS</span>
+        </div>
+        <button onClick={logout} className="p-2 text-rose-500"><LogOut size={20} /></button>
+      </header>
+
+      <aside className="hidden md:flex fixed inset-y-0 left-0 w-64 bg-slate-950 text-slate-300 flex-col border-r border-slate-800 z-50 shadow-2xl">
+        <div className="p-8 border-b border-slate-900 flex items-center gap-3">
+          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-black text-xl text-white shadow-lg shadow-blue-900/20">S</div>
+          <div>
+            <h1 className="font-black text-white tracking-tight leading-none text-lg">SGR-Vias</h1>
+            <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-1 font-bold italic">Zeladoria Urbana</p>
+          </div>
+        </div>
+        
+        <nav className="flex-1 px-4 py-8 space-y-4 overflow-y-auto scrollbar-thin">
+          {/* DASHBOARD */}
+          <Link 
+            to="/" 
+            className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-200 ${location.pathname === '/' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'hover:bg-slate-800 hover:text-white'}`}
+          >
+            <LayoutDashboard size={18} />
+            <span className="font-black uppercase text-[11px] tracking-widest">Dashboard</span>
+          </Link>
+
+          {/* VISTORIAS */}
+          <NavGroup label="Vistorias" icon={ClipboardList} defaultOpen={location.pathname.startsWith('/new') || location.pathname.startsWith('/map') || location.pathname.startsWith('/requests')}>
+            <NavSubItem to="/new" label="Nova Vistoria" icon={PlusCircle} />
+            <NavSubItem to="/map" label="Mapa Interativo" icon={MapIcon} />
+            <NavSubItem to="/requests" label="Relatórios" icon={FileText} />
+          </NavGroup>
+
+          {/* CADASTROS (RESTRICTED ADMIN) */}
+          <NavGroup label="Cadastros" icon={Briefcase} visible={isAdmin}>
+            <NavSubItem to="/org?tab=personnel" label="Colaborador" icon={Users} />
+            <NavSubItem to="/org?tab=zonals" label="Zonais" icon={MapIcon} />
+          </NavGroup>
+
+          {/* CONFIGURAÇÕES (RESTRICTED ADMIN) */}
+          <NavGroup label="Configurações" icon={Settings} visible={isAdmin}>
+            <NavSubItem to="/org?tab=zonals" label="Gestão Unidades" icon={Database} />
+            <NavSubItem to="/org?tab=personnel" label="Gestão Equipe" icon={UserCog} />
+            <NavSubItem to="/audit" label="Auditoria" icon={History} />
+          </NavGroup>
+        </nav>
+
+        <div className="p-6 border-t border-slate-900 bg-slate-950/80">
+          <div className="flex flex-col gap-3 p-3 rounded-2xl bg-slate-900 border border-slate-800 shadow-inner">
+            <div className="flex items-center gap-3 overflow-hidden">
+              <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-sm flex-shrink-0">
+                {currentUser?.name?.charAt(0)}
+              </div>
+              <div className="flex-1 min-w-0">
+                 <p className="text-xs font-black text-white truncate">{currentUser?.name}</p>
+                 <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">{currentRoleConfig.label}</p>
+              </div>
+            </div>
+            <div className="flex gap-2 border-t border-slate-800 pt-3">
+              <Link 
+                to="/profile/password" 
+                className="flex-1 flex items-center justify-center gap-2 h-10 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 transition-all text-[10px] font-black uppercase tracking-widest"
+              >
+                <Lock size={14} />
+                Segurança
+              </Link>
+              <button 
+                onClick={logout} 
+                className="w-10 h-10 flex items-center justify-center bg-rose-900/20 text-rose-500 rounded-xl hover:bg-rose-900/40 transition-all shadow-sm"
+              >
+                <LogOut size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </>
+  );
+};
+
+// --- COMPONENTE APP ---
+const AppContext = createContext<AppContextType | undefined>(undefined);
+
+export const useApp = () => {
+  const context = useContext(AppContext);
+  if (!context) throw new Error("useApp must be used within AppProvider");
+  return context;
+};
 
 interface AppContextType {
   requests: RepairRequest[];
@@ -135,138 +279,11 @@ interface AppContextType {
   notify: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
-const AppContext = createContext<AppContextType | undefined>(undefined);
-
-export const useApp = () => {
-  const context = useContext(AppContext);
-  if (!context) throw new Error("useApp must be used within AppProvider");
-  return context;
-};
-
-// --- PROTEÇÃO DE ROTAS ---
 const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
   const { currentUser, loading } = useApp();
   if (loading) return null;
   if (!currentUser) return <Navigate to="/login" replace />;
   return <>{children}</>;
-};
-
-const Navigation = () => {
-  const location = useLocation();
-  const { currentUser, canDo, logout } = useApp();
-
-  const navItems = [
-    { path: '/', label: 'Dashboard', icon: LayoutDashboard, visible: true },
-    { path: '/map', label: 'Mapa Operativo', icon: MapIcon, visible: true },
-    { path: '/requests', label: 'Vistorias', icon: ClipboardList, visible: true },
-    { path: '/new', label: 'Nova Vistoria', icon: PlusCircle, highlight: true, visible: canDo('create_request') },
-    { path: '/org', label: 'Gestão de Usuários', icon: Users, visible: canDo('manage_users') },
-    { path: '/audit', label: 'Auditoria', icon: History, visible: canDo('view_audit') },
-  ];
-
-  const currentRoleConfig = (currentUser && currentUser.role && ROLE_CONFIG[currentUser.role]) 
-    ? ROLE_CONFIG[currentUser.role] 
-    : DEFAULT_ROLE_CONFIG;
-
-  return (
-    <>
-      <header className="md:hidden flex items-center justify-between p-4 bg-white border-b border-slate-200 sticky top-0 z-40 h-16">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center font-bold text-white">S</div>
-          <span className="font-extrabold tracking-tight text-slate-900 uppercase">SGR-VIAS</span>
-        </div>
-        <button onClick={logout} className="p-2 text-rose-500"><LogOut size={20} /></button>
-      </header>
-
-      <aside className="hidden md:flex fixed inset-y-0 left-0 w-64 bg-slate-900 text-slate-300 flex-col border-r border-slate-800">
-        <div className="p-8 border-b border-slate-800 flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-black text-xl text-white shadow-lg">S</div>
-          <div>
-            <h1 className="font-black text-white tracking-tight leading-none text-lg">SGR-Vias</h1>
-            <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-1 font-bold italic">Zeladoria Urbana</p>
-          </div>
-        </div>
-        
-        <nav className="flex-1 px-4 py-8 space-y-2">
-          {navItems.filter(i => i.visible).map((item) => {
-            const Icon = item.icon;
-            const isActive = location.pathname === item.path;
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`
-                  flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-200
-                  ${isActive ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'hover:bg-slate-800 hover:text-white'}
-                `}
-              >
-                <Icon size={20} />
-                <span className="font-semibold text-sm">{item.label}</span>
-                {isActive && <ChevronRight className="ml-auto opacity-50" size={16} />}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="p-6 border-t border-slate-800 bg-slate-900/50">
-          <div className="flex flex-col gap-3 p-3 rounded-2xl bg-slate-800 border border-slate-700 shadow-inner">
-            <div className="flex items-center gap-3 overflow-hidden">
-              <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-sm flex-shrink-0">
-                {currentUser?.name?.charAt(0)}
-              </div>
-              <div className="flex-1 min-w-0">
-                 <p className="text-xs font-black text-white truncate">{currentUser?.name}</p>
-                 <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">{currentRoleConfig.label}</p>
-              </div>
-            </div>
-            <div className="flex gap-2 border-t border-slate-700 pt-3">
-              <Link 
-                to="/profile/password" 
-                className="flex-1 flex items-center justify-center gap-2 h-10 bg-slate-700 text-slate-300 rounded-xl hover:bg-slate-600 transition-all text-[10px] font-black uppercase tracking-widest"
-                title="Alterar Senha"
-              >
-                <Lock size={14} />
-                Segurança
-              </Link>
-              <button 
-                onClick={logout} 
-                className="w-10 h-10 flex items-center justify-center bg-rose-900/30 text-rose-400 rounded-xl hover:bg-rose-900/50 transition-all shadow-sm"
-                title="Encerrar Sessão"
-              >
-                <LogOut size={16} />
-              </button>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 safe-bottom z-50 px-4 h-20 flex items-center justify-around shadow-2xl">
-        {navItems.filter(i => i.visible).map((item) => {
-          const Icon = item.icon;
-          const isActive = location.pathname === item.path;
-          if (item.highlight) {
-            return (
-              <Link key={item.path} to={item.path} className="relative -top-6">
-                <div className="w-14 h-14 rounded-full flex items-center justify-center shadow-xl bg-blue-600 border-4 border-slate-50">
-                  <Plus size={28} className="text-white" strokeWidth={3} />
-                </div>
-              </Link>
-            )
-          }
-          return (
-            <Link key={item.path} to={item.path} className="flex flex-col items-center justify-center gap-1">
-              <Icon size={22} className={isActive ? 'text-blue-600' : 'text-slate-400'} />
-              <span className={`text-[10px] font-bold ${isActive ? 'text-blue-600' : 'text-slate-400'}`}>{item.label}</span>
-            </Link>
-          );
-        })}
-        <Link to="/profile/password" className="flex flex-col items-center justify-center gap-1">
-          <Lock size={22} className={location.pathname === '/profile/password' ? 'text-blue-600' : 'text-slate-400'} />
-          <span className={`text-[10px] font-bold ${location.pathname === '/profile/password' ? 'text-blue-600' : 'text-slate-400'}`}>Senha</span>
-        </Link>
-      </nav>
-    </>
-  );
 };
 
 const App = () => {
@@ -289,7 +306,7 @@ const App = () => {
       if (user) {
         setCurrentUser(user);
         localStorage.setItem('sgr_vias_session', JSON.stringify(user));
-        notify(`Bem-vindo, ${user.name}!`);
+        notify(`Acesso autorizado: Eng. ${user.name}`);
         return true;
       }
       return false;
@@ -301,22 +318,18 @@ const App = () => {
   const logout = () => {
     setCurrentUser(null);
     localStorage.removeItem('sgr_vias_session');
-    notify("Sessão finalizada com segurança.");
+    notify("Sessão encerrada com sucesso.");
   };
 
   const canDo = useCallback((action: string) => {
     if (!currentUser) return false;
     const isAdmin = currentUser.role === AppRole.ADMIN;
-    const isEditor = currentUser.role === AppRole.EDITOR || isAdmin;
-    const isOperator = currentUser.role === AppRole.OPERATOR || isEditor;
-
     switch (action) {
       case 'manage_users': return isAdmin;
       case 'view_audit': return isAdmin;
-      case 'create_request': return isOperator;
-      case 'edit_request': return isOperator;
+      case 'create_request': return isAdmin || currentUser.role === AppRole.OPERATOR || currentUser.role === AppRole.EDITOR;
+      case 'edit_request': return isAdmin || currentUser.role === AppRole.OPERATOR || currentUser.role === AppRole.EDITOR;
       case 'delete_request': return isAdmin;
-      case 'view_all_zonals': return currentUser.role !== AppRole.VIEWER;
       default: return false;
     }
   }, [currentUser]);
@@ -326,7 +339,6 @@ const App = () => {
       setLoading(true);
       const saved = localStorage.getItem('sgr_vias_session');
       if (saved) setCurrentUser(JSON.parse(saved));
-
       const [dbReqs, dbUsers, dbZonals] = await Promise.all([
         dbApi.getRequests(),
         dbApi.getUsers(),
@@ -348,21 +360,18 @@ const App = () => {
   const addRequest = async (req: RepairRequest) => { await dbApi.createRequest(req); refreshRequests(); };
   const updateRequest = async (req: RepairRequest) => { await dbApi.updateRequest(req); refreshRequests(); };
   const deleteRequest = async (id: string) => { await dbApi.deleteRequest(id); refreshRequests(); };
-  
   const addUser = async (u: User) => { await dbApi.saveUser(u); setUsers(await dbApi.getUsers()); };
   const updateUser = async (u: User) => { await dbApi.saveUser(u); setUsers(await dbApi.getUsers()); };
   
   const deleteUser = async (id: string) => { 
-    // Proteção Root: Não permitir excluir o usuário claudioasousa ou o admin inicial
-    const userToDelete = users.find(u => u.id === id);
-    if (userToDelete?.name === 'claudioasousa' || userToDelete?.id === 'root_master_id') {
-      notify("Erro: Este usuário é Root do sistema e não pode ser excluído.", "error");
+    const target = users.find(u => u.id === id);
+    if (target?.name === 'claudioasousa' || target?.id === 'root_master_id') {
+      notify("Erro: Usuário Root mestre não pode ser removido.", "error");
       return;
     }
-
     await dbApi.deleteUser(id); 
     setUsers(await dbApi.getUsers()); 
-    notify("Usuário removido com sucesso.");
+    notify("Servidor removido do sistema.");
   };
 
   const updateZonal = async (z: ZonalMetadata) => { await dbApi.saveZonal(z); setZonals(await dbApi.getZonals()); };
@@ -414,3 +423,4 @@ const App = () => {
 };
 
 export default App;
+interface Toast { id: string; message: string; type: 'success' | 'error' | 'info'; }
