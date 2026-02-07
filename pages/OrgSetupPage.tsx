@@ -7,7 +7,7 @@ import {
   UserPlus, Settings, Shield, Map as MapIcon, Edit2, Trash2, X, 
   Save, Search, UserCog, ShieldCheck, ShieldAlert, ArrowLeft, 
   ChevronDown, Lock, Users as UsersIcon, Database, Plus, Briefcase, Info,
-  Loader2, Radio, Clock, UserCheck
+  Loader2, Radio, Clock, UserCheck, Crown, Fingerprint
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -74,6 +74,15 @@ const OrgSetupPage: React.FC = () => {
 
   const handleSaveUser = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    // REGRA ROOT: Apenas o próprio Root edita o Root
+    const isEditingRoot = editingUser?.name === 'claudioasousa' || editingUser?.id === 'root_master_id';
+    const isSelfEdit = currentUser?.id === editingUser?.id;
+    if (isEditingRoot && !isSelfEdit) {
+      notify("Proteção Ativa: Apenas o usuário Root pode alterar seus próprios dados.", "error");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const formData = new FormData(e.currentTarget);
@@ -202,20 +211,28 @@ const OrgSetupPage: React.FC = () => {
                 <tbody className="divide-y divide-slate-100">
                   {filteredUsers.map(user => {
                     const isRoot = user.name === 'claudioasousa' || user.id === 'root_master_id';
+                    const isSelf = currentUser?.id === user.id;
                     const online = isUserOnline(user.lastActiveAt);
+                    
                     return (
                       <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-8 py-5">
                           <div className="flex items-center gap-3">
-                             <div className={`relative w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${isRoot ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
-                               {user.name?.charAt(0)}
+                             <div className={`relative w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${isRoot ? 'bg-slate-900 text-amber-500 border-2 border-amber-500/30' : 'bg-slate-100 text-slate-400'}`}>
+                               {isRoot ? <Crown size={18} /> : user.name?.charAt(0)}
                                {online && (
                                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full animate-pulse shadow-sm"></span>
                                )}
                              </div>
                              <div>
                                <div className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                                 {user.name} {isRoot && <ShieldCheck size={14} className="text-amber-600" />}
+                                 {user.name} 
+                                 {/* Fix: Lucide icons do not accept 'title' prop. Wrapped in span. */}
+                                 {isRoot && (
+                                   <span title="Super Usuário Root">
+                                     <ShieldCheck size={14} className="text-amber-600" />
+                                   </span>
+                                 )}
                                </div>
                                <div className="text-[10px] text-slate-400 font-bold uppercase">RF: {user.registrationNumber || '---'}</div>
                              </div>
@@ -242,7 +259,15 @@ const OrgSetupPage: React.FC = () => {
                         </td>
                         <td className="px-8 py-5 text-right">
                           <div className="flex justify-end gap-1">
-                            <button onClick={() => { setEditingUser(user); setIsUserModalOpen(true); }} className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"><Edit2 size={14} /></button>
+                            {/* REGRA ROOT: Apenas o Root edita a si mesmo */}
+                            {isRoot && !isSelf ? (
+                              <div className="w-9 h-9 flex items-center justify-center text-slate-300 cursor-not-allowed" title="Proteção Root Ativa">
+                                <Lock size={14} />
+                              </div>
+                            ) : (
+                              <button onClick={() => { setEditingUser(user); setIsUserModalOpen(true); }} className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"><Edit2 size={14} /></button>
+                            )}
+                            
                             {!isRoot && (
                               <button onClick={() => { if(window.confirm(`Excluir ${user.name}?`)) deleteUser(user.id); }} className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"><Trash2 size={14} /></button>
                             )}
@@ -319,16 +344,31 @@ const OrgSetupPage: React.FC = () => {
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-300">
             <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg"><UserCog size={24} /></div>
+                <div className={`w-12 h-12 ${editingUser?.name === 'claudioasousa' ? 'bg-amber-600' : 'bg-blue-600'} rounded-2xl flex items-center justify-center text-white shadow-lg`}>
+                  {editingUser?.name === 'claudioasousa' ? <Crown size={24} /> : <UserCog size={24} />}
+                </div>
                 <div>
-                  <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">{editingUser ? 'Ajustar Cadastro' : 'Novo Colaborador'}</h2>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Gestão de Equipe Governamental</p>
+                  <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">
+                    {editingUser?.name === 'claudioasousa' ? 'Perfil Soberano (Root)' : (editingUser ? 'Ajustar Cadastro' : 'Novo Colaborador')}
+                  </h2>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                    {editingUser?.name === 'claudioasousa' ? 'Acesso ao Núcleo do Sistema' : 'Gestão de Equipe Governamental'}
+                  </p>
                 </div>
               </div>
               <button onClick={() => setIsUserModalOpen(false)} className="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 rounded-full text-slate-400 hover:text-rose-500 transition-all"><X size={20} /></button>
             </div>
             
             <form onSubmit={handleSaveUser} className="p-8 space-y-5">
+              {editingUser?.name === 'claudioasousa' && (
+                <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex gap-4 items-start mb-2">
+                   <Fingerprint className="text-amber-600 flex-shrink-0" size={20} />
+                   <p className="text-[10px] font-bold text-amber-900 leading-tight">
+                     <strong>REDE DE SEGURANÇA:</strong> Os dados deste usuário não são imutáveis para ele mesmo, mas estão protegidos contra alterações por terceiros. Apenas você pode alterar sua própria identidade técnica e senha de núcleo.
+                   </p>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 block">Nome Completo</label>
@@ -346,7 +386,12 @@ const OrgSetupPage: React.FC = () => {
 
                 <div>
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 block">Regra de Acesso</label>
-                  <select name="role" defaultValue={editingUser?.role || AppRole.OPERATOR} className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm appearance-none bg-white outline-none focus:ring-2 focus:ring-blue-500/20">
+                  <select 
+                    name="role" 
+                    defaultValue={editingUser?.role || AppRole.OPERATOR} 
+                    disabled={editingUser?.name === 'claudioasousa'}
+                    className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm appearance-none bg-white outline-none focus:ring-2 focus:ring-blue-500/20 disabled:bg-slate-50 disabled:text-slate-400"
+                  >
                     {Object.values(AppRole).map(role => <option key={role} value={role}>{ROLE_CONFIG[role]?.label}</option>)}
                   </select>
                 </div>
@@ -369,7 +414,7 @@ const OrgSetupPage: React.FC = () => {
                 <button 
                   type="submit" 
                   disabled={isSubmitting}
-                  className="flex-[2] h-14 bg-blue-600 text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-70"
+                  className={`flex-[2] h-14 ${editingUser?.name === 'claudioasousa' ? 'bg-amber-600' : 'bg-blue-600'} text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-xl hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-70`}
                 >
                   {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                   {isSubmitting ? 'Gravando...' : 'Salvar Alterações'}
