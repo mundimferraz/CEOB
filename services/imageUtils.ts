@@ -67,14 +67,14 @@ export const addWatermarkToImage = (
       const marginX = TARGET_WIDTH * 0.065; 
       const marginY = TARGET_WIDTH * 0.065; 
 
-      // 1. Painel de Fundo
+      // 1. Painel de Fundo (Ajustado para 0.60 de opacidade)
       const panelWidth = TARGET_WIDTH - (marginX * 2);
       const panelHeight = 210 * scale;
       const panelX = marginX;
       const panelY = TARGET_HEIGHT - marginY - panelHeight;
 
       drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 18 * scale);
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.78)';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.60)';
       ctx.fill();
       
       // Borda do painel

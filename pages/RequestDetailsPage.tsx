@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
-import { MapPin, Calendar, User as UserIcon, FileText, Camera, Download, Trash2, CheckCircle, AlertTriangle, Crosshair, ImageIcon, Edit2, X, Save, ExternalLink, Loader2, ShieldCheck, UserCheck, Users, ChevronDown, Share2, Hash, Briefcase, ClipboardList, UploadCloud } from 'lucide-react';
+import { MapPin, Calendar, User as UserIcon, FileText, Camera, Download, Trash2, CheckCircle, AlertTriangle, Crosshair, ImageIcon, Edit2, X, Save, ExternalLink, Loader2, ShieldCheck, UserCheck, Users, ChevronDown, Share2, Hash, Briefcase, ClipboardList, UploadCloud, RefreshCw } from 'lucide-react';
 import { useApp } from '../App';
 import { RequestStatus } from '../types';
 import { STATUS_COLORS } from '../constants';
@@ -34,7 +34,11 @@ const RequestDetailsPage: React.FC = () => {
   const [isEditingContract, setIsEditingContract] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isEditingTech, setIsEditingTech] = useState(false);
-  const [isCapturingAfter, setIsCapturingAfter] = useState(false);
+  
+  // Estados de processamento de imagem
+  const [isProcessingBefore, setIsProcessingBefore] = useState(false);
+  const [isProcessingAfter, setIsProcessingAfter] = useState(false);
+  const [activePhotoSlot, setActivePhotoSlot] = useState<'before' | 'after' | null>(null);
 
   useEffect(() => {
     if (request) {
@@ -120,10 +124,13 @@ const RequestDetailsPage: React.FC = () => {
     setIsEditingDescription(false);
   };
 
-  const handleAfterPhotoProcess = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Nova lógica unificada para processamento de fotos (Antes e Depois)
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && request) {
-      setIsCapturingAfter(true);
+    if (file && request && activePhotoSlot) {
+      const isBefore = activePhotoSlot === 'before';
+      if (isBefore) setIsProcessingBefore(true); else setIsProcessingAfter(true);
+      
       const reader = new FileReader();
       reader.onloadend = async () => {
         const rawBase64 = reader.result as string;
@@ -137,26 +144,33 @@ const RequestDetailsPage: React.FC = () => {
             date: new Date()
           });
           
-          await updateRequest({
-            ...request,
-            photoAfter: watermarked,
-            status: RequestStatus.COMPLETED
-          });
-          notify('Evidência de conclusão salva com selo digital!', 'success');
+          const updatedData = isBefore 
+            ? { ...request, photoBefore: watermarked } 
+            : { ...request, photoAfter: watermarked, status: RequestStatus.COMPLETED };
+
+          await updateRequest(updatedData);
+          notify(`Evidência ${isBefore ? 'inicial' : 'final'} atualizada com selo digital!`, 'success');
         } catch (err) {
           console.error(err);
           notify("Imagem salva sem selo devido a erro de processamento.", "info");
-          await updateRequest({
-            ...request,
-            photoAfter: rawBase64,
-            status: RequestStatus.COMPLETED
-          });
+          const updatedData = isBefore 
+            ? { ...request, photoBefore: rawBase64 } 
+            : { ...request, photoAfter: rawBase64, status: RequestStatus.COMPLETED };
+          await updateRequest(updatedData);
         } finally {
-          setIsCapturingAfter(false);
+          setIsProcessingBefore(false);
+          setIsProcessingAfter(false);
+          setActivePhotoSlot(null);
         }
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const triggerPhotoSelection = (slot: 'before' | 'after', type: 'camera' | 'gallery') => {
+    setActivePhotoSlot(slot);
+    if (type === 'camera') cameraInputRef.current?.click();
+    else galleryInputRef.current?.click();
   };
 
   const generatePDF = () => {
@@ -305,6 +319,10 @@ const RequestDetailsPage: React.FC = () => {
 
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto w-full space-y-8 pb-24">
+      {/* Hidden Inputs */}
+      <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoUpload} />
+      <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+
       {/* Header com Status e Título */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
@@ -481,56 +499,63 @@ const RequestDetailsPage: React.FC = () => {
               <div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 ml-1">Galeria de Evidências Fotográficas</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                   <div className="relative group rounded-[2rem] overflow-hidden border border-slate-200 bg-slate-100 h-64 shadow-md">
+                   {/* SLOT: ANTES */}
+                   <div className="relative group rounded-[2rem] overflow-hidden border border-slate-200 bg-slate-100 h-64 shadow-md flex items-center justify-center">
                      <div className="absolute top-4 left-4 bg-slate-900/80 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase z-10 backdrop-blur-md">Vistoria Inicial</div>
-                     {request.photoBefore && (
-                       <button onClick={() => handleShareImage(request.photoBefore!, 'Vistoria_Inicial')} className="absolute top-4 right-4 bg-white/20 backdrop-blur-md text-white p-2 rounded-xl hover:bg-blue-600 transition-all z-10 shadow-lg"><Share2 size={16} /></button>
-                     )}
-                     {request.photoBefore ? (
-                        <img src={request.photoBefore} alt="Antes" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                     
+                     {isProcessingBefore ? (
+                       <Loader2 className="animate-spin text-blue-600" size={32} />
+                     ) : request.photoBefore ? (
+                       <>
+                         <img src={request.photoBefore} alt="Antes" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-sm z-10">
+                            <button onClick={() => handleShareImage(request.photoBefore!, 'Vistoria_Inicial')} className="p-3 bg-white/20 text-white rounded-xl hover:bg-blue-600 transition-all shadow-lg" title="Compartilhar"><Share2 size={18} /></button>
+                            {canEdit && (
+                              <button onClick={() => triggerPhotoSelection('before', 'camera')} className="p-3 bg-white/20 text-white rounded-xl hover:bg-emerald-600 transition-all shadow-lg" title="Trocar Foto"><RefreshCw size={18} /></button>
+                            )}
+                         </div>
+                       </>
                      ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-300"><ImageIcon size={48} /><span className="text-[9px] font-black uppercase mt-2">Sem Registro</span></div>
+                        <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center space-y-4">
+                           <ImageIcon size={48} className="text-slate-300" />
+                           {canEdit && (
+                             <div className="flex flex-col gap-2 w-full">
+                               <button onClick={() => triggerPhotoSelection('before', 'camera')} className="h-10 bg-blue-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest">Tirar Foto</button>
+                               <button onClick={() => triggerPhotoSelection('before', 'gallery')} className="h-10 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest">Galeria</button>
+                             </div>
+                           )}
+                        </div>
                      )}
                    </div>
                    
-                   <div className="relative group rounded-[2rem] overflow-hidden border border-slate-200 bg-slate-100 h-64 shadow-md">
+                   {/* SLOT: DEPOIS */}
+                   <div className="relative group rounded-[2rem] overflow-hidden border border-slate-200 bg-slate-100 h-64 shadow-md flex items-center justify-center">
                       <div className={`absolute top-4 left-4 ${request.photoAfter ? 'bg-emerald-600' : 'bg-amber-600'} text-white px-3 py-1 rounded-full text-[10px] font-black uppercase z-10 backdrop-blur-md shadow-lg`}>
                         {request.photoAfter ? 'Conclusão da Obra' : 'Aguardando Término'}
                       </div>
                       
-                      {request.photoAfter ? (
+                      {isProcessingAfter ? (
+                        <Loader2 className="animate-spin text-emerald-600" size={32} />
+                      ) : request.photoAfter ? (
                          <>
                            <img src={request.photoAfter} alt="Depois" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                           <button onClick={() => handleShareImage(request.photoAfter!, 'Vistoria_Conclusao')} className="absolute top-4 right-4 bg-white/20 backdrop-blur-md text-white p-2 rounded-xl hover:bg-emerald-600 transition-all z-10 shadow-lg"><Share2 size={16} /></button>
+                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-sm z-10">
+                              <button onClick={() => handleShareImage(request.photoAfter!, 'Vistoria_Conclusao')} className="p-3 bg-white/20 text-white rounded-xl hover:bg-blue-600 transition-all shadow-lg" title="Compartilhar"><Share2 size={18} /></button>
+                              {canEdit && (
+                                <button onClick={() => triggerPhotoSelection('after', 'camera')} className="p-3 bg-white/20 text-white rounded-xl hover:bg-emerald-600 transition-all shadow-lg" title="Trocar Foto"><RefreshCw size={18} /></button>
+                              )}
+                           </div>
                          </>
                       ) : (
-                         <div className="w-full h-full bg-emerald-50 flex flex-col items-center justify-center p-6 text-center">
-                            {isCapturingAfter ? (
-                              <Loader2 className="animate-spin text-emerald-600" size={48} />
-                            ) : (
-                              <div className="space-y-4 w-full">
-                                <div className="flex flex-col gap-2">
-                                  <button 
-                                    onClick={() => cameraInputRef.current?.click()}
-                                    className="h-14 bg-emerald-600 text-white rounded-2xl flex items-center justify-center gap-3 font-black uppercase text-[10px] tracking-widest shadow-xl shadow-emerald-200 hover:bg-emerald-700 transition-all"
-                                  >
-                                    <Camera size={18} />
-                                    Tirar Foto (Câmera)
-                                  </button>
-                                  <button 
-                                    onClick={() => galleryInputRef.current?.click()}
-                                    className="h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center gap-3 font-black uppercase text-[10px] tracking-widest shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all"
-                                  >
-                                    <UploadCloud size={18} />
-                                    Subir Arquivo
-                                  </button>
-                                </div>
-                                <p className="text-[8px] font-black text-emerald-700 uppercase tracking-widest">O selo digital será aplicado</p>
+                         <div className="w-full h-full bg-emerald-50 flex flex-col items-center justify-center p-6 text-center space-y-4">
+                            <ImageIcon size={48} className="text-emerald-200" />
+                            {canEdit && (
+                              <div className="flex flex-col gap-2 w-full">
+                                <button onClick={() => triggerPhotoSelection('after', 'camera')} className="h-10 bg-emerald-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest">Registrar Final</button>
+                                <button onClick={() => triggerPhotoSelection('after', 'gallery')} className="h-10 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest">Subir Arquivo</button>
                               </div>
                             )}
-                            
-                            <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleAfterPhotoProcess} />
-                            <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handleAfterPhotoProcess} />
+                            <p className="text-[8px] font-black text-emerald-700 uppercase tracking-widest">O selo digital será aplicado</p>
                          </div>
                       )}
                    </div>
