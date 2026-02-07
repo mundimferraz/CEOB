@@ -168,13 +168,14 @@ const NavGroup = ({ label, icon: Icon, children, defaultOpen = false, visible = 
   );
 };
 
-const NavSubItem = ({ to, label, icon: Icon }: any) => {
+const NavSubItem = ({ to, label, icon: Icon, onClick }: any) => {
   const location = useLocation();
   const isActive = location.pathname + location.search === to;
   
   return (
     <Link
       to={to}
+      onClick={onClick}
       className={`
         flex items-center gap-3 py-2.5 px-3 rounded-lg transition-all text-[11px] font-bold uppercase tracking-tight
         ${isActive ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-500 hover:text-white hover:bg-slate-800'}
@@ -189,6 +190,7 @@ const NavSubItem = ({ to, label, icon: Icon }: any) => {
 const Navigation = () => {
   const location = useLocation();
   const { currentUser, logout } = useApp();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const currentRoleConfig = (currentUser && currentUser.role && ROLE_CONFIG[currentUser.role]) 
     ? ROLE_CONFIG[currentUser.role] 
@@ -196,16 +198,92 @@ const Navigation = () => {
 
   const isAdmin = currentUser?.role === AppRole.ADMIN;
 
+  const closeMobileMenu = () => setIsMobileMenuOpen(false);
+
+  const NavLinks = () => (
+    <>
+      <Link 
+        to="/" 
+        onClick={closeMobileMenu}
+        className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-200 ${location.pathname === '/' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'hover:bg-slate-800 hover:text-white'}`}
+      >
+        <LayoutDashboard size={18} />
+        <span className="font-black uppercase text-[11px] tracking-widest">Dashboard</span>
+      </Link>
+
+      <NavGroup label="Vistorias" icon={ClipboardList} defaultOpen={location.pathname.startsWith('/new') || location.pathname.startsWith('/map') || location.pathname.startsWith('/requests')}>
+        <NavSubItem to="/new" label="Nova Vistoria" icon={PlusCircle} onClick={closeMobileMenu} />
+        <NavSubItem to="/map" label="Mapa Interativo" icon={MapIcon} onClick={closeMobileMenu} />
+        <NavSubItem to="/requests" label="Relatórios" icon={FileText} onClick={closeMobileMenu} />
+      </NavGroup>
+
+      {/* ADMIN HUB CENTRALIZADO */}
+      <NavGroup label="Configurações" icon={Settings} visible={isAdmin} defaultOpen={location.pathname.startsWith('/org') || location.pathname.startsWith('/audit')}>
+        <NavSubItem to="/org?tab=zonals" label="Gestão Unidades" icon={Database} onClick={closeMobileMenu} />
+        <NavSubItem to="/org?tab=personnel" label="Gestão Equipe" icon={UserCog} onClick={closeMobileMenu} />
+        <NavSubItem to="/audit" label="Auditoria" icon={History} onClick={closeMobileMenu} />
+      </NavGroup>
+    </>
+  );
+
   return (
     <>
-      <header className="md:hidden flex items-center justify-between p-4 bg-white border-b border-slate-200 sticky top-0 z-40 h-16">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center font-bold text-white">S</div>
-          <span className="font-extrabold tracking-tight text-slate-900 uppercase">SGR-VIAS</span>
+      {/* MOBILE HEADER */}
+      <header className="md:hidden flex items-center justify-between p-4 bg-white border-b border-slate-200 sticky top-0 z-[60] h-16 shadow-sm">
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="p-2 text-slate-900 bg-slate-100 rounded-xl active:scale-95 transition-all"
+          >
+            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white shadow-lg shadow-blue-200">S</div>
+            <span className="font-black tracking-tight text-slate-900 uppercase text-sm">SGR-VIAS</span>
+          </div>
         </div>
-        <button onClick={logout} className="p-2 text-rose-500"><LogOut size={20} /></button>
+        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-black text-xs text-slate-900 border border-slate-200">
+          {currentUser?.name?.charAt(0)}
+        </div>
       </header>
 
+      {/* MOBILE MENU OVERLAY */}
+      {isMobileMenuOpen && (
+        <div 
+          className="md:hidden fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[55] animate-in fade-in duration-300"
+          onClick={closeMobileMenu}
+        />
+      )}
+
+      {/* MOBILE DRAWER */}
+      <aside className={`
+        md:hidden fixed inset-y-0 left-0 w-[280px] bg-slate-950 text-slate-300 flex flex-col z-[58] shadow-2xl transition-transform duration-300 ease-in-out
+        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        <div className="p-8 border-b border-slate-900 flex items-center gap-3">
+          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-black text-xl text-white shadow-lg shadow-blue-900/20">S</div>
+          <div>
+            <h1 className="font-black text-white tracking-tight leading-none text-lg">SGR-Vias</h1>
+            <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-1 font-bold italic">Portal Mobile</p>
+          </div>
+        </div>
+
+        <nav className="flex-1 px-4 py-8 space-y-4 overflow-y-auto">
+          <NavLinks />
+        </nav>
+
+        <div className="p-6 border-t border-slate-900 bg-slate-900/40">
+           <button 
+            onClick={logout} 
+            className="w-full flex items-center justify-center gap-3 h-14 bg-rose-900/20 text-rose-500 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-rose-900/40 transition-all border border-rose-900/30"
+          >
+            <LogOut size={16} />
+            Encerrar Sessão
+          </button>
+        </div>
+      </aside>
+
+      {/* DESKTOP SIDEBAR */}
       <aside className="hidden md:flex fixed inset-y-0 left-0 w-64 bg-slate-950 text-slate-300 flex-col border-r border-slate-800 z-50 shadow-2xl">
         <div className="p-8 border-b border-slate-900 flex items-center gap-3">
           <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-black text-xl text-white shadow-lg shadow-blue-900/20">S</div>
@@ -216,26 +294,7 @@ const Navigation = () => {
         </div>
         
         <nav className="flex-1 px-4 py-8 space-y-4 overflow-y-auto scrollbar-thin">
-          <Link 
-            to="/" 
-            className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-200 ${location.pathname === '/' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'hover:bg-slate-800 hover:text-white'}`}
-          >
-            <LayoutDashboard size={18} />
-            <span className="font-black uppercase text-[11px] tracking-widest">Dashboard</span>
-          </Link>
-
-          <NavGroup label="Vistorias" icon={ClipboardList} defaultOpen={location.pathname.startsWith('/new') || location.pathname.startsWith('/map') || location.pathname.startsWith('/requests')}>
-            <NavSubItem to="/new" label="Nova Vistoria" icon={PlusCircle} />
-            <NavSubItem to="/map" label="Mapa Interativo" icon={MapIcon} />
-            <NavSubItem to="/requests" label="Relatórios" icon={FileText} />
-          </NavGroup>
-
-          {/* ADMIN HUB CENTRALIZADO */}
-          <NavGroup label="Configurações" icon={Settings} visible={isAdmin} defaultOpen={location.pathname.startsWith('/org') || location.pathname.startsWith('/audit')}>
-            <NavSubItem to="/org?tab=zonals" label="Gestão Unidades" icon={Database} />
-            <NavSubItem to="/org?tab=personnel" label="Gestão Equipe" icon={UserCog} />
-            <NavSubItem to="/audit" label="Auditoria" icon={History} />
-          </NavGroup>
+          <NavLinks />
         </nav>
 
         <div className="p-6 border-t border-slate-900 bg-slate-950/80">
