@@ -3,15 +3,24 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../App';
 import { AuditLog, AuditAction, AuditEntity } from '../types';
 import { dbApi } from '../services/api';
-import { History, Search, Filter, Calendar, ShieldCheck, User as UserIcon, AlertCircle, FileText, ChevronRight, Loader2, RotateCw, Database } from 'lucide-react';
+import { 
+  History, Search, Filter, Calendar, ShieldCheck, User as UserIcon, 
+  AlertCircle, FileText, ChevronRight, Loader2, RotateCw, Database, 
+  X, Eye, Terminal, Fingerprint, Clock, ExternalLink, UserCheck
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const AuditLogPage: React.FC = () => {
   const { canDo, notify } = useApp();
+  const navigate = useNavigate();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState<string>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Estado para o modal de detalhes
+  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
 
   const fetchLogs = async () => {
     try {
@@ -56,7 +65,7 @@ const AuditLogPage: React.FC = () => {
            <AlertCircle size={48} />
         </div>
         <h1 className="text-2xl font-black text-slate-900 mb-2 tracking-tight uppercase">Acesso Negado</h1>
-        <p className="text-slate-500 max-w-sm font-medium">Você não possui nível de acesso <strong>Administrador Central</strong> para visualizar os logs de auditoria.</p>
+        <p className="text-slate-500 max-w-sm mb-8 font-medium">Você não possui nível de acesso <strong>Administrador Central</strong> para visualizar os logs de auditoria.</p>
       </div>
     );
   }
@@ -68,6 +77,17 @@ const AuditLogPage: React.FC = () => {
       case AuditAction.DELETE: return 'bg-rose-50 text-rose-700 border-rose-100';
       default: return 'bg-slate-50 text-slate-700 border-slate-100';
     }
+  };
+
+  const navigateToEntity = (log: AuditLog) => {
+    if (log.entity_type === AuditEntity.REQUEST) {
+      navigate(`/requests/${log.entity_id}`);
+    } else if (log.entity_type === AuditEntity.USER) {
+      navigate(`/org?tab=personnel`);
+    } else if (log.entity_type === AuditEntity.ZONAL) {
+      navigate(`/org?tab=zonals`);
+    }
+    setSelectedLog(null);
   };
 
   return (
@@ -125,7 +145,11 @@ const AuditLogPage: React.FC = () => {
         <div className="space-y-4">
           {filteredLogs.length > 0 ? (
             filteredLogs.map((log) => (
-              <div key={log.id} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm hover:border-blue-200 transition-all group">
+              <div 
+                key={log.id} 
+                onClick={() => setSelectedLog(log)}
+                className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-xl transition-all group cursor-pointer active:scale-[0.99]"
+              >
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-start gap-4">
                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-inner border ${getActionColor(log.action as AuditAction)}`}>
@@ -156,14 +180,15 @@ const AuditLogPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex-1 md:max-w-xs bg-slate-50 p-4 rounded-2xl border border-slate-100 overflow-hidden">
-                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                       <FileText size={10} />
-                       Metadados da Ação
-                     </p>
-                     <div className="text-[10px] font-mono text-slate-600 truncate bg-white p-2 rounded-lg border border-slate-100 shadow-inner">
-                        {JSON.stringify(log.details)}
-                     </div>
+                  <div className="flex items-center gap-4">
+                    <div className="hidden md:block flex-1 max-w-[200px] bg-slate-50 p-3 rounded-xl border border-slate-100 overflow-hidden">
+                      <div className="text-[9px] font-mono text-slate-500 truncate">
+                          {JSON.stringify(log.details)}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-slate-900 text-white rounded-xl opacity-0 group-hover:opacity-100 transition-all shadow-lg">
+                       <Eye size={18} />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -175,6 +200,113 @@ const AuditLogPage: React.FC = () => {
                <p className="text-[9px] text-slate-400 mt-2 font-bold uppercase">Realize uma ação (criar vistoria, editar usuário) para gerar logs.</p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* MODAL DE INSPEÇÃO PROFUNDA */}
+      {selectedLog && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-300 border border-white/20">
+            {/* Header do Modal */}
+            <div className={`p-8 border-b flex justify-between items-center ${getActionColor(selectedLog.action as AuditAction)} bg-opacity-10`}>
+              <div className="flex items-center gap-4">
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-xl border ${getActionColor(selectedLog.action as AuditAction)}`}>
+                   <Fingerprint size={28} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Inspeção de Auditoria</h2>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">REGISTRO #{selectedLog.id}</span>
+                    <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{selectedLog.entity_type}</span>
+                  </div>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedLog(null)} 
+                className="w-12 h-12 flex items-center justify-center bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-rose-500 hover:border-rose-200 transition-all shadow-sm"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="p-8 space-y-8 max-h-[70vh] overflow-y-auto scrollbar-thin">
+              {/* Seção Executor */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                       <UserCheck size={14} className="text-blue-600" />
+                       Executor da Alteração
+                    </p>
+                    <div className="flex items-center gap-4">
+                       <div className="w-12 h-12 bg-slate-900 text-white rounded-xl flex items-center justify-center font-black text-lg">
+                          {selectedLog.user_name?.charAt(0)}
+                       </div>
+                       <div>
+                          <p className="font-black text-slate-900 uppercase tracking-tight">{selectedLog.user_name}</p>
+                          <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">RF: {selectedLog.details?.rf || 'Interno'}</p>
+                       </div>
+                    </div>
+                 </div>
+
+                 <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                       <Clock size={14} className="text-emerald-600" />
+                       Cronologia do Evento
+                    </p>
+                    <div className="space-y-1">
+                       <p className="font-black text-slate-900 uppercase tracking-tight">
+                         {new Date(selectedLog.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                       </p>
+                       <p className="text-2xl font-black text-emerald-600 tracking-tighter">
+                         {new Date(selectedLog.created_at).toLocaleTimeString('pt-BR')}
+                       </p>
+                    </div>
+                 </div>
+              </div>
+
+              {/* Seção de Dados Brutos (Metadados) */}
+              <div className="space-y-3">
+                 <div className="flex items-center justify-between px-1">
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                     <Terminal size={14} className="text-slate-900" />
+                     Diferencial de Dados (JSON)
+                   </p>
+                   <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full uppercase">Imutável</span>
+                 </div>
+                 <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800 shadow-2xl overflow-x-auto">
+                    <pre className="text-[11px] font-mono text-emerald-400 leading-relaxed">
+                       {JSON.stringify(selectedLog.details, null, 3)}
+                    </pre>
+                 </div>
+              </div>
+
+              {/* Banner de Ação de Contexto */}
+              {selectedLog.action !== AuditAction.DELETE && (
+                <div className="bg-blue-600 p-6 rounded-3xl text-white shadow-xl shadow-blue-200 flex items-center justify-between group overflow-hidden relative">
+                   <div className="absolute right-0 top-0 translate-x-1/3 -translate-y-1/3 opacity-10 group-hover:scale-110 transition-transform">
+                      <Database size={120} />
+                   </div>
+                   <div className="relative z-10">
+                      <p className="text-[10px] font-black uppercase tracking-widest mb-1 opacity-80">Rastreamento de Objeto</p>
+                      <h4 className="font-black text-lg uppercase tracking-tight">Inspecionar {selectedLog.entity_type} Atual</h4>
+                   </div>
+                   <button 
+                    onClick={() => navigateToEntity(selectedLog)}
+                    className="relative z-10 flex items-center gap-2 px-6 py-3 bg-white text-blue-600 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-slate-50 transition-all active:scale-95"
+                   >
+                     Acessar Ficha
+                     <ExternalLink size={14} />
+                   </button>
+                </div>
+              )}
+            </div>
+
+            {/* Footer do Modal */}
+            <div className="p-8 border-t border-slate-100 flex justify-center bg-slate-50/50">
+               <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">Sistema de Gestão de Reparos em Vias - SGR-Vias</p>
+            </div>
+          </div>
         </div>
       )}
     </div>
