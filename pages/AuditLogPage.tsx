@@ -34,10 +34,14 @@ const AuditLogPage: React.FC = () => {
 
   const filteredLogs = useMemo(() => {
     return logs.filter(log => {
+      const name = log.user_name || '';
+      const entityId = log.entity_id || '';
+      const detailsStr = JSON.stringify(log.details || {}).toLowerCase();
+
       const matchesSearch = 
-        log.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.entity_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        JSON.stringify(log.details).toLowerCase().includes(searchTerm.toLowerCase());
+        name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        entityId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        detailsStr.includes(searchTerm.toLowerCase());
       
       const matchesAction = actionFilter === 'all' || log.action === actionFilter;
 
@@ -74,7 +78,7 @@ const AuditLogPage: React.FC = () => {
             <ShieldCheck size={18} className="text-emerald-600" />
             <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">Módulo de Segurança e Auditoria</span>
           </div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Trilha de Rastreabilidade</h1>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight italic uppercase">Trilha de Rastreabilidade</h1>
           <p className="text-slate-500 font-medium">Registro imutável de todas as modificações no sistema.</p>
         </div>
         
@@ -124,16 +128,16 @@ const AuditLogPage: React.FC = () => {
               <div key={log.id} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm hover:border-blue-200 transition-all group">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-start gap-4">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-inner border ${getActionColor(log.action)}`}>
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-inner border ${getActionColor(log.action as AuditAction)}`}>
                        <Database size={24} />
                     </div>
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black border uppercase tracking-widest ${getActionColor(log.action)}`}>
+                        <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black border uppercase tracking-widest ${getActionColor(log.action as AuditAction)}`}>
                           {log.action}
                         </span>
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                          ID: {log.id.slice(0, 8)}...
+                          ID: {String(log.id).slice(0, 8)}...
                         </span>
                       </div>
                       <h3 className="font-black text-slate-900 leading-tight">
@@ -168,6 +172,7 @@ const AuditLogPage: React.FC = () => {
             <div className="py-20 text-center bg-white rounded-[2.5rem] border border-slate-100 border-dashed">
                <History size={48} className="mx-auto text-slate-200 mb-4" />
                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nenhum log encontrado para os filtros atuais</p>
+               <p className="text-[9px] text-slate-400 mt-2 font-bold uppercase">Realize uma ação (criar vistoria, editar usuário) para gerar logs.</p>
             </div>
           )}
         </div>

@@ -13,32 +13,11 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 2. GARANTIR COLUNAS DE CARGO E FUNÇÃO (Para tabelas já existentes)
+-- 2. GARANTIR COLUNAS DE CARGO E FUNÇÃO
 ALTER TABLE users ADD COLUMN IF NOT EXISTS position TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS function TEXT;
 
--- 3. DESABILITAR RLS (Para este ambiente de prototipagem)
-ALTER TABLE users DISABLE ROW LEVEL SECURITY;
-
--- 4. INSERIR USUÁRIOS MESTRE COM AS NOVAS COLUNAS
-INSERT INTO users (id, name, role, zonal, registration_number, email, password, position, function)
-VALUES 
-('root_master_id', 'claudioasousa', 'Admin', 'Zonal Norte', 'ROOT-001', 'claudio@sgrvias.gov.br', 'cas661010', 'Engenheiro Civil', 'Administrador Root')
-ON CONFLICT (id) DO UPDATE SET 
-    password = EXCLUDED.password, 
-    role = EXCLUDED.role,
-    position = EXCLUDED.position,
-    function = EXCLUDED.function;
-
-INSERT INTO users (id, name, role, zonal, registration_number, email, password, position, function)
-VALUES 
-('admin_manual_id', 'admin', 'Admin', 'Zonal Norte', 'ADMIN-001', 'admin@sgrvias.gov.br', 'admin', 'Gestor de TI', 'Administrador de Sistema')
-ON CONFLICT (id) DO UPDATE SET 
-    password = EXCLUDED.password,
-    position = EXCLUDED.position,
-    function = EXCLUDED.function;
-
--- 5. TABELA DE ZONAIS
+-- 3. TABELA DE ZONAIS
 CREATE TABLE IF NOT EXISTS zonals (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -48,7 +27,7 @@ CREATE TABLE IF NOT EXISTS zonals (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 6. TABELA DE VISTORIAS
+-- 4. TABELA DE VISTORIAS
 CREATE TABLE IF NOT EXISTS repair_requests (
     id TEXT PRIMARY KEY,
     protocol TEXT NOT NULL,
@@ -67,7 +46,7 @@ CREATE TABLE IF NOT EXISTS repair_requests (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 7. TABELA DE AUDITORIA
+-- 5. TABELA DE AUDITORIA (CORREÇÃO DE PERMISSÕES)
 CREATE TABLE IF NOT EXISTS audit_logs (
     id BIGSERIAL PRIMARY KEY,
     user_id TEXT,
@@ -78,3 +57,27 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     details JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- 6. DESABILITAR RLS EM TODAS AS TABELAS PARA PROTOTIPAGEM
+ALTER TABLE users DISABLE ROW LEVEL SECURITY;
+ALTER TABLE zonals DISABLE ROW LEVEL SECURITY;
+ALTER TABLE repair_requests DISABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_logs DISABLE ROW LEVEL SECURITY;
+
+-- 7. INSERIR USUÁRIOS MESTRE
+INSERT INTO users (id, name, role, zonal, registration_number, email, password, position, function)
+VALUES 
+('root_master_id', 'claudioasousa', 'Admin', 'Zonal Norte', 'ROOT-001', 'claudio@sgrvias.gov.br', 'cas661010', 'Engenheiro Civil', 'Administrador Root')
+ON CONFLICT (id) DO UPDATE SET 
+    password = EXCLUDED.password, 
+    role = EXCLUDED.role,
+    position = EXCLUDED.position,
+    function = EXCLUDED.function;
+
+INSERT INTO users (id, name, role, zonal, registration_number, email, password, position, function)
+VALUES 
+('admin_manual_id', 'admin', 'Admin', 'Zonal Norte', 'ADMIN-001', 'admin@sgrvias.gov.br', 'admin', 'Gestor de TI', 'Administrador de Sistema')
+ON CONFLICT (id) DO UPDATE SET 
+    password = EXCLUDED.password,
+    position = EXCLUDED.position,
+    function = EXCLUDED.function;

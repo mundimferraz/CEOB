@@ -409,11 +409,83 @@ const App = () => {
   useEffect(() => { initData(); }, []);
 
   const refreshRequests = async () => { setRequests(await dbApi.getRequests()); };
-  const addRequest = async (req: RepairRequest) => { await dbApi.createRequest(req); refreshRequests(); };
-  const updateRequest = async (req: RepairRequest) => { await dbApi.updateRequest(req); refreshRequests(); };
-  const deleteRequest = async (id: string) => { await dbApi.deleteRequest(id); refreshRequests(); };
-  const addUser = async (u: User) => { await dbApi.saveUser(u); setUsers(await dbApi.getUsers()); };
-  const updateUser = async (u: User) => { await dbApi.saveUser(u); setUsers(await dbApi.getUsers()); };
+  
+  // --- FUNÇÕES COM LOG DE AUDITORIA ---
+  const addRequest = async (req: RepairRequest) => { 
+    await dbApi.createRequest(req); 
+    if (currentUser) {
+      await dbApi.createAuditLog({
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        action: AuditAction.CREATE,
+        entity_type: AuditEntity.REQUEST,
+        entity_id: req.id,
+        details: { protocol: req.protocol, status: req.status }
+      });
+    }
+    refreshRequests(); 
+  };
+
+  const updateRequest = async (req: RepairRequest) => { 
+    await dbApi.updateRequest(req); 
+    if (currentUser) {
+      await dbApi.createAuditLog({
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        action: AuditAction.UPDATE,
+        entity_type: AuditEntity.REQUEST,
+        entity_id: req.id,
+        details: { protocol: req.protocol, status: req.status }
+      });
+    }
+    refreshRequests(); 
+  };
+
+  const deleteRequest = async (id: string) => { 
+    const target = requests.find(r => r.id === id);
+    await dbApi.deleteRequest(id); 
+    if (currentUser && target) {
+      await dbApi.createAuditLog({
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        action: AuditAction.DELETE,
+        entity_type: AuditEntity.REQUEST,
+        entity_id: id,
+        details: { protocol: target.protocol }
+      });
+    }
+    refreshRequests(); 
+  };
+
+  const addUser = async (u: User) => { 
+    await dbApi.saveUser(u); 
+    if (currentUser) {
+      await dbApi.createAuditLog({
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        action: AuditAction.CREATE,
+        entity_type: AuditEntity.USER,
+        entity_id: u.id,
+        details: { name: u.name, role: u.role }
+      });
+    }
+    setUsers(await dbApi.getUsers()); 
+  };
+
+  const updateUser = async (u: User) => { 
+    await dbApi.saveUser(u); 
+    if (currentUser) {
+      await dbApi.createAuditLog({
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        action: AuditAction.UPDATE,
+        entity_type: AuditEntity.USER,
+        entity_id: u.id,
+        details: { name: u.name, role: u.role }
+      });
+    }
+    setUsers(await dbApi.getUsers()); 
+  };
   
   const deleteUser = async (id: string) => { 
     const target = users.find(u => u.id === id);
@@ -422,11 +494,35 @@ const App = () => {
       return;
     }
     await dbApi.deleteUser(id); 
+    if (currentUser && target) {
+      await dbApi.createAuditLog({
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        action: AuditAction.DELETE,
+        entity_type: AuditEntity.USER,
+        entity_id: id,
+        details: { name: target.name }
+      });
+    }
     setUsers(await dbApi.getUsers()); 
     notify("Servidor removido do sistema.");
   };
 
-  const updateZonal = async (z: ZonalMetadata) => { await dbApi.saveZonal(z); setZonals(await dbApi.getZonals()); };
+  const updateZonal = async (z: ZonalMetadata) => { 
+    await dbApi.saveZonal(z); 
+    if (currentUser) {
+      await dbApi.createAuditLog({
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        action: AuditAction.UPDATE,
+        entity_type: AuditEntity.ZONAL,
+        entity_id: z.id,
+        details: { name: z.name }
+      });
+    }
+    setZonals(await dbApi.getZonals()); 
+  };
+
   const getZonalName = (id: ZonalType | string) => zonals.find(z => z.id === id)?.name || id;
   const getRoleLabel = (role: AppRole) => ROLE_CONFIG[role]?.label || role;
 
