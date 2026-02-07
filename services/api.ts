@@ -5,21 +5,28 @@ import { supabase } from './supabase';
 export const dbApi = {
   // Autenticação
   async login(username: string, password: string): Promise<User | null> {
-    // PostgREST exige que valores no .or() não tenham aspas extras se não houver espaços
-    // Usamos uma sintaxe mais limpa para evitar erro 400
+    // Usamos ilike para evitar problemas com Admin vs admin
+    // E capturamos o erro para logar no console caso a coluna não exista (Erro 400)
     const { data, error } = await supabase
       .from('users')
       .select('*')
-      .or(`name.eq.${username},registration_number.eq.${username}`)
+      .or(`name.ilike.${username},registration_number.ilike.${username}`)
       .eq('password', password)
-      .maybeSingle(); // maybeSingle é mais seguro que single() para evitar erros se não encontrar nada
+      .maybeSingle();
     
     if (error) {
-      console.error('Erro na consulta de login:', error);
+      console.error('ERRO CRÍTICO NO LOGIN:', error.message, error.details, error.hint);
+      // Se o erro for 42703, significa que a coluna 'password' não existe no banco
+      if (error.code === '42703') {
+        console.warn('Atenção: A coluna "password" não foi encontrada na tabela "users". Execute o script SQL de migração.');
+      }
       return null;
     }
     
-    if (!data) return null;
+    if (!data) {
+      console.warn('Login falhou: Usuário não encontrado ou senha incorreta.');
+      return null;
+    }
 
     return {
       id: data.id,
