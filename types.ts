@@ -27,10 +27,12 @@ export interface User {
   id: string;
   name: string;
   role: UserRole;
-  zonal: ZonalType;
+  zonal: ZonalType | string;
   email?: string;
   registrationNumber?: string;
-  password?: string; // Novo campo para autenticação
+  password?: string;
+  position?: string; // Cargo (ex: Engenheiro, Técnico, Estagiário)
+  function?: string; // Função (ex: Fiscal de Campo, Gestor de Contratos)
 }
 
 export interface LocationData {
@@ -49,14 +51,14 @@ export interface RepairRequest {
   visitDate: string;
   status: RequestStatus;
   technicianId: string;
-  zonal: ZonalType;
+  zonal: ZonalType | string;
   photoBefore?: string;
   photoAfter?: string;
   createdAt: string;
 }
 
 export interface ZonalMetadata {
-  id: ZonalType;
+  id: string;
   name: string;
   managerId?: string;
   assistantId?: string;

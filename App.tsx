@@ -139,7 +139,7 @@ const NavGroup = ({ label, icon: Icon, children, defaultOpen = false, visible = 
 
 const NavSubItem = ({ to, label, icon: Icon }: any) => {
   const location = useLocation();
-  const isActive = location.pathname === to;
+  const isActive = location.pathname + location.search === to;
   
   return (
     <Link
@@ -201,14 +201,8 @@ const Navigation = () => {
             <NavSubItem to="/requests" label="Relatórios" icon={FileText} />
           </NavGroup>
 
-          {/* CADASTROS (RESTRICTED ADMIN) */}
-          <NavGroup label="Cadastros" icon={Briefcase} visible={isAdmin}>
-            <NavSubItem to="/org?tab=personnel" label="Colaborador" icon={Users} />
-            <NavSubItem to="/org?tab=zonals" label="Zonais" icon={MapIcon} />
-          </NavGroup>
-
-          {/* CONFIGURAÇÕES (RESTRICTED ADMIN) */}
-          <NavGroup label="Configurações" icon={Settings} visible={isAdmin}>
+          {/* CONFIGURAÇÕES (ADMIN HUB) */}
+          <NavGroup label="Configurações" icon={Settings} visible={isAdmin} defaultOpen={location.pathname.startsWith('/org') || location.pathname.startsWith('/audit')}>
             <NavSubItem to="/org?tab=zonals" label="Gestão Unidades" icon={Database} />
             <NavSubItem to="/org?tab=personnel" label="Gestão Equipe" icon={UserCog} />
             <NavSubItem to="/audit" label="Auditoria" icon={History} />
@@ -274,7 +268,7 @@ interface AppContextType {
   updateUser: (user: User) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
   updateZonal: (zonal: ZonalMetadata) => Promise<void>;
-  getZonalName: (id: ZonalType) => string;
+  getZonalName: (id: ZonalType | string) => string;
   getRoleLabel: (role: AppRole) => string;
   notify: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
@@ -375,7 +369,7 @@ const App = () => {
   };
 
   const updateZonal = async (z: ZonalMetadata) => { await dbApi.saveZonal(z); setZonals(await dbApi.getZonals()); };
-  const getZonalName = (id: ZonalType) => zonals.find(z => z.id === id)?.name || id;
+  const getZonalName = (id: ZonalType | string) => zonals.find(z => z.id === id)?.name || id;
   const getRoleLabel = (role: AppRole) => ROLE_CONFIG[role]?.label || role;
 
   return (

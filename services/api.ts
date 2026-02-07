@@ -12,11 +12,7 @@ export const dbApi = {
       .eq('password', password)
       .maybeSingle();
     
-    if (error) {
-      console.error('ERRO CRÍTICO NO LOGIN:', error.message);
-      return null;
-    }
-    
+    if (error) return null;
     if (!data) return null;
 
     return {
@@ -25,144 +21,19 @@ export const dbApi = {
       role: data.role,
       zonal: data.zonal,
       registrationNumber: data.registration_number,
-      email: data.email
+      email: data.email,
+      position: data.position,
+      function: data.function
     };
   },
 
   async updatePassword(userId: string, newPassword: string): Promise<void> {
-    const { error } = await supabase
-      .from('users')
-      .update({ password: newPassword })
-      .eq('id', userId);
-    
-    if (error) throw error;
-  },
-
-  // Auditoria
-  async createAuditLog(log: Omit<AuditLog, 'id' | 'created_at'>): Promise<void> {
-    const { error } = await supabase
-      .from('audit_logs')
-      .insert([{
-        user_id: log.user_id,
-        user_name: log.user_name,
-        action: log.action,
-        entity_type: log.entity_type,
-        entity_id: log.entity_id,
-        details: log.details
-      }]);
-    
-    if (error) console.error('Erro ao gravar auditoria:', error);
-  },
-
-  async getAuditLogs(): Promise<AuditLog[]> {
-    const { data, error } = await supabase
-      .from('audit_logs')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    return (data || []).map(l => ({
-      id: l.id,
-      user_id: l.user_id,
-      user_name: l.user_name,
-      action: l.action,
-      entity_type: l.entity_type,
-      entity_id: l.entity_id,
-      details: l.details,
-      created_at: l.created_at
-    }));
-  },
-
-  // Solicitações
-  async getRequests(): Promise<RepairRequest[]> {
-    const { data, error } = await supabase
-      .from('repair_requests')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-
-    return (data || []).map(req => ({
-      id: req.id,
-      protocol: req.protocol,
-      sei_number: req.sei_number,
-      contract: req.contract,
-      description: req.description,
-      location: {
-        latitude: req.latitude,
-        longitude: req.longitude,
-        address: req.address
-      },
-      visitDate: req.visit_date,
-      status: req.status,
-      technicianId: req.technician_id,
-      zonal: req.zonal,
-      photo_before: req.photo_before,
-      photo_after: req.photo_after,
-      createdAt: req.created_at
-    }));
-  },
-
-  async createRequest(request: RepairRequest): Promise<void> {
-    const { error } = await supabase
-      .from('repair_requests')
-      .insert([{
-        id: request.id,
-        protocol: request.protocol,
-        sei_number: request.seiNumber,
-        contract: request.contract,
-        description: request.description,
-        latitude: request.location.latitude,
-        longitude: request.location.longitude,
-        address: request.location.address,
-        visit_date: request.visitDate,
-        status: request.status,
-        technician_id: request.technicianId,
-        zonal: request.zonal,
-        photo_before: request.photoBefore,
-        photo_after: request.photoAfter,
-        created_at: request.createdAt
-      }]);
-    
-    if (error) throw error;
-  },
-
-  async updateRequest(request: RepairRequest): Promise<void> {
-    const { error } = await supabase
-      .from('repair_requests')
-      .update({
-        protocol: request.protocol,
-        sei_number: request.seiNumber,
-        contract: request.contract,
-        description: request.description,
-        latitude: request.location.latitude,
-        longitude: request.location.longitude,
-        address: request.location.address,
-        visit_date: request.visitDate,
-        status: request.status,
-        technician_id: request.technicianId,
-        zonal: request.zonal,
-        photo_before: request.photoBefore,
-        photo_after: request.photoAfter
-      })
-      .eq('id', request.id);
-    
-    if (error) throw error;
-  },
-
-  async deleteRequest(id: string): Promise<void> {
-    const { error } = await supabase
-      .from('repair_requests')
-      .delete()
-      .eq('id', id);
-    if (error) throw error;
+    await supabase.from('users').update({ password: newPassword }).eq('id', userId);
   },
 
   // Usuários
   async getUsers(): Promise<User[]> {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*');
+    const { data, error } = await supabase.from('users').select('*').order('name');
     if (error) throw error;
 
     return (data || []).map(u => ({
@@ -171,7 +42,9 @@ export const dbApi = {
       role: u.role,
       zonal: u.zonal,
       registrationNumber: u.registration_number,
-      email: u.email
+      email: u.email,
+      position: u.position,
+      function: u.function
     }));
   },
 
@@ -185,24 +58,20 @@ export const dbApi = {
         zonal: user.zonal,
         registration_number: user.registrationNumber || null,
         email: user.email || null,
-        password: user.password || '123456'
+        password: user.password || '123456',
+        position: user.position || null,
+        function: user.function || null
       }], { onConflict: 'id' });
     if (error) throw error;
   },
 
   async deleteUser(id: string): Promise<void> {
-    const { error } = await supabase
-      .from('users')
-      .delete()
-      .eq('id', id);
-    if (error) throw error;
+    await supabase.from('users').delete().eq('id', id);
   },
 
-  // Zonais
+  // Zonais (CRUD Completo)
   async getZonals(): Promise<ZonalMetadata[]> {
-    const { data, error } = await supabase
-      .from('zonals')
-      .select('*');
+    const { data, error } = await supabase.from('zonals').select('*').order('name');
     if (error) throw error;
     return (data || []).map(z => ({
       id: z.id,
@@ -224,5 +93,83 @@ export const dbApi = {
         description: zonal.description || null
       }], { onConflict: 'id' });
     if (error) throw error;
+  },
+
+  async deleteZonal(id: string): Promise<void> {
+    await supabase.from('zonals').delete().eq('id', id);
+  },
+
+  // Auditoria
+  async createAuditLog(log: Omit<AuditLog, 'id' | 'created_at'>): Promise<void> {
+    await supabase.from('audit_logs').insert([log]);
+  },
+
+  async getAuditLogs(): Promise<AuditLog[]> {
+    const { data, error } = await supabase.from('audit_logs').select('*').order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Solicitações
+  async getRequests(): Promise<RepairRequest[]> {
+    const { data, error } = await supabase.from('repair_requests').select('*').order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data || []).map(req => ({
+      id: req.id,
+      protocol: req.protocol,
+      seiNumber: req.sei_number,
+      contract: req.contract,
+      description: req.description,
+      location: { latitude: req.latitude, longitude: req.longitude, address: req.address },
+      visitDate: req.visit_date,
+      status: req.status,
+      technicianId: req.technician_id,
+      zonal: req.zonal,
+      photoBefore: req.photo_before,
+      photoAfter: req.photo_after,
+      createdAt: req.created_at
+    }));
+  },
+
+  async createRequest(request: RepairRequest): Promise<void> {
+    await supabase.from('repair_requests').insert([{
+      id: request.id,
+      protocol: request.protocol,
+      sei_number: request.seiNumber,
+      contract: request.contract,
+      description: request.description,
+      latitude: request.location.latitude,
+      longitude: request.location.longitude,
+      address: request.location.address,
+      visit_date: request.visitDate,
+      status: request.status,
+      technician_id: request.technicianId,
+      zonal: request.zonal,
+      photo_before: request.photoBefore,
+      photo_after: request.photoAfter,
+      created_at: request.createdAt
+    }]);
+  },
+
+  async updateRequest(request: RepairRequest): Promise<void> {
+    await supabase.from('repair_requests').update({
+      protocol: request.protocol,
+      sei_number: request.seiNumber,
+      contract: request.contract,
+      description: request.description,
+      latitude: request.location.latitude,
+      longitude: request.location.longitude,
+      address: request.location.address,
+      visit_date: request.visitDate,
+      status: request.status,
+      technician_id: request.technicianId,
+      zonal: request.zonal,
+      photo_before: request.photoBefore,
+      photo_after: request.photoAfter
+    }).eq('id', request.id);
+  },
+
+  async deleteRequest(id: string): Promise<void> {
+    await supabase.from('repair_requests').delete().eq('id', id);
   }
 };
