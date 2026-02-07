@@ -410,7 +410,7 @@ const App = () => {
 
   const refreshRequests = async () => { setRequests(await dbApi.getRequests()); };
   
-  // --- FUNÇÕES COM LOG DE AUDITORIA ---
+  // --- FUNÇÕES COM LOG DE AUDITORIA ENRIQUECIDO ---
   const addRequest = async (req: RepairRequest) => { 
     await dbApi.createRequest(req); 
     if (currentUser) {
@@ -420,7 +420,12 @@ const App = () => {
         action: AuditAction.CREATE,
         entity_type: AuditEntity.REQUEST,
         entity_id: req.id,
-        details: { protocol: req.protocol, status: req.status }
+        details: { 
+          protocol: req.protocol, 
+          status: req.status,
+          executor: currentUser.name,
+          rf: currentUser.registrationNumber
+        }
       });
     }
     refreshRequests(); 
@@ -435,7 +440,12 @@ const App = () => {
         action: AuditAction.UPDATE,
         entity_type: AuditEntity.REQUEST,
         entity_id: req.id,
-        details: { protocol: req.protocol, status: req.status }
+        details: { 
+          protocol: req.protocol, 
+          status: req.status,
+          executor: currentUser.name,
+          rf: currentUser.registrationNumber
+        }
       });
     }
     refreshRequests(); 
@@ -451,7 +461,10 @@ const App = () => {
         action: AuditAction.DELETE,
         entity_type: AuditEntity.REQUEST,
         entity_id: id,
-        details: { protocol: target.protocol }
+        details: { 
+          protocol: target.protocol,
+          executor: currentUser.name
+        }
       });
     }
     refreshRequests(); 
@@ -466,7 +479,11 @@ const App = () => {
         action: AuditAction.CREATE,
         entity_type: AuditEntity.USER,
         entity_id: u.id,
-        details: { name: u.name, role: u.role }
+        details: { 
+          name: u.name, 
+          role: u.role,
+          executor: currentUser.name
+        }
       });
     }
     setUsers(await dbApi.getUsers()); 
@@ -481,7 +498,11 @@ const App = () => {
         action: AuditAction.UPDATE,
         entity_type: AuditEntity.USER,
         entity_id: u.id,
-        details: { name: u.name, role: u.role }
+        details: { 
+          name: u.name, 
+          role: u.role,
+          executor: currentUser.name
+        }
       });
     }
     setUsers(await dbApi.getUsers()); 
@@ -501,7 +522,10 @@ const App = () => {
         action: AuditAction.DELETE,
         entity_type: AuditEntity.USER,
         entity_id: id,
-        details: { name: target.name }
+        details: { 
+          name: target.name,
+          executor: currentUser.name
+        }
       });
     }
     setUsers(await dbApi.getUsers()); 
@@ -517,7 +541,10 @@ const App = () => {
         action: AuditAction.UPDATE,
         entity_type: AuditEntity.ZONAL,
         entity_id: z.id,
-        details: { name: z.name }
+        details: { 
+          name: z.name,
+          executor: currentUser.name
+        }
       });
     }
     setZonals(await dbApi.getZonals()); 

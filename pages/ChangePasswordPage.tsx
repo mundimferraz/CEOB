@@ -36,14 +36,18 @@ const ChangePasswordPage: React.FC = () => {
     try {
       await dbApi.updatePassword(currentUser!.id, passwords.new);
       
-      // Log de auditoria
+      // Log de auditoria com nome do executor explícito
       await dbApi.createAuditLog({
         user_id: currentUser!.id,
         user_name: currentUser!.name,
         action: AuditAction.UPDATE,
         entity_type: AuditEntity.USER,
         entity_id: currentUser!.id,
-        details: { action: 'Mudança de Senha' }
+        details: { 
+          action: 'Mudança de Senha Self-Service',
+          executor: currentUser!.name,
+          timestamp: new Date().toISOString()
+        }
       });
 
       notify("Senha alterada com sucesso!", "success");
