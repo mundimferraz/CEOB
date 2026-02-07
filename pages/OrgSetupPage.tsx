@@ -251,7 +251,6 @@ const OrgSetupPage: React.FC = () => {
                   <input name="name" defaultValue={editingUser?.name} required placeholder="Nome do Servidor" className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm" />
                 </div>
                 
-                {/* NOVOS CAMPOS: CARGO E FUNÇÃO */}
                 <div>
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 block">Cargo (Título)</label>
                   <input name="position" defaultValue={editingUser?.position} placeholder="Ex: Engenheiro III" className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm" />
@@ -315,8 +314,9 @@ const OrgSetupPage: React.FC = () => {
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 block">Engenheiro Responsável</label>
                 <select name="managerId" defaultValue={editingZonal?.managerId} className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm appearance-none bg-white">
                   <option value="">Aguardando Designação</option>
+                  {/* FILTRO REFINADO: Apenas Admin ou superior (Editor/Gestor), excluindo Operator/Guest */}
                   {users.filter(u => u.role === AppRole.ADMIN || u.role === AppRole.EDITOR).map(u => (
-                    <option key={u.id} value={u.id}>{u.name}</option>
+                    <option key={u.id} value={u.id}>{u.name} ({ROLE_CONFIG[u.role]?.label})</option>
                   ))}
                 </select>
               </div>

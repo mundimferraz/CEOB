@@ -201,7 +201,7 @@ const Navigation = () => {
             <NavSubItem to="/requests" label="Relatórios" icon={FileText} />
           </NavGroup>
 
-          {/* CONFIGURAÇÕES (ADMIN HUB) */}
+          {/* CONFIGURAÇÕES (HUB ADMINISTRATIVO ÚNICO) */}
           <NavGroup label="Configurações" icon={Settings} visible={isAdmin} defaultOpen={location.pathname.startsWith('/org') || location.pathname.startsWith('/audit')}>
             <NavSubItem to="/org?tab=zonals" label="Gestão Unidades" icon={Database} />
             <NavSubItem to="/org?tab=personnel" label="Gestão Equipe" icon={UserCog} />
