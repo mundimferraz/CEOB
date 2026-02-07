@@ -21,6 +21,37 @@ import AuditLogPage from './pages/AuditLogPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
 import { dbApi } from './services/api';
 
+// --- CONTEXTO DA APLICAÇÃO ---
+const AppContext = createContext<AppContextType | undefined>(undefined);
+
+export const useApp = () => {
+  const context = useContext(AppContext);
+  if (!context) throw new Error("useApp must be used within AppProvider");
+  return context;
+};
+
+interface AppContextType {
+  requests: RepairRequest[];
+  users: User[];
+  zonals: ZonalMetadata[];
+  currentUser: User | null;
+  loading: boolean;
+  canDo: (action: string) => boolean;
+  handleLogin: (u: string, p: string) => Promise<boolean>;
+  logout: () => void;
+  addRequest: (req: RepairRequest) => Promise<void>;
+  updateRequest: (req: RepairRequest) => Promise<void>;
+  deleteRequest: (id: string) => Promise<void>;
+  refreshRequests: () => Promise<void>;
+  addUser: (user: User) => Promise<void>;
+  updateUser: (user: User) => Promise<void>;
+  deleteUser: (id: string) => Promise<void>;
+  updateZonal: (zonal: ZonalMetadata) => Promise<void>;
+  getZonalName: (id: ZonalType | string) => string;
+  getRoleLabel: (role: AppRole) => string;
+  notify: (message: string, type?: 'success' | 'error' | 'info') => void;
+}
+
 // --- COMPONENTE DE LOGIN ---
 const LoginPage = () => {
   const { handleLogin, notify } = useApp();
@@ -113,7 +144,7 @@ const LoginPage = () => {
   );
 };
 
-// --- COMPONENTE DE NAVEGAÇÃO ---
+// --- COMPONENTES DE NAVEGAÇÃO ---
 const NavGroup = ({ label, icon: Icon, children, defaultOpen = false, visible = true }: any) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   if (!visible) return null;
@@ -157,7 +188,7 @@ const NavSubItem = ({ to, label, icon: Icon }: any) => {
 
 const Navigation = () => {
   const location = useLocation();
-  const { currentUser, canDo, logout } = useApp();
+  const { currentUser, logout } = useApp();
 
   const currentRoleConfig = (currentUser && currentUser.role && ROLE_CONFIG[currentUser.role]) 
     ? ROLE_CONFIG[currentUser.role] 
@@ -185,7 +216,6 @@ const Navigation = () => {
         </div>
         
         <nav className="flex-1 px-4 py-8 space-y-4 overflow-y-auto scrollbar-thin">
-          {/* DASHBOARD */}
           <Link 
             to="/" 
             className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-200 ${location.pathname === '/' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'hover:bg-slate-800 hover:text-white'}`}
@@ -194,14 +224,13 @@ const Navigation = () => {
             <span className="font-black uppercase text-[11px] tracking-widest">Dashboard</span>
           </Link>
 
-          {/* VISTORIAS */}
           <NavGroup label="Vistorias" icon={ClipboardList} defaultOpen={location.pathname.startsWith('/new') || location.pathname.startsWith('/map') || location.pathname.startsWith('/requests')}>
             <NavSubItem to="/new" label="Nova Vistoria" icon={PlusCircle} />
             <NavSubItem to="/map" label="Mapa Interativo" icon={MapIcon} />
             <NavSubItem to="/requests" label="Relatórios" icon={FileText} />
           </NavGroup>
 
-          {/* CONFIGURAÇÕES (HUB ADMINISTRATIVO ÚNICO) */}
+          {/* ADMIN HUB CENTRALIZADO */}
           <NavGroup label="Configurações" icon={Settings} visible={isAdmin} defaultOpen={location.pathname.startsWith('/org') || location.pathname.startsWith('/audit')}>
             <NavSubItem to="/org?tab=zonals" label="Gestão Unidades" icon={Database} />
             <NavSubItem to="/org?tab=personnel" label="Gestão Equipe" icon={UserCog} />
@@ -243,36 +272,6 @@ const Navigation = () => {
 };
 
 // --- COMPONENTE APP ---
-const AppContext = createContext<AppContextType | undefined>(undefined);
-
-export const useApp = () => {
-  const context = useContext(AppContext);
-  if (!context) throw new Error("useApp must be used within AppProvider");
-  return context;
-};
-
-interface AppContextType {
-  requests: RepairRequest[];
-  users: User[];
-  zonals: ZonalMetadata[];
-  currentUser: User | null;
-  loading: boolean;
-  canDo: (action: string) => boolean;
-  handleLogin: (u: string, p: string) => Promise<boolean>;
-  logout: () => void;
-  addRequest: (req: RepairRequest) => Promise<void>;
-  updateRequest: (req: RepairRequest) => Promise<void>;
-  deleteRequest: (id: string) => Promise<void>;
-  refreshRequests: () => Promise<void>;
-  addUser: (user: User) => Promise<void>;
-  updateUser: (user: User) => Promise<void>;
-  deleteUser: (id: string) => Promise<void>;
-  updateZonal: (zonal: ZonalMetadata) => Promise<void>;
-  getZonalName: (id: ZonalType | string) => string;
-  getRoleLabel: (role: AppRole) => string;
-  notify: (message: string, type?: 'success' | 'error' | 'info') => void;
-}
-
 const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
   const { currentUser, loading } = useApp();
   if (loading) return null;
