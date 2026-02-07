@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
-import { LayoutDashboard, ClipboardList, PlusCircle, Users, Menu, X, ChevronRight, Plus, CheckCircle, Info, AlertCircle, Loader2, LogOut, UserCircle, ShieldCheck, ShieldAlert, Map as MapIcon, History, Lock, User as UserIcon, Eye, EyeOff } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, PlusCircle, Users, Menu, X, ChevronRight, Plus, CheckCircle, Info, AlertCircle, Loader2, LogOut, UserCircle, ShieldCheck, ShieldAlert, Map as MapIcon, History, Lock, User as UserIcon, Eye, EyeOff, Settings } from 'lucide-react';
 import { RepairRequest, User, ZonalType, RequestStatus, ZonalMetadata, UserRole, AppRole, AuditAction, AuditEntity } from './types';
 import { ROLE_CONFIG, DEFAULT_ROLE_CONFIG, INITIAL_ZONAL_METADATA } from './constants';
 import DashboardPage from './pages/DashboardPage';
@@ -11,8 +11,8 @@ import RequestDetailsPage from './pages/RequestDetailsPage';
 import OrgSetupPage from './pages/OrgSetupPage';
 import MapOverviewPage from './pages/MapOverviewPage';
 import AuditLogPage from './pages/AuditLogPage';
+import ChangePasswordPage from './pages/ChangePasswordPage';
 import { dbApi } from './services/api';
-import { supabase } from './services/supabase';
 
 // --- COMPONENTE DE LOGIN ---
 const LoginPage = () => {
@@ -25,17 +25,17 @@ const LoginPage = () => {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim() || !password.trim()) {
-      notify("Preencha usuário e senha separadamente", "error");
+      notify("Informe usuário e senha", "error");
       return;
     }
     setLoading(true);
     try {
       const success = await handleLogin(username.trim(), password.trim());
       if (!success) {
-        notify("Credenciais inválidas. Tente admin / admin", "error");
+        notify("Usuário ou senha incorretos", "error");
       }
     } catch (err) {
-      notify("Erro de conexão com o servidor", "error");
+      notify("Erro na comunicação com o servidor", "error");
     } finally {
       setLoading(false);
     }
@@ -43,7 +43,6 @@ const LoginPage = () => {
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-slate-950 relative overflow-hidden">
-      {/* Background Decorativo */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/20 rounded-full blur-[120px]"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/20 rounded-full blur-[120px]"></div>
 
@@ -54,12 +53,12 @@ const LoginPage = () => {
                 <ShieldCheck size={32} className="text-white" />
              </div>
              <h1 className="text-2xl font-black text-white tracking-tight uppercase italic">SGR-Vias</h1>
-             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1">Portal de Autenticação</p>
+             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1">Gestão de Zeladoria Urbana</p>
           </div>
 
           <form onSubmit={onSubmit} className="space-y-5">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Usuário / Matrícula</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Matrícula ou Usuário</label>
               <div className="relative">
                 <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                 <input 
@@ -67,14 +66,13 @@ const LoginPage = () => {
                   value={username}
                   onChange={e => setUsername(e.target.value)}
                   placeholder="admin"
-                  autoComplete="username"
                   className="w-full h-14 pl-12 pr-4 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-medium"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Senha</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Senha de Acesso</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                 <input 
@@ -82,13 +80,12 @@ const LoginPage = () => {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  autoComplete="current-password"
                   className="w-full h-14 pl-12 pr-12 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-medium"
                 />
                 <button 
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -100,13 +97,9 @@ const LoginPage = () => {
               disabled={loading}
               className="w-full h-16 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-2xl shadow-blue-500/20 transition-all active:scale-95 flex items-center justify-center gap-3 mt-8"
             >
-              {loading ? <Loader2 className="animate-spin" size={20} /> : "Entrar no Sistema"}
+              {loading ? <Loader2 className="animate-spin" size={20} /> : "Autenticar no Sistema"}
             </button>
           </form>
-
-          <div className="mt-10 pt-8 border-t border-white/5 text-center">
-             <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Credenciais de teste: admin / admin</p>
-          </div>
         </div>
       </div>
     </div>
@@ -146,12 +139,11 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const useApp = () => {
   const context = useContext(AppContext);
-  if (!context) throw new Error("useApp deve ser usado dentro de um AppProvider");
+  if (!context) throw new Error("useApp must be used within AppProvider");
   return context;
 };
 
 // --- PROTEÇÃO DE ROTAS ---
-// Fix: Added optional children to ProtectedRoute props type to resolve potential TypeScript errors.
 const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
   const { currentUser, loading } = useApp();
   if (loading) return null;
@@ -159,7 +151,6 @@ const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// Fix: Removed explicit React.FC typing to resolve potential "missing children" errors in certain build environments.
 const Navigation = () => {
   const location = useLocation();
   const { currentUser, canDo, logout } = useApp();
@@ -192,7 +183,7 @@ const Navigation = () => {
           <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-black text-xl text-white shadow-lg">S</div>
           <div>
             <h1 className="font-black text-white tracking-tight leading-none text-lg">SGR-Vias</h1>
-            <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-1 font-bold">Zeladoria Urbana</p>
+            <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-1 font-bold italic">Zeladoria Urbana</p>
           </div>
         </div>
         
@@ -218,15 +209,33 @@ const Navigation = () => {
         </nav>
 
         <div className="p-6 border-t border-slate-800 bg-slate-900/50">
-          <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-800 border border-slate-700">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-sm">
-              {currentUser?.name?.charAt(0)}
+          <div className="flex flex-col gap-3 p-3 rounded-2xl bg-slate-800 border border-slate-700 shadow-inner">
+            <div className="flex items-center gap-3 overflow-hidden">
+              <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-sm flex-shrink-0">
+                {currentUser?.name?.charAt(0)}
+              </div>
+              <div className="flex-1 min-w-0">
+                 <p className="text-xs font-black text-white truncate">{currentUser?.name}</p>
+                 <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">{currentRoleConfig.label}</p>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-               <p className="text-xs font-black text-white truncate">{currentUser?.name}</p>
-               <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">{currentRoleConfig.label}</p>
+            <div className="flex gap-2 border-t border-slate-700 pt-3">
+              <Link 
+                to="/profile/password" 
+                className="flex-1 flex items-center justify-center gap-2 h-10 bg-slate-700 text-slate-300 rounded-xl hover:bg-slate-600 transition-all text-[10px] font-black uppercase tracking-widest"
+                title="Alterar Senha"
+              >
+                <Lock size={14} />
+                Segurança
+              </Link>
+              <button 
+                onClick={logout} 
+                className="w-10 h-10 flex items-center justify-center bg-rose-900/30 text-rose-400 rounded-xl hover:bg-rose-900/50 transition-all shadow-sm"
+                title="Encerrar Sessão"
+              >
+                <LogOut size={16} />
+              </button>
             </div>
-            <button onClick={logout} className="p-2 text-slate-500 hover:text-rose-400 transition-colors"><LogOut size={18} /></button>
           </div>
         </div>
       </aside>
@@ -238,7 +247,7 @@ const Navigation = () => {
           if (item.highlight) {
             return (
               <Link key={item.path} to={item.path} className="relative -top-6">
-                <div className="w-14 h-14 rounded-full flex items-center justify-center shadow-xl bg-blue-600">
+                <div className="w-14 h-14 rounded-full flex items-center justify-center shadow-xl bg-blue-600 border-4 border-slate-50">
                   <Plus size={28} className="text-white" strokeWidth={3} />
                 </div>
               </Link>
@@ -251,12 +260,15 @@ const Navigation = () => {
             </Link>
           );
         })}
+        <Link to="/profile/password" className="flex flex-col items-center justify-center gap-1">
+          <Lock size={22} className={location.pathname === '/profile/password' ? 'text-blue-600' : 'text-slate-400'} />
+          <span className={`text-[10px] font-bold ${location.pathname === '/profile/password' ? 'text-blue-600' : 'text-slate-400'}`}>Senha</span>
+        </Link>
       </nav>
     </>
   );
 };
 
-// Fix: Removed explicit React.FC typing for the App component as well.
 const App = () => {
   const [requests, setRequests] = useState<RepairRequest[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -282,7 +294,6 @@ const App = () => {
       }
       return false;
     } catch (e) {
-      console.error(e);
       return false;
     }
   };
@@ -290,15 +301,14 @@ const App = () => {
   const logout = () => {
     setCurrentUser(null);
     localStorage.removeItem('sgr_vias_session');
-    notify("Sessão encerrada.");
+    notify("Sessão finalizada com segurança.");
   };
 
   const canDo = useCallback((action: string) => {
     if (!currentUser) return false;
-    const role = currentUser.role;
-    const isAdmin = role === AppRole.ADMIN;
-    const isEditor = role === AppRole.EDITOR || isAdmin;
-    const isOperator = role === AppRole.OPERATOR || isEditor;
+    const isAdmin = currentUser.role === AppRole.ADMIN;
+    const isEditor = currentUser.role === AppRole.EDITOR || isAdmin;
+    const isOperator = currentUser.role === AppRole.OPERATOR || isEditor;
 
     switch (action) {
       case 'manage_users': return isAdmin;
@@ -306,7 +316,7 @@ const App = () => {
       case 'create_request': return isOperator;
       case 'edit_request': return isOperator;
       case 'delete_request': return isAdmin;
-      case 'view_all_zonals': return role !== AppRole.VIEWER;
+      case 'view_all_zonals': return currentUser.role !== AppRole.VIEWER;
       default: return false;
     }
   }, [currentUser]);
@@ -335,25 +345,9 @@ const App = () => {
   useEffect(() => { initData(); }, []);
 
   const refreshRequests = async () => { setRequests(await dbApi.getRequests()); };
-  
-  const addRequest = async (req: RepairRequest) => {
-    await dbApi.createRequest(req);
-    await refreshRequests();
-    await dbApi.createAuditLog({ user_id: currentUser!.id, user_name: currentUser!.name, action: AuditAction.CREATE, entity_type: AuditEntity.REQUEST, entity_id: req.id, details: { protocol: req.protocol } });
-  };
-
-  const updateRequest = async (req: RepairRequest) => {
-    await dbApi.updateRequest(req);
-    await refreshRequests();
-    await dbApi.createAuditLog({ user_id: currentUser!.id, user_name: currentUser!.name, action: AuditAction.UPDATE, entity_type: AuditEntity.REQUEST, entity_id: req.id, details: { status: req.status } });
-  };
-
-  const deleteRequest = async (id: string) => {
-    await dbApi.deleteRequest(id);
-    await refreshRequests();
-    await dbApi.createAuditLog({ user_id: currentUser!.id, user_name: currentUser!.name, action: AuditAction.DELETE, entity_type: AuditEntity.REQUEST, entity_id: id, details: {} });
-  };
-
+  const addRequest = async (req: RepairRequest) => { await dbApi.createRequest(req); refreshRequests(); };
+  const updateRequest = async (req: RepairRequest) => { await dbApi.updateRequest(req); refreshRequests(); };
+  const deleteRequest = async (id: string) => { await dbApi.deleteRequest(id); refreshRequests(); };
   const addUser = async (u: User) => { await dbApi.saveUser(u); setUsers(await dbApi.getUsers()); };
   const updateUser = async (u: User) => { await dbApi.saveUser(u); setUsers(await dbApi.getUsers()); };
   const deleteUser = async (id: string) => { await dbApi.deleteUser(id); setUsers(await dbApi.getUsers()); };
@@ -383,6 +377,7 @@ const App = () => {
                     <Route path="/new" element={<NewRequestPage />} />
                     <Route path="/org" element={<OrgSetupPage />} />
                     <Route path="/audit" element={<AuditLogPage />} />
+                    <Route path="/profile/password" element={<ChangePasswordPage />} />
                   </Routes>
                 </main>
               </div>
@@ -390,12 +385,11 @@ const App = () => {
           } />
         </Routes>
 
-        {/* Toasts */}
         <div className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[92%] max-w-sm pointer-events-none flex flex-col gap-3">
           {toasts.map(t => (
-            <div key={t.id} className={`p-4 rounded-2xl shadow-xl flex items-center gap-3 border pointer-events-auto animate-in slide-in-from-bottom-4 duration-300 ${t.type === 'success' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-rose-600 border-rose-500 text-white'}`}>
+            <div key={t.id} className={`p-4 rounded-2xl shadow-2xl flex items-center gap-3 border pointer-events-auto animate-in slide-in-from-bottom-4 duration-300 ${t.type === 'success' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-rose-600 border-rose-500 text-white'}`}>
               {t.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
-              <span className="text-xs font-bold flex-1">{t.message}</span>
+              <span className="text-[11px] font-black uppercase tracking-tight flex-1">{t.message}</span>
               <button onClick={() => setToasts(prev => prev.filter(x => x.id !== t.id))}><X size={16} /></button>
             </div>
           ))}

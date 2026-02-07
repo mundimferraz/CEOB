@@ -5,8 +5,6 @@ import { supabase } from './supabase';
 export const dbApi = {
   // Autenticação
   async login(username: string, password: string): Promise<User | null> {
-    // Usamos ilike para evitar problemas com Admin vs admin
-    // E capturamos o erro para logar no console caso a coluna não exista (Erro 400)
     const { data, error } = await supabase
       .from('users')
       .select('*')
@@ -15,18 +13,11 @@ export const dbApi = {
       .maybeSingle();
     
     if (error) {
-      console.error('ERRO CRÍTICO NO LOGIN:', error.message, error.details, error.hint);
-      // Se o erro for 42703, significa que a coluna 'password' não existe no banco
-      if (error.code === '42703') {
-        console.warn('Atenção: A coluna "password" não foi encontrada na tabela "users". Execute o script SQL de migração.');
-      }
+      console.error('ERRO CRÍTICO NO LOGIN:', error.message);
       return null;
     }
     
-    if (!data) {
-      console.warn('Login falhou: Usuário não encontrado ou senha incorreta.');
-      return null;
-    }
+    if (!data) return null;
 
     return {
       id: data.id,
@@ -36,6 +27,15 @@ export const dbApi = {
       registrationNumber: data.registration_number,
       email: data.email
     };
+  },
+
+  async updatePassword(userId: string, newPassword: string): Promise<void> {
+    const { error } = await supabase
+      .from('users')
+      .update({ password: newPassword })
+      .eq('id', userId);
+    
+    if (error) throw error;
   },
 
   // Auditoria
@@ -85,7 +85,7 @@ export const dbApi = {
     return (data || []).map(req => ({
       id: req.id,
       protocol: req.protocol,
-      seiNumber: req.sei_number,
+      sei_number: req.sei_number,
       contract: req.contract,
       description: req.description,
       location: {
@@ -97,8 +97,8 @@ export const dbApi = {
       status: req.status,
       technicianId: req.technician_id,
       zonal: req.zonal,
-      photoBefore: req.photo_before,
-      photoAfter: req.photo_after,
+      photo_before: req.photo_before,
+      photo_after: req.photo_after,
       createdAt: req.created_at
     }));
   },
