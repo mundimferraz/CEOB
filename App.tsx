@@ -43,6 +43,7 @@ interface AppContextType {
   updateRequest: (req: RepairRequest) => Promise<void>;
   deleteRequest: (id: string) => Promise<void>;
   refreshRequests: () => Promise<void>;
+  refreshUsers: () => Promise<void>;
   addUser: (user: User) => Promise<void>;
   updateUser: (user: User) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
@@ -352,18 +353,40 @@ const App = () => {
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 5000);
   }, []);
 
-  // --- HEARTBEAT DE ATIVIDADE ---
+  const refreshUsers = useCallback(async () => {
+    try {
+      const dbUsers = await dbApi.getUsers();
+      setUsers(dbUsers);
+    } catch (e) {
+      console.error("Erro ao sincronizar usuários:", e);
+    }
+  }, []);
+
+  // --- HEARTBEAT DE ATIVIDADE + POLLING DE USUÁRIOS ---
   useEffect(() => {
     if (!currentUser) return;
 
-    // Atualiza agora e depois a cada 60s
+    // Sinaliza atividade do usuário atual imediatamente
     dbApi.updateUserActivity(currentUser.id);
-    const interval = setInterval(() => {
+
+    // Heartbeat: sinaliza presença a cada 60s
+    const heartbeatInterval = setInterval(() => {
       dbApi.updateUserActivity(currentUser.id);
     }, 60000);
 
-    return () => clearInterval(interval);
-  }, [currentUser]);
+    // Monitoramento Live: Atualiza lista de usuários para Admin a cada 30s
+    let pollingInterval: any;
+    if (currentUser.role === AppRole.ADMIN) {
+      pollingInterval = setInterval(() => {
+        refreshUsers();
+      }, 30000);
+    }
+
+    return () => {
+      clearInterval(heartbeatInterval);
+      if (pollingInterval) clearInterval(pollingInterval);
+    };
+  }, [currentUser, refreshUsers]);
 
   const handleLogin = async (u: string, p: string) => {
     try {
@@ -498,7 +521,7 @@ const App = () => {
         }
       });
     }
-    setUsers(await dbApi.getUsers()); 
+    refreshUsers(); 
   };
 
   const updateUser = async (u: User) => { 
@@ -517,7 +540,7 @@ const App = () => {
         }
       });
     }
-    setUsers(await dbApi.getUsers()); 
+    refreshUsers(); 
   };
   
   const deleteUser = async (id: string) => { 
@@ -540,7 +563,7 @@ const App = () => {
         }
       });
     }
-    setUsers(await dbApi.getUsers()); 
+    refreshUsers(); 
     notify("Servidor removido do sistema.");
   };
 
@@ -568,7 +591,7 @@ const App = () => {
   return (
     <AppContext.Provider value={{ 
       requests, users, zonals, currentUser, loading, canDo, handleLogin, logout,
-      addRequest, updateRequest, deleteRequest, refreshRequests,
+      addRequest, updateRequest, deleteRequest, refreshRequests, refreshUsers,
       addUser, updateUser, deleteUser, updateZonal, getZonalName, getRoleLabel, notify
     }}>
       <HashRouter>
