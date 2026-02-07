@@ -49,20 +49,26 @@ export const dbApi = {
   },
 
   async saveUser(user: User): Promise<void> {
+    const payload = {
+      id: user.id,
+      name: user.name,
+      role: user.role,
+      zonal: user.zonal,
+      registration_number: user.registrationNumber || null,
+      email: user.email || null,
+      password: user.password || '123456',
+      position: user.position || null,
+      function: user.function || null
+    };
+
     const { error } = await supabase
       .from('users')
-      .upsert([{
-        id: user.id,
-        name: user.name,
-        role: user.role,
-        zonal: user.zonal,
-        registration_number: user.registrationNumber || null,
-        email: user.email || null,
-        password: user.password || '123456',
-        position: user.position || null,
-        function: user.function || null
-      }], { onConflict: 'id' });
-    if (error) throw error;
+      .upsert([payload], { onConflict: 'id' });
+    
+    if (error) {
+      console.error("Erro no upsert de usuário:", error);
+      throw error;
+    }
   },
 
   async deleteUser(id: string): Promise<void> {

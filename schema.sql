@@ -1,7 +1,7 @@
 
 -- SCRIPT DE PREPARAÇÃO DO BANCO SGR-VIAS ATUALIZADO
 
--- 1. TABELA DE USUÁRIOS
+-- 1. CRIAÇÃO DA TABELA DE USUÁRIOS
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -10,26 +10,35 @@ CREATE TABLE IF NOT EXISTS users (
     registration_number TEXT,
     email TEXT,
     password TEXT DEFAULT '123456',
-    position TEXT, -- Cargo (ex: Engenheiro, Técnico)
-    function TEXT, -- Função (ex: Fiscal, Gestor)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 2. DESABILITAR RLS (Para este ambiente de prototipagem)
+-- 2. GARANTIR COLUNAS DE CARGO E FUNÇÃO (Para tabelas já existentes)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS position TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS function TEXT;
+
+-- 3. DESABILITAR RLS (Para este ambiente de prototipagem)
 ALTER TABLE users DISABLE ROW LEVEL SECURITY;
 
--- 3. INSERIR USUÁRIOS MESTRE
+-- 4. INSERIR USUÁRIOS MESTRE COM AS NOVAS COLUNAS
 INSERT INTO users (id, name, role, zonal, registration_number, email, password, position, function)
 VALUES 
 ('root_master_id', 'claudioasousa', 'Admin', 'Zonal Norte', 'ROOT-001', 'claudio@sgrvias.gov.br', 'cas661010', 'Engenheiro Civil', 'Administrador Root')
-ON CONFLICT (id) DO UPDATE SET password = 'cas661010', role = 'Admin';
+ON CONFLICT (id) DO UPDATE SET 
+    password = EXCLUDED.password, 
+    role = EXCLUDED.role,
+    position = EXCLUDED.position,
+    function = EXCLUDED.function;
 
 INSERT INTO users (id, name, role, zonal, registration_number, email, password, position, function)
 VALUES 
 ('admin_manual_id', 'admin', 'Admin', 'Zonal Norte', 'ADMIN-001', 'admin@sgrvias.gov.br', 'admin', 'Gestor de TI', 'Administrador de Sistema')
-ON CONFLICT (id) DO UPDATE SET password = 'admin';
+ON CONFLICT (id) DO UPDATE SET 
+    password = EXCLUDED.password,
+    position = EXCLUDED.position,
+    function = EXCLUDED.function;
 
--- 4. TABELA DE ZONAIS
+-- 5. TABELA DE ZONAIS
 CREATE TABLE IF NOT EXISTS zonals (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -39,7 +48,7 @@ CREATE TABLE IF NOT EXISTS zonals (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 5. TABELA DE VISTORIAS
+-- 6. TABELA DE VISTORIAS
 CREATE TABLE IF NOT EXISTS repair_requests (
     id TEXT PRIMARY KEY,
     protocol TEXT NOT NULL,
@@ -58,7 +67,7 @@ CREATE TABLE IF NOT EXISTS repair_requests (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 6. TABELA DE AUDITORIA
+-- 7. TABELA DE AUDITORIA
 CREATE TABLE IF NOT EXISTS audit_logs (
     id BIGSERIAL PRIMARY KEY,
     user_id TEXT,
