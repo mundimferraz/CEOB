@@ -13,13 +13,12 @@ export enum ZonalType {
   WEST = 'Zonal Oeste'
 }
 
-// Hierarquia de Cargos definida
 export enum AppRole {
-  ADMIN = 'Admin',         // Acesso total
-  EDITOR = 'Editor',       // Cria/Edita vistorias, sem gestão de sistema
-  OPERATOR = 'Operator',   // Acesso básico operacional
-  VIEWER = 'Viewer',       // Apenas leitura (Relatórios)
-  RESTRICTED = 'Restricted' // Acesso limitado à própria Zonal
+  ADMIN = 'Admin',
+  EDITOR = 'Editor',
+  OPERATOR = 'Operator',
+  VIEWER = 'Viewer',
+  RESTRICTED = 'Restricted'
 }
 
 export type UserRole = AppRole;
@@ -61,4 +60,28 @@ export interface ZonalMetadata {
   managerId?: string;
   assistantId?: string;
   description?: string;
+}
+
+// Novos tipos para Auditoria
+export enum AuditAction {
+  CREATE = 'CRIAÇÃO',
+  UPDATE = 'ALTERAÇÃO',
+  DELETE = 'EXCLUSÃO'
+}
+
+export enum AuditEntity {
+  REQUEST = 'VISTORIA',
+  USER = 'USUÁRIO',
+  ZONAL = 'UNIDADE'
+}
+
+export interface AuditLog {
+  id: string;
+  user_id: string;
+  user_name: string;
+  action: AuditAction;
+  entity_type: AuditEntity;
+  entity_id: string;
+  details: any;
+  created_at: string;
 }

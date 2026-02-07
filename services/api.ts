@@ -1,8 +1,43 @@
 
-import { RepairRequest, User, ZonalMetadata } from '../types';
+import { RepairRequest, User, ZonalMetadata, AuditLog } from '../types';
 import { supabase } from './supabase';
 
 export const dbApi = {
+  // Auditoria
+  async createAuditLog(log: Omit<AuditLog, 'id' | 'created_at'>): Promise<void> {
+    const { error } = await supabase
+      .from('audit_logs')
+      .insert([{
+        user_id: log.user_id,
+        user_name: log.user_name,
+        action: log.action,
+        entity_type: log.entity_type,
+        entity_id: log.entity_id,
+        details: log.details
+      }]);
+    
+    if (error) console.error('Erro ao gravar auditoria:', error);
+  },
+
+  async getAuditLogs(): Promise<AuditLog[]> {
+    const { data, error } = await supabase
+      .from('audit_logs')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return (data || []).map(l => ({
+      id: l.id,
+      user_id: l.user_id,
+      user_name: l.user_name,
+      action: l.action,
+      entity_type: l.entity_type,
+      entity_id: l.entity_id,
+      details: l.details,
+      created_at: l.created_at
+    }));
+  },
+
   // Solicitações
   async getRequests(): Promise<RepairRequest[]> {
     const { data, error } = await supabase
@@ -171,6 +206,7 @@ export const dbApi = {
   },
 
   async saveZonal(zonal: ZonalMetadata): Promise<void> {
+    // Corrected assistantId property access (line 213)
     const payload = {
       id: zonal.id,
       name: zonal.name,

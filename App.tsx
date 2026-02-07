@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, ClipboardList, PlusCircle, Users, Menu, X, ChevronRight, Plus, CheckCircle, Info, AlertCircle, Loader2, LogOut, UserCircle, ShieldCheck, ShieldAlert, Map as MapIcon } from 'lucide-react';
-import { RepairRequest, User, ZonalType, RequestStatus, ZonalMetadata, UserRole, AppRole } from './types';
+import { LayoutDashboard, ClipboardList, PlusCircle, Users, Menu, X, ChevronRight, Plus, CheckCircle, Info, AlertCircle, Loader2, LogOut, UserCircle, ShieldCheck, ShieldAlert, Map as MapIcon, History } from 'lucide-react';
+import { RepairRequest, User, ZonalType, RequestStatus, ZonalMetadata, UserRole, AppRole, AuditAction, AuditEntity } from './types';
 import { MOCK_REQUESTS, MOCK_USERS, INITIAL_ZONAL_METADATA, ROLE_CONFIG, DEFAULT_ROLE_CONFIG } from './constants';
 import DashboardPage from './pages/DashboardPage';
 import RequestListPage from './pages/RequestListPage';
@@ -10,6 +10,7 @@ import NewRequestPage from './pages/NewRequestPage';
 import RequestDetailsPage from './pages/RequestDetailsPage';
 import OrgSetupPage from './pages/OrgSetupPage';
 import MapOverviewPage from './pages/MapOverviewPage';
+import AuditLogPage from './pages/AuditLogPage';
 import { dbApi } from './services/api';
 import { supabase } from './services/supabase';
 
@@ -25,7 +26,7 @@ interface AppContextType {
   zonals: ZonalMetadata[];
   currentUser: User | null;
   loading: boolean;
-  canDo: (action: 'manage_users' | 'create_request' | 'edit_request' | 'delete_request' | 'view_all_zonals') => boolean;
+  canDo: (action: 'manage_users' | 'create_request' | 'edit_request' | 'delete_request' | 'view_all_zonals' | 'view_audit') => boolean;
   setCurrentUser: (user: User | null) => void;
   addRequest: (req: RepairRequest) => Promise<void>;
   updateRequest: (req: RepairRequest) => Promise<void>;
@@ -58,6 +59,7 @@ const Navigation = () => {
     { path: '/requests', label: 'Vistorias', icon: ClipboardList, visible: true },
     { path: '/new', label: 'Nova Vistoria', icon: PlusCircle, highlight: true, visible: canDo('create_request') },
     { path: '/org', label: 'Gestão de Usuários', icon: Users, visible: canDo('manage_users') },
+    { path: '/audit', label: 'Auditoria', icon: History, visible: canDo('view_audit') },
   ];
 
   const currentRoleConfig = (currentUser && currentUser.role && ROLE_CONFIG[currentUser.role]) 
@@ -223,7 +225,7 @@ const App: React.FC = () => {
     }
   }, []);
 
-  const canDo = useCallback((action: 'manage_users' | 'create_request' | 'edit_request' | 'delete_request' | 'view_all_zonals') => {
+  const canDo = useCallback((action: 'manage_users' | 'create_request' | 'edit_request' | 'delete_request' | 'view_all_zonals' | 'view_audit') => {
     if (!currentUser) return false;
     const role = currentUser.role as any;
 
@@ -241,9 +243,11 @@ const App: React.FC = () => {
       case 'edit_request':
         return isOperator;
       case 'delete_request':
-        return true; 
+        return isAdmin; 
       case 'view_all_zonals':
         return role !== AppRole.RESTRICTED && role !== 'Intern';
+      case 'view_audit':
+        return isAdmin;
       default:
         return false;
     }
@@ -343,10 +347,27 @@ const App: React.FC = () => {
     };
   }, []);
 
+  const createAudit = async (action: AuditAction, entity: AuditEntity, id: string, details: any) => {
+    if (!currentUser) return;
+    try {
+      await dbApi.createAuditLog({
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        action,
+        entity_type: entity,
+        entity_id: id,
+        details
+      });
+    } catch (e) {
+      console.error("Erro ao registrar log de auditoria", e);
+    }
+  };
+
   const addRequest = async (req: RepairRequest) => {
     try {
       await dbApi.createRequest(req);
       await refreshRequests();
+      await createAudit(AuditAction.CREATE, AuditEntity.REQUEST, req.id, { protocol: req.protocol });
       notify('Vistoria salva com sucesso!');
     } catch (e: any) { notify(`Erro: ${e.message}`, 'error'); }
   };
@@ -356,7 +377,8 @@ const App: React.FC = () => {
       setRequests(prev => prev.map(r => r.id === req.id ? req : r));
       await dbApi.updateRequest(req);
       await refreshRequests();
-      notify('Registro atualizado com sucesso no banco de dados.');
+      await createAudit(AuditAction.UPDATE, AuditEntity.REQUEST, req.id, { status: req.status, protocol: req.protocol });
+      notify('Registro atualizado com sucesso.');
     } catch (e: any) { 
       notify(`Erro ao sincronizar com banco: ${e.message}`, 'error'); 
       await refreshRequests();
@@ -364,10 +386,12 @@ const App: React.FC = () => {
   };
 
   const deleteRequest = async (id: string) => {
+    const req = requests.find(r => r.id === id);
     try {
       setRequests(prev => prev.filter(r => r.id !== id));
       await dbApi.deleteRequest(id);
       await refreshRequests();
+      await createAudit(AuditAction.DELETE, AuditEntity.REQUEST, id, { protocol: req?.protocol });
     } catch (e: any) { notify(`Erro: ${e.message}`, 'error'); }
   };
   
@@ -375,6 +399,7 @@ const App: React.FC = () => {
     try {
       await dbApi.saveUser(user);
       setUsers(prev => [...prev, user]);
+      await createAudit(AuditAction.CREATE, AuditEntity.USER, user.id, { name: user.name, role: user.role });
       notify('Usuário cadastrado!');
     } catch (e: any) { notify(`Erro: ${e.message}`, 'error'); }
   };
@@ -384,14 +409,17 @@ const App: React.FC = () => {
       await dbApi.saveUser(user);
       setUsers(prev => prev.map(u => u.id === user.id ? user : u));
       if (currentUser?.id === user.id) setCurrentUser(user);
+      await createAudit(AuditAction.UPDATE, AuditEntity.USER, user.id, { name: user.name, role: user.role });
       notify('Dados atualizados.');
     } catch (e: any) { notify(`Erro: ${e.message}`, 'error'); }
   };
 
   const deleteUser = async (id: string) => {
+    const u = users.find(user => user.id === id);
     try {
       await dbApi.deleteUser(id);
       setUsers(prev => prev.filter(u => u.id !== id));
+      await createAudit(AuditAction.DELETE, AuditEntity.USER, id, { name: u?.name });
       notify('Usuário removido.');
     } catch (e: any) { notify(`Erro: ${e.message}`, 'error'); }
   };
@@ -400,6 +428,7 @@ const App: React.FC = () => {
     try {
       await dbApi.saveZonal(zonal);
       setZonals(prev => prev.map(z => z.id === zonal.id ? zonal : z));
+      await createAudit(AuditAction.UPDATE, AuditEntity.ZONAL, zonal.id, { name: zonal.name });
       notify('Unidade atualizada!');
     } catch (e: any) { notify(`Erro: ${e.message}`, 'error'); }
   };
@@ -438,6 +467,7 @@ const App: React.FC = () => {
                   <Route path="/requests/:id" element={<RequestDetailsPage />} />
                   <Route path="/new" element={<NewRequestPage />} />
                   <Route path="/org" element={<OrgSetupPage />} />
+                  <Route path="/audit" element={<AuditLogPage />} />
                  </Routes>
                )}
             </div>
