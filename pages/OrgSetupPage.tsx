@@ -6,7 +6,8 @@ import { ROLE_CONFIG } from '../constants';
 import { 
   UserPlus, Settings, Shield, Map as MapIcon, Edit2, Trash2, X, 
   Save, Search, UserCog, ShieldCheck, ShieldAlert, ArrowLeft, 
-  ChevronDown, Lock, Users as UsersIcon, Database, Plus, Briefcase, Info
+  ChevronDown, Lock, Users as UsersIcon, Database, Plus, Briefcase, Info,
+  Loader2
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -21,6 +22,7 @@ const OrgSetupPage: React.FC = () => {
   
   const [activeTab, setActiveTab] = useState<'zonals' | 'personnel'>('personnel');
   const [searchTerm, setSearchTerm] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Modais de Usuário
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
@@ -51,44 +53,60 @@ const OrgSetupPage: React.FC = () => {
     );
   }
 
-  // --- HANDLERS USUÁRIO ---
-  const handleSaveUser = (e: React.FormEvent<HTMLFormElement>) => {
+  // --- HANDLERS USUÁRIO (ASSÍNCRONOS PARA PERSISTÊNCIA) ---
+  const handleSaveUser = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const userData: User = {
-      id: editingUser?.id || `u_${Date.now()}`,
-      name: formData.get('name') as string,
-      role: formData.get('role') as AppRole,
-      zonal: formData.get('zonal') as string,
-      registrationNumber: formData.get('registrationNumber') as string,
-      position: formData.get('position') as string,
-      function: formData.get('function') as string,
-      email: formData.get('email') as string,
-      password: editingUser?.password
-    };
-    if (editingUser) {
-      updateUser(userData);
-      notify("Registro atualizado com sucesso.");
-    } else {
-      addUser(userData);
-      notify("Colaborador cadastrado (Senha padrão: 123456).");
+    setIsSubmitting(true);
+    try {
+      const formData = new FormData(e.currentTarget);
+      const userData: User = {
+        id: editingUser?.id || `u_${Date.now()}`,
+        name: formData.get('name') as string,
+        role: formData.get('role') as AppRole,
+        zonal: formData.get('zonal') as string,
+        registrationNumber: formData.get('registrationNumber') as string,
+        position: formData.get('position') as string,
+        function: formData.get('function') as string,
+        email: formData.get('email') as string,
+        password: editingUser?.password
+      };
+
+      if (editingUser) {
+        await updateUser(userData);
+        notify("Registro atualizado com sucesso no banco de dados.");
+      } else {
+        await addUser(userData);
+        notify("Colaborador cadastrado (Senha padrão: 123456).");
+      }
+      setIsUserModalOpen(false);
+    } catch (error) {
+      console.error(error);
+      notify("Erro ao persistir dados. Verifique a conexão ou colunas do banco.", "error");
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsUserModalOpen(false);
   };
 
   // --- HANDLERS ZONAL ---
-  const handleSaveZonal = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSaveZonal = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const zonalData: ZonalMetadata = {
-      id: editingZonal?.id || `zonal_${Date.now()}`,
-      name: formData.get('name') as string,
-      managerId: formData.get('managerId') as string,
-      description: formData.get('description') as string,
-    };
-    updateZonal(zonalData);
-    notify(editingZonal ? "Unidade atualizada." : "Nova unidade zonal criada.");
-    setIsZonalModalOpen(false);
+    setIsSubmitting(true);
+    try {
+      const formData = new FormData(e.currentTarget);
+      const zonalData: ZonalMetadata = {
+        id: editingZonal?.id || `zonal_${Date.now()}`,
+        name: formData.get('name') as string,
+        managerId: formData.get('managerId') as string,
+        description: formData.get('description') as string,
+      };
+      await updateZonal(zonalData);
+      notify(editingZonal ? "Unidade atualizada." : "Nova unidade zonal criada.");
+      setIsZonalModalOpen(false);
+    } catch (error) {
+      notify("Erro ao salvar unidade.", "error");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const filteredUsers = users.filter(u => 
@@ -248,27 +266,27 @@ const OrgSetupPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 block">Nome Completo</label>
-                  <input name="name" defaultValue={editingUser?.name} required placeholder="Nome do Servidor" className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm" />
+                  <input name="name" defaultValue={editingUser?.name} required placeholder="Nome do Servidor" className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500/20" />
                 </div>
                 
                 <div>
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 block">Cargo (Título)</label>
-                  <input name="position" defaultValue={editingUser?.position} placeholder="Ex: Engenheiro III" className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm" />
+                  <input name="position" defaultValue={editingUser?.position} placeholder="Ex: Engenheiro III" className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500/20" />
                 </div>
                 <div>
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 block">Função (Atividade)</label>
-                  <input name="function" defaultValue={editingUser?.function} placeholder="Ex: Fiscal de Campo" className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm" />
+                  <input name="function" defaultValue={editingUser?.function} placeholder="Ex: Fiscal de Campo" className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500/20" />
                 </div>
 
                 <div>
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 block">Regra de Acesso</label>
-                  <select name="role" defaultValue={editingUser?.role || AppRole.OPERATOR} className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm appearance-none bg-white">
+                  <select name="role" defaultValue={editingUser?.role || AppRole.OPERATOR} className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm appearance-none bg-white outline-none focus:ring-2 focus:ring-blue-500/20">
                     {Object.values(AppRole).map(role => <option key={role} value={role}>{ROLE_CONFIG[role]?.label}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 block">Lotação Atual</label>
-                  <select name="zonal" defaultValue={editingUser?.zonal} className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm appearance-none bg-white">
+                  <select name="zonal" defaultValue={editingUser?.zonal} className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm appearance-none bg-white outline-none focus:ring-2 focus:ring-blue-500/20">
                     <option value="">Sem Unidade Fixa</option>
                     {zonals.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
                   </select>
@@ -276,13 +294,20 @@ const OrgSetupPage: React.FC = () => {
 
                 <div className="col-span-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 block">Matrícula (RF)</label>
-                  <input name="registrationNumber" defaultValue={editingUser?.registrationNumber} placeholder="Registro Funcional" className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm" />
+                  <input name="registrationNumber" defaultValue={editingUser?.registrationNumber} placeholder="Registro Funcional" className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500/20" />
                 </div>
               </div>
 
               <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => setIsUserModalOpen(false)} className="flex-1 h-14 bg-white border border-slate-200 text-slate-500 font-black uppercase text-[10px] tracking-widest rounded-xl hover:bg-slate-50 transition-all">Cancelar</button>
-                <button type="submit" className="flex-[2] h-14 bg-blue-600 text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-xl hover:bg-blue-700 transition-all">Salvar Alterações</button>
+                <button type="button" onClick={() => setIsUserModalOpen(false)} className="flex-1 h-14 bg-white border border-slate-200 text-slate-500 font-black uppercase text-[10px] tracking-widest rounded-xl hover:bg-slate-50 transition-all disabled:opacity-50">Cancelar</button>
+                <button 
+                  type="submit" 
+                  disabled={isSubmitting}
+                  className="flex-[2] h-14 bg-blue-600 text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-70"
+                >
+                  {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  {isSubmitting ? 'Gravando...' : 'Salvar Alterações'}
+                </button>
               </div>
             </form>
           </div>
@@ -307,14 +332,13 @@ const OrgSetupPage: React.FC = () => {
             <form onSubmit={handleSaveZonal} className="p-8 space-y-6">
               <div>
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 block">Nome da Unidade Zonal</label>
-                <input name="name" defaultValue={editingZonal?.name} required placeholder="Ex: Zonal Centro-Sul" className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm" />
+                <input name="name" defaultValue={editingZonal?.name} required placeholder="Ex: Zonal Centro-Sul" className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500/20" />
               </div>
 
               <div>
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 block">Engenheiro Responsável</label>
-                <select name="managerId" defaultValue={editingZonal?.managerId} className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm appearance-none bg-white">
+                <select name="managerId" defaultValue={editingZonal?.managerId} className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm appearance-none bg-white outline-none focus:ring-2 focus:ring-blue-500/20">
                   <option value="">Aguardando Designação</option>
-                  {/* FILTRO REFINADO: Apenas Admin ou superior (Editor/Gestor), excluindo Operator/Guest */}
                   {users.filter(u => u.role === AppRole.ADMIN || u.role === AppRole.EDITOR).map(u => (
                     <option key={u.id} value={u.id}>{u.name} ({ROLE_CONFIG[u.role]?.label})</option>
                   ))}
@@ -323,12 +347,19 @@ const OrgSetupPage: React.FC = () => {
 
               <div>
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 block">Observações / Jurisdição</label>
-                <textarea name="description" defaultValue={editingZonal?.description} rows={3} placeholder="Descrição da abrangência territorial..." className="w-full p-4 border border-slate-200 rounded-xl font-medium text-sm text-slate-700 outline-none" />
+                <textarea name="description" defaultValue={editingZonal?.description} rows={3} placeholder="Descrição da abrangência territorial..." className="w-full p-4 border border-slate-200 rounded-xl font-medium text-sm text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20" />
               </div>
 
               <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => setIsZonalModalOpen(false)} className="flex-1 h-14 bg-white border border-slate-200 text-slate-500 font-black uppercase text-[10px] tracking-widest rounded-xl hover:bg-slate-50 transition-all">Cancelar</button>
-                <button type="submit" className="flex-[2] h-14 bg-slate-900 text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-xl hover:bg-slate-800 transition-all">Salvar Unidade</button>
+                <button type="button" onClick={() => setIsZonalModalOpen(false)} className="flex-1 h-14 bg-white border border-slate-200 text-slate-500 font-black uppercase text-[10px] tracking-widest rounded-xl hover:bg-slate-50 transition-all disabled:opacity-50">Cancelar</button>
+                <button 
+                  type="submit" 
+                  disabled={isSubmitting}
+                  className="flex-[2] h-14 bg-slate-900 text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-2 disabled:opacity-70"
+                >
+                  {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  {isSubmitting ? 'Salvando...' : 'Confirmar Unidade'}
+                </button>
               </div>
             </form>
           </div>
