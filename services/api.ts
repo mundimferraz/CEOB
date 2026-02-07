@@ -3,6 +3,27 @@ import { RepairRequest, User, ZonalMetadata, AuditLog } from '../types';
 import { supabase } from './supabase';
 
 export const dbApi = {
+  // Autenticação
+  async login(username: string, password: string): Promise<User | null> {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .or(`name.eq."${username}",registration_number.eq."${username}"`)
+      .eq('password', password)
+      .single();
+    
+    if (error || !data) return null;
+
+    return {
+      id: data.id,
+      name: data.name,
+      role: data.role,
+      zonal: data.zonal,
+      registrationNumber: data.registration_number,
+      email: data.email
+    };
+  },
+
   // Auditoria
   async createAuditLog(log: Omit<AuditLog, 'id' | 'created_at'>): Promise<void> {
     const { error } = await supabase
@@ -45,10 +66,7 @@ export const dbApi = {
       .select('*')
       .order('created_at', { ascending: false });
     
-    if (error) {
-      console.error('Supabase getRequests Error:', error);
-      throw error;
-    }
+    if (error) throw error;
 
     return (data || []).map(req => ({
       id: req.id,
@@ -92,13 +110,11 @@ export const dbApi = {
         created_at: request.createdAt
       }]);
     
-    if (error) {
-      console.error('Supabase createRequest Error:', error);
-      throw error;
-    }
+    if (error) throw error;
   },
 
   async updateRequest(request: RepairRequest): Promise<void> {
+    // Fix: Using technicianId instead of technician_id as technician_id is not a property of RepairRequest
     const { error } = await supabase
       .from('repair_requests')
       .update({
@@ -118,10 +134,7 @@ export const dbApi = {
       })
       .eq('id', request.id);
     
-    if (error) {
-      console.error('Supabase updateRequest Error:', error);
-      throw error;
-    }
+    if (error) throw error;
   },
 
   async deleteRequest(id: string): Promise<void> {
@@ -129,11 +142,7 @@ export const dbApi = {
       .from('repair_requests')
       .delete()
       .eq('id', id);
-    
-    if (error) {
-      console.error('Supabase deleteRequest Error:', error);
-      throw error;
-    }
+    if (error) throw error;
   },
 
   // Usuários
@@ -141,11 +150,7 @@ export const dbApi = {
     const { data, error } = await supabase
       .from('users')
       .select('*');
-    
-    if (error) {
-      console.error('Supabase getUsers Error:', error);
-      throw error;
-    }
+    if (error) throw error;
 
     return (data || []).map(u => ({
       id: u.id,
@@ -166,13 +171,10 @@ export const dbApi = {
         role: user.role,
         zonal: user.zonal,
         registration_number: user.registrationNumber || null,
-        email: user.email || null
+        email: user.email || null,
+        password: user.password || '123456'
       }], { onConflict: 'id' });
-    
-    if (error) {
-      console.error('Supabase saveUser Error:', error);
-      throw error;
-    }
+    if (error) throw error;
   },
 
   async deleteUser(id: string): Promise<void> {
@@ -180,22 +182,15 @@ export const dbApi = {
       .from('users')
       .delete()
       .eq('id', id);
-    
-    if (error) {
-      console.error('Supabase deleteUser Error:', error);
-      throw error;
-    }
+    if (error) throw error;
   },
 
-  // Zonal Metadata
+  // Zonais
   async getZonals(): Promise<ZonalMetadata[]> {
     const { data, error } = await supabase
       .from('zonals')
       .select('*');
-    if (error) {
-      console.error('Supabase getZonals Error:', error);
-      throw error;
-    }
+    if (error) throw error;
     return (data || []).map(z => ({
       id: z.id,
       name: z.name,
@@ -206,22 +201,15 @@ export const dbApi = {
   },
 
   async saveZonal(zonal: ZonalMetadata): Promise<void> {
-    // Corrected assistantId property access (line 213)
-    const payload = {
-      id: zonal.id,
-      name: zonal.name,
-      manager_id: zonal.managerId || null,
-      assistant_id: zonal.assistantId || null,
-      description: zonal.description || null
-    };
-
     const { error } = await supabase
       .from('zonals')
-      .upsert([payload], { onConflict: 'id' });
-    
-    if (error) {
-      console.error('Supabase saveZonal Error Detail:', error);
-      throw error;
-    }
+      .upsert([{
+        id: zonal.id,
+        name: zonal.name,
+        manager_id: zonal.managerId || null,
+        assistant_id: zonal.assistantId || null,
+        description: zonal.description || null
+      }], { onConflict: 'id' });
+    if (error) throw error;
   }
 };

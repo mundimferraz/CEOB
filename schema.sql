@@ -1,17 +1,15 @@
 
--- ... (mantenha o conteúdo anterior)
+-- 1. ADICIONAR COLUNA DE SENHA SE NÃO EXISTIR
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password TEXT;
 
--- 6. TABELA DE AUDITORIA (LOGS)
-CREATE TABLE IF NOT EXISTS audit_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id TEXT NOT NULL,
-    user_name TEXT NOT NULL,
-    action TEXT NOT NULL, -- CREATE, UPDATE, DELETE
-    entity_type TEXT NOT NULL, -- REQUEST, USER, ZONAL
-    entity_id TEXT NOT NULL,
-    details JSONB,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
+-- 2. LIMPAR USUÁRIOS ANTIGOS PARA EVITAR CONFLITOS (OPCIONAL EM PROD)
+DELETE FROM users WHERE id IN ('admin_root', 'user_standard', 'guest_viewer');
 
-ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Acesso Total Auditoria" ON audit_logs FOR ALL USING (true) WITH CHECK (true);
+-- 3. INSERIR USUÁRIOS PADRÃO
+INSERT INTO users (id, name, role, zonal, registration_number, email, password)
+VALUES 
+('admin_root', 'Administrador Root', 'Admin', 'Zonal Norte', 'ROOT-001', 'admin@sgrvias.gov.br', 'admin'),
+('user_standard', 'Operador de Campo', 'Operator', 'Zonal Sul', 'TECH-002', 'user@sgrvias.gov.br', 'user'),
+('guest_viewer', 'Visitante Auditor', 'Viewer', 'Zonal Leste', 'GUEST-003', 'guest@sgrvias.gov.br', 'guest');
+
+-- ... (mantenha o restante das tabelas de auditoria e vistorias conforme arquivos anteriores)

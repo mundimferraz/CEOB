@@ -30,6 +30,7 @@ export interface User {
   zonal: ZonalType;
   email?: string;
   registrationNumber?: string;
+  password?: string; // Novo campo para autenticação
 }
 
 export interface LocationData {
@@ -62,7 +63,6 @@ export interface ZonalMetadata {
   description?: string;
 }
 
-// Novos tipos para Auditoria
 export enum AuditAction {
   CREATE = 'CRIAÇÃO',
   UPDATE = 'ALTERAÇÃO',
