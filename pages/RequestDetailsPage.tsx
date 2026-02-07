@@ -2,7 +2,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
-import { MapPin, Calendar, User as UserIcon, FileText, Camera, Download, Trash2, CheckCircle, AlertTriangle, Crosshair, ImageIcon, Edit2, X, Save, ExternalLink, Loader2, ShieldCheck, UserCheck, Users, ChevronDown, Share2, Hash, Briefcase, ClipboardList, UploadCloud, RefreshCw } from 'lucide-react';
+import { 
+  MapPin, Calendar, User as UserIcon, FileText, Camera, Download, Trash2, 
+  CheckCircle, AlertTriangle, Crosshair, ImageIcon, Edit2, X, Save, 
+  ExternalLink, Loader2, ShieldCheck, UserCheck, Users, ChevronDown, 
+  Share2, Hash, Briefcase, ClipboardList, UploadCloud, RefreshCw, Navigation
+} from 'lucide-react';
 import { useApp } from '../App';
 import { RequestStatus } from '../types';
 import { STATUS_COLORS } from '../constants';
@@ -15,6 +20,8 @@ const RequestDetailsPage: React.FC = () => {
   
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const mapRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
 
   const request = requests.find(r => r.id === id);
   const tech = users.find(u => u.id === request?.technicianId);
@@ -27,6 +34,12 @@ const RequestDetailsPage: React.FC = () => {
   const [editedSei, setEditedSei] = useState('');
   const [editedContract, setEditedContract] = useState('');
   const [editedDescription, setEditedDescription] = useState('');
+  
+  // Estados para edição de coordenadas
+  const [editedLat, setEditedLat] = useState<number>(0);
+  const [editedLng, setEditedLng] = useState<number>(0);
+  const [isEditingCoords, setIsEditingCoords] = useState(false);
+  const [isMapLoading, setIsMapLoading] = useState(false);
 
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [isEditingProtocol, setIsEditingProtocol] = useState(false);
@@ -35,7 +48,6 @@ const RequestDetailsPage: React.FC = () => {
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isEditingTech, setIsEditingTech] = useState(false);
   
-  // Estados de processamento de imagem
   const [isProcessingBefore, setIsProcessingBefore] = useState(false);
   const [isProcessingAfter, setIsProcessingAfter] = useState(false);
   const [activePhotoSlot, setActivePhotoSlot] = useState<'before' | 'after' | null>(null);
@@ -47,8 +59,51 @@ const RequestDetailsPage: React.FC = () => {
       setEditedSei(request.seiNumber || '');
       setEditedContract(request.contract || '');
       setEditedDescription(request.description || '');
+      setEditedLat(request.location.latitude);
+      setEditedLng(request.location.longitude);
     }
-  }, [request?.id, request?.seiNumber, request?.contract, request?.protocol, request?.description, request?.location.address]);
+  }, [request?.id, request?.seiNumber, request?.contract, request?.protocol, request?.description, request?.location.address, request?.location.latitude, request?.location.longitude]);
+
+  // Inicialização do mapa de edição
+  useEffect(() => {
+    if (isEditingCoords && !mapRef.current) {
+      const L = (window as any).L;
+      if (!L) return;
+
+      setTimeout(() => {
+        mapRef.current = L.map('edit-map-container').setView([editedLat, editedLng], 16);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapRef.current);
+
+        markerRef.current = L.marker([editedLat, editedLng], { draggable: true }).addTo(mapRef.current);
+
+        const updateFromMarker = async () => {
+          const pos = markerRef.current.getLatLng();
+          setEditedLat(pos.lat);
+          setEditedLng(pos.lng);
+          
+          // Reverse geocoding opcional para ajudar o usuário
+          try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.lat}&lon=${pos.lng}`);
+            const data = await res.json();
+            if (data.display_name) setEditedAddress(data.display_name);
+          } catch(e) {}
+        };
+
+        markerRef.current.on('dragend', updateFromMarker);
+        mapRef.current.on('click', (e: any) => {
+          markerRef.current.setLatLng(e.latlng);
+          updateFromMarker();
+        });
+      }, 100);
+    }
+
+    return () => {
+      if (!isEditingCoords && mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, [isEditingCoords]);
 
   const canEdit = canDo('edit_request');
 
@@ -64,6 +119,27 @@ const RequestDetailsPage: React.FC = () => {
 
   const handleStatusChange = (newStatus: RequestStatus) => {
     updateRequest({ ...request, status: newStatus });
+  };
+
+  const handleSaveCoords = async () => {
+    setIsMapLoading(true);
+    try {
+      await updateRequest({
+        ...request,
+        location: {
+          ...request.location,
+          latitude: editedLat,
+          longitude: editedLng,
+          address: editedAddress // Opcional: atualizar endereço junto
+        }
+      });
+      setIsEditingCoords(false);
+      notify("Coordenadas geográficas atualizadas com sucesso!");
+    } catch (e) {
+      notify("Erro ao atualizar posição.", "error");
+    } finally {
+      setIsMapLoading(false);
+    }
   };
 
   const handleShareImage = async (base64Data: string, title: string) => {
@@ -124,7 +200,6 @@ const RequestDetailsPage: React.FC = () => {
     setIsEditingDescription(false);
   };
 
-  // Nova lógica unificada para processamento de fotos (Antes e Depois)
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && request && activePhotoSlot) {
@@ -323,7 +398,7 @@ const RequestDetailsPage: React.FC = () => {
       <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoUpload} />
       <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
 
-      {/* Header com Status e Título */}
+      {/* Header */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
@@ -399,7 +474,7 @@ const RequestDetailsPage: React.FC = () => {
             </div>
             
             <div className="p-6 md:p-8 space-y-10">
-              {/* Informações Básicas */}
+              {/* Informações Processuais */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
                 <div className="group">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Processo SEI</p>
@@ -431,45 +506,91 @@ const RequestDetailsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Localização */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <a 
-                  href={mapsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-5 bg-slate-900 rounded-3xl border border-slate-800 flex items-start gap-4 transition-all hover:bg-slate-800 group shadow-lg"
-                >
-                   <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white flex-shrink-0 shadow-lg group-hover:scale-110 transition-transform">
+              {/* Localização e Mapa Interativo */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-5 bg-slate-900 rounded-3xl border border-slate-800 flex items-start gap-4 transition-all group shadow-lg">
+                    <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white flex-shrink-0 shadow-lg group-hover:scale-110 transition-transform">
                       <Crosshair size={24} />
-                   </div>
-                   <div className="flex-1">
-                      <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Coordenadas Geodésicas</p>
-                      <p className="font-bold text-white text-sm tracking-widest">
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Georreferenciamento</p>
+                        {canEdit && (
+                          <button 
+                            onClick={() => setIsEditingCoords(!isEditingCoords)}
+                            className={`p-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${isEditingCoords ? 'bg-emerald-500 text-white' : 'text-emerald-500 hover:bg-emerald-500/10'}`}
+                          >
+                            {isEditingCoords ? <X size={12} /> : 'Ajustar no Mapa'}
+                          </button>
+                        )}
+                      </div>
+                      <p className="font-bold text-white text-xs tracking-widest truncate">
                         {request.location.latitude.toFixed(6)}, {request.location.longitude.toFixed(6)}
                       </p>
-                      <p className="text-[8px] text-emerald-600 font-bold uppercase mt-1">Abrir Rota no GPS</p>
-                   </div>
-                </a>
+                      {!isEditingCoords && (
+                        <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="text-[8px] text-emerald-600 font-black uppercase mt-1 flex items-center gap-1">
+                           Abrir GPS Externo <ExternalLink size={8} />
+                        </a>
+                      )}
+                    </div>
+                  </div>
 
-                <div className="p-5 bg-blue-50 rounded-3xl border border-blue-100 flex items-start gap-4 shadow-sm">
-                   <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white flex-shrink-0 shadow-lg">
+                  <div className="p-5 bg-blue-50 rounded-3xl border border-blue-100 flex items-start gap-4 shadow-sm">
+                    <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white flex-shrink-0 shadow-lg">
                       <MapPin size={24} />
-                   </div>
-                   <div className="flex-1 min-w-0">
+                    </div>
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Logradouro / Endereço</p>
+                        <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Endereço Postal</p>
                         {canEdit && <button onClick={() => setIsEditingAddress(!isEditingAddress)} className="text-blue-600 hover:text-blue-800"><Edit2 size={14} /></button>}
                       </div>
                       {isEditingAddress ? (
                         <div className="flex flex-col gap-2">
-                          <textarea className="w-full text-sm font-bold text-blue-900 bg-white border border-blue-200 rounded-lg p-2 outline-none" value={editedAddress} onChange={(e) => setEditedAddress(e.target.value)} rows={2} />
-                          <button onClick={handleSaveAddress} className="bg-blue-600 text-white text-[10px] font-black uppercase py-2 rounded-lg">Salvar Endereço</button>
+                          <textarea className="w-full text-xs font-bold text-blue-900 bg-white border border-blue-200 rounded-lg p-2 outline-none" value={editedAddress} onChange={(e) => setEditedAddress(e.target.value)} rows={2} />
+                          <button onClick={handleSaveAddress} className="bg-blue-600 text-white text-[9px] font-black uppercase py-2 rounded-lg">Confirmar</button>
                         </div>
                       ) : (
-                        <p className="font-bold text-blue-900 text-sm leading-snug line-clamp-2">{request.location.address}</p>
+                        <p className="font-bold text-blue-900 text-xs leading-snug line-clamp-2">{request.location.address}</p>
                       )}
-                   </div>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Mapa de Edição de Coordenadas */}
+                {isEditingCoords && (
+                  <div className="animate-in slide-in-from-top-4 duration-300">
+                    <div className="bg-white p-3 rounded-[2rem] border-2 border-emerald-500/30 shadow-2xl space-y-3">
+                      <div className="flex items-center justify-between px-2">
+                        <div className="flex items-center gap-2">
+                           <Navigation size={14} className="text-emerald-500 animate-pulse" />
+                           <span className="text-[10px] font-black uppercase text-slate-500">Mova o marcador para a posição exata</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => setIsEditingCoords(false)} 
+                            className="px-4 py-2 bg-slate-100 text-slate-500 rounded-xl text-[9px] font-black uppercase tracking-widest"
+                          >
+                            Cancelar
+                          </button>
+                          <button 
+                            onClick={handleSaveCoords}
+                            disabled={isMapLoading}
+                            className="px-6 py-2 bg-emerald-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg flex items-center gap-2"
+                          >
+                            {isMapLoading ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                            Salvar Nova Posição
+                          </button>
+                        </div>
+                      </div>
+                      <div id="edit-map-container" className="h-64 w-full bg-slate-100 rounded-2xl overflow-hidden border border-slate-200"></div>
+                      <div className="flex justify-between px-2">
+                         <div className="text-[9px] font-mono text-slate-400">LAT: {editedLat.toFixed(8)}</div>
+                         <div className="text-[9px] font-mono text-slate-400">LNG: {editedLng.toFixed(8)}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Parecer Técnico */}
@@ -495,24 +616,20 @@ const RequestDetailsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Galeria Dual */}
+              {/* Galeria */}
               <div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 ml-1">Galeria de Evidências Fotográficas</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                   {/* SLOT: ANTES */}
                    <div className="relative group rounded-[2rem] overflow-hidden border border-slate-200 bg-slate-100 h-64 shadow-md flex items-center justify-center">
                      <div className="absolute top-4 left-4 bg-slate-900/80 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase z-10 backdrop-blur-md">Vistoria Inicial</div>
-                     
                      {isProcessingBefore ? (
                        <Loader2 className="animate-spin text-blue-600" size={32} />
                      ) : request.photoBefore ? (
                        <>
                          <img src={request.photoBefore} alt="Antes" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-sm z-10">
-                            <button onClick={() => handleShareImage(request.photoBefore!, 'Vistoria_Inicial')} className="p-3 bg-white/20 text-white rounded-xl hover:bg-blue-600 transition-all shadow-lg" title="Compartilhar"><Share2 size={18} /></button>
-                            {canEdit && (
-                              <button onClick={() => triggerPhotoSelection('before', 'camera')} className="p-3 bg-white/20 text-white rounded-xl hover:bg-emerald-600 transition-all shadow-lg" title="Trocar Foto"><RefreshCw size={18} /></button>
-                            )}
+                            <button onClick={() => handleShareImage(request.photoBefore!, 'Vistoria_Inicial')} className="p-3 bg-white/20 text-white rounded-xl hover:bg-blue-600 transition-all shadow-lg"><Share2 size={18} /></button>
+                            {canEdit && <button onClick={() => triggerPhotoSelection('before', 'camera')} className="p-3 bg-white/20 text-white rounded-xl hover:bg-emerald-600 transition-all shadow-lg"><RefreshCw size={18} /></button>}
                          </div>
                        </>
                      ) : (
@@ -528,22 +645,18 @@ const RequestDetailsPage: React.FC = () => {
                      )}
                    </div>
                    
-                   {/* SLOT: DEPOIS */}
                    <div className="relative group rounded-[2rem] overflow-hidden border border-slate-200 bg-slate-100 h-64 shadow-md flex items-center justify-center">
                       <div className={`absolute top-4 left-4 ${request.photoAfter ? 'bg-emerald-600' : 'bg-amber-600'} text-white px-3 py-1 rounded-full text-[10px] font-black uppercase z-10 backdrop-blur-md shadow-lg`}>
                         {request.photoAfter ? 'Conclusão da Obra' : 'Aguardando Término'}
                       </div>
-                      
                       {isProcessingAfter ? (
                         <Loader2 className="animate-spin text-emerald-600" size={32} />
                       ) : request.photoAfter ? (
                          <>
                            <img src={request.photoAfter} alt="Depois" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-sm z-10">
-                              <button onClick={() => handleShareImage(request.photoAfter!, 'Vistoria_Conclusao')} className="p-3 bg-white/20 text-white rounded-xl hover:bg-blue-600 transition-all shadow-lg" title="Compartilhar"><Share2 size={18} /></button>
-                              {canEdit && (
-                                <button onClick={() => triggerPhotoSelection('after', 'camera')} className="p-3 bg-white/20 text-white rounded-xl hover:bg-emerald-600 transition-all shadow-lg" title="Trocar Foto"><RefreshCw size={18} /></button>
-                              )}
+                              <button onClick={() => handleShareImage(request.photoAfter!, 'Vistoria_Conclusao')} className="p-3 bg-white/20 text-white rounded-xl hover:bg-blue-600 transition-all shadow-lg"><Share2 size={18} /></button>
+                              {canEdit && <button onClick={() => triggerPhotoSelection('after', 'camera')} className="p-3 bg-white/20 text-white rounded-xl hover:bg-emerald-600 transition-all shadow-lg"><RefreshCw size={18} /></button>}
                            </div>
                          </>
                       ) : (
@@ -555,7 +668,6 @@ const RequestDetailsPage: React.FC = () => {
                                 <button onClick={() => triggerPhotoSelection('after', 'gallery')} className="h-10 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest">Subir Arquivo</button>
                               </div>
                             )}
-                            <p className="text-[8px] font-black text-emerald-700 uppercase tracking-widest">O selo digital será aplicado</p>
                          </div>
                       )}
                    </div>
@@ -565,7 +677,7 @@ const RequestDetailsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Sidebar Técnica */}
+        {/* Sidebar */}
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm">
             <h2 className="font-black text-slate-900 uppercase tracking-tight mb-6 flex items-center gap-2">
@@ -621,24 +733,6 @@ const RequestDetailsPage: React.FC = () => {
                 <span className="text-slate-900 font-bold">{getZonalName(request.zonal)}</span>
               </div>
             </div>
-          </div>
-
-          <div className="bg-slate-900 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group">
-             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><FileText size={120} /></div>
-             <div className="flex items-center gap-2 mb-4 relative z-10">
-                <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-slate-900"><CheckCircle size={18} /></div>
-                <h3 className="font-black uppercase tracking-tight text-sm">Resumo Executivo</h3>
-             </div>
-             <p className="text-xs text-slate-400 font-medium leading-relaxed mb-8 relative z-10">Situação atual da ordem de serviço: <strong>{request.status.toUpperCase()}</strong>. {request.status !== RequestStatus.COMPLETED ? 'Aguardando validação final em campo.' : 'Obra finalizada e georreferenciada.'}</p>
-             <div className="space-y-2 relative z-10">
-                <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden shadow-inner">
-                   <div className={`h-full bg-emerald-500 transition-all duration-1000 ${request.status === RequestStatus.COMPLETED ? 'w-full' : request.status === RequestStatus.IN_PROGRESS ? 'w-1/2' : 'w-1/4'}`}></div>
-                </div>
-                <div className="flex justify-between items-center">
-                   <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Eficiência</p>
-                   <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">{request.status}</p>
-                </div>
-             </div>
           </div>
         </div>
       </div>
