@@ -50,7 +50,6 @@ const RequestDetailsPage: React.FC = () => {
   const [isProcessingAfter, setIsProcessingAfter] = useState(false);
   const [activePhotoSlot, setActivePhotoSlot] = useState<'before' | 'after' | null>(null);
 
-  // Estados para o Visualizador Fullscreen
   const [fullscreenImage, setFullscreenImage] = useState<{url: string, title: string} | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
 
@@ -89,7 +88,6 @@ const RequestDetailsPage: React.FC = () => {
     return () => { if (!isEditingCoords && mapRef.current) { mapRef.current.remove(); mapRef.current = null; } };
   }, [isEditingCoords]);
 
-  // Listener para fechar modal com ESC
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') setFullscreenImage(null); };
     window.addEventListener('keydown', handleEsc);
@@ -97,19 +95,6 @@ const RequestDetailsPage: React.FC = () => {
   }, []);
 
   if (!request) return <div className="p-12 text-center">Solicitação não encontrada</div>;
-
-  const canEdit = canDo('edit_request');
-
-  const handleStatusChange = (newStatus: RequestStatus) => updateRequest({ ...request, status: newStatus });
-
-  const handleSaveCoords = async () => {
-    setIsMapLoading(true);
-    try {
-      await updateRequest({ ...request, location: { ...request.location, latitude: editedLat, longitude: editedLng } });
-      setIsEditingCoords(false);
-      notify("Coordenadas atualizadas!");
-    } finally { setIsMapLoading(false); }
-  };
 
   const handleShareImage = async (base64Data: string, title: string) => {
     try {
@@ -125,10 +110,6 @@ const RequestDetailsPage: React.FC = () => {
         link.click();
       }
     } catch (err) { notify("Erro ao processar imagem.", "error"); }
-  };
-
-  const saveField = async (field: string, value: any) => {
-    await updateRequest({ ...request, [field]: value });
   };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -160,14 +141,104 @@ const RequestDetailsPage: React.FC = () => {
     }
   };
 
-  const generatePDF = () => { /* ... mesma lógica do PDF ... */ };
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Cabeçalho Institucional
+    doc.setFillColor(15, 23, 42); // Slate 900
+    doc.rect(0, 0, pageWidth, 40, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('LAUDO TÉCNICO DE INSPEÇÃO - SGR-VIAS', 20, 20);
+    
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Protocolo: ${request.protocol} | Documento SEI: ${request.seiNumber}`, 20, 28);
+    doc.text(`Data do Relatório: ${new Date().toLocaleDateString('pt-BR')}`, 20, 33);
+
+    // Corpo do Documento
+    doc.setTextColor(30, 41, 59); // Slate 800
+    
+    // Seção: Informações de Localização
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('1. LOCALIZAÇÃO E IDENTIFICAÇÃO', 20, 55);
+    doc.setDrawColor(226, 232, 240);
+    doc.line(20, 58, pageWidth - 20, 58);
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Endereço: ${request.location.address}`, 20, 68, { maxWidth: pageWidth - 40 });
+    doc.text(`Coordenadas: ${request.location.latitude.toFixed(6)}, ${request.location.longitude.toFixed(6)}`, 20, 78);
+    doc.text(`Unidade Zonal: ${getZonalName(request.zonal)}`, 20, 83);
+    doc.text(`Status Atual: ${request.status}`, 20, 88);
+
+    // Seção: Equipe Responsável
+    doc.setFont('helvetica', 'bold');
+    doc.text('2. EQUIPE TÉCNICA', 20, 105);
+    doc.line(20, 108, pageWidth - 20, 108);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Engenheiro Responsável: ${engineer?.name || 'Não designado'}`, 20, 118);
+    doc.text(`Técnico de Campo: ${tech?.name || 'Não designado'}`, 20, 123);
+
+    // Seção: Parecer Técnico
+    doc.setFont('helvetica', 'bold');
+    doc.text('3. DESCRITIVO / PARECER TÉCNICO', 20, 140);
+    doc.line(20, 143, pageWidth - 20, 143);
+    
+    doc.setFont('helvetica', 'italic');
+    doc.text(request.description, 20, 153, { maxWidth: pageWidth - 40, align: 'justify' });
+
+    // Fotos (Nova página se necessário, mas aqui vamos tentar ajustar)
+    if (request.photoBefore || request.photoAfter) {
+      doc.addPage();
+      doc.setFillColor(15, 23, 42);
+      doc.rect(0, 0, pageWidth, 20, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('ANEXO FOTOGRÁFICO', 20, 13);
+      
+      let photoY = 40;
+      if (request.photoBefore) {
+        doc.setTextColor(30, 41, 59);
+        doc.text('EVIDÊNCIA INICIAL (ANTES)', 20, photoY);
+        try {
+          doc.addImage(request.photoBefore, 'JPEG', 20, photoY + 5, pageWidth - 40, 90);
+          photoY += 105;
+        } catch (e) { doc.text('[Erro ao processar imagem de vistoria inicial]', 20, photoY + 10); photoY += 20; }
+      }
+      
+      if (request.photoAfter) {
+        doc.text('EVIDÊNCIA FINAL (DEPOIS)', 20, photoY);
+        try {
+          doc.addImage(request.photoAfter, 'JPEG', 20, photoY + 5, pageWidth - 40, 90);
+        } catch (e) { doc.text('[Erro ao processar imagem de vistoria final]', 20, photoY + 10); }
+      }
+    }
+
+    // Rodapé em todas as páginas
+    const totalPages = doc.internal.pages.length - 1;
+    for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(148, 163, 184);
+        doc.text(`Documento gerado eletronicamente pelo Sistema SGR-Vias - Página ${i} de ${totalPages}`, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
+    }
+
+    doc.save(`Laudo_${request.protocol.replace('.', '_')}.pdf`);
+    notify("PDF gerado com sucesso!");
+  };
 
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto w-full space-y-8 pb-24">
       <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoUpload} />
       <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
 
-      {/* Header com Ações */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
@@ -186,7 +257,6 @@ const RequestDetailsPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden p-6 md:p-8 space-y-8">
-            {/* Seção de Dados e Endereço omitida para brevidade, permanece igual */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                <div className="p-5 bg-slate-900 rounded-3xl border border-slate-800 flex items-start gap-4 shadow-lg">
                   <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white flex-shrink-0 shadow-lg"><Crosshair size={24} /></div>
@@ -204,12 +274,10 @@ const RequestDetailsPage: React.FC = () => {
                </div>
             </div>
 
-            {/* PARECER TÉCNICO */}
             <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 italic font-medium text-slate-700">
                "{request.description}"
             </div>
 
-            {/* GALERIA COM ZOOM */}
             <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Galeria de Evidências Fotográficas</p>
@@ -260,7 +328,6 @@ const RequestDetailsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Sidebar Info */}
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm">
             <h2 className="font-black text-slate-900 uppercase tracking-tight mb-6 flex items-center gap-2">
@@ -280,10 +347,8 @@ const RequestDetailsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* VISUALIZADOR FULLSCREEN DE ALTA PRECISÃO */}
       {fullscreenImage && (
         <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-slate-950/95 backdrop-blur-xl animate-in fade-in duration-300">
-          {/* Top Bar do Visualizador */}
           <div className="absolute top-0 left-0 right-0 p-6 flex items-center justify-between text-white z-50 bg-gradient-to-b from-slate-950/80 to-transparent">
             <div>
               <h2 className="text-xl font-black uppercase tracking-tight italic">{fullscreenImage.title}</h2>
@@ -296,70 +361,22 @@ const RequestDetailsPage: React.FC = () => {
             
             <div className="flex items-center gap-3">
               <div className="hidden md:flex bg-slate-900 border border-slate-800 rounded-2xl p-1 mr-4">
-                <button 
-                  onClick={() => setZoomLevel(Math.max(1, zoomLevel - 0.5))}
-                  className="w-10 h-10 flex items-center justify-center hover:bg-slate-800 rounded-xl transition-colors"
-                >
-                  <ZoomOut size={18} />
-                </button>
-                <div className="w-16 flex items-center justify-center font-black text-xs text-blue-400">
-                  {Math.round(zoomLevel * 100)}%
-                </div>
-                <button 
-                  onClick={() => setZoomLevel(Math.min(4, zoomLevel + 0.5))}
-                  className="w-10 h-10 flex items-center justify-center hover:bg-slate-800 rounded-xl transition-colors"
-                >
-                  <ZoomIn size={18} />
-                </button>
-                <button 
-                  onClick={() => setZoomLevel(1)}
-                  className="w-10 h-10 flex items-center justify-center hover:bg-slate-800 rounded-xl transition-colors text-slate-500"
-                  title="Reset Zoom"
-                >
-                  <RotateCcw size={16} />
-                </button>
+                <button onClick={() => setZoomLevel(Math.max(1, zoomLevel - 0.5))} className="w-10 h-10 flex items-center justify-center hover:bg-slate-800 rounded-xl transition-colors"><ZoomOut size={18} /></button>
+                <div className="w-16 flex items-center justify-center font-black text-xs text-blue-400">{Math.round(zoomLevel * 100)}%</div>
+                <button onClick={() => setZoomLevel(Math.min(4, zoomLevel + 0.5))} className="w-10 h-10 flex items-center justify-center hover:bg-slate-800 rounded-xl transition-colors"><ZoomIn size={18} /></button>
+                <button onClick={() => setZoomLevel(1)} className="w-10 h-10 flex items-center justify-center hover:bg-slate-800 rounded-xl transition-colors text-slate-500" title="Reset Zoom"><RotateCcw size={16} /></button>
               </div>
 
-              <button 
-                onClick={() => handleShareImage(fullscreenImage.url, fullscreenImage.title)}
-                className="w-12 h-12 flex items-center justify-center bg-blue-600 text-white rounded-2xl shadow-xl hover:bg-blue-700 transition-all"
-              >
-                <Download size={20} />
-              </button>
-              <button 
-                onClick={() => { setFullscreenImage(null); setZoomLevel(1); }}
-                className="w-12 h-12 flex items-center justify-center bg-white/10 hover:bg-rose-600 text-white rounded-2xl transition-all border border-white/10"
-              >
-                <X size={24} />
-              </button>
+              <button onClick={() => handleShareImage(fullscreenImage.url, fullscreenImage.title)} className="w-12 h-12 flex items-center justify-center bg-blue-600 text-white rounded-2xl shadow-xl hover:bg-blue-700 transition-all"><Download size={20} /></button>
+              <button onClick={() => { setFullscreenImage(null); setZoomLevel(1); }} className="w-12 h-12 flex items-center justify-center bg-white/10 hover:bg-rose-600 text-white rounded-2xl transition-all border border-white/10"><X size={24} /></button>
             </div>
           </div>
 
-          {/* Área da Imagem */}
-          <div 
-            className="w-full h-full flex items-center justify-center overflow-auto p-4 cursor-grab active:cursor-grabbing scrollbar-hide"
-            onClick={(e) => {
-              // Toggle zoom no clique duplo simulado ou clique simples
-              if (e.detail === 2) setZoomLevel(zoomLevel > 1 ? 1 : 2.5);
-            }}
-          >
-             <img 
-               src={fullscreenImage.url} 
-               alt="ZoomView" 
-               style={{ 
-                 transform: `scale(${zoomLevel})`,
-                 transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                 maxWidth: zoomLevel > 1 ? 'none' : '90%',
-                 maxHeight: zoomLevel > 1 ? 'none' : '85%'
-               }}
-               className="rounded-lg shadow-2xl pointer-events-auto"
-             />
+          <div className="w-full h-full flex items-center justify-center overflow-auto p-4 cursor-grab active:cursor-grabbing scrollbar-hide" onClick={(e) => { if (e.detail === 2) setZoomLevel(zoomLevel > 1 ? 1 : 2.5); }}>
+             <img src={fullscreenImage.url} alt="ZoomView" style={{ transform: `scale(${zoomLevel})`, transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)', maxWidth: zoomLevel > 1 ? 'none' : '90%', maxHeight: zoomLevel > 1 ? 'none' : '85%' }} className="rounded-lg shadow-2xl pointer-events-auto" />
           </div>
 
-          {/* Dica de Navegação */}
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 px-6 py-2 bg-slate-900/60 backdrop-blur-md rounded-full border border-white/10 text-[9px] font-black text-white/50 uppercase tracking-[0.3em] pointer-events-none">
-            Clique duplo para Zoom Rápido • ESC para Sair
-          </div>
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 px-6 py-2 bg-slate-900/60 backdrop-blur-md rounded-full border border-white/10 text-[9px] font-black text-white/50 uppercase tracking-[0.3em] pointer-events-none">Clique duplo para Zoom Rápido • ESC para Sair</div>
         </div>
       )}
 
