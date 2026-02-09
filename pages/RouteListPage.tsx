@@ -5,7 +5,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { 
   Route as RouteIcon, MapPinned, User as UserIcon, Calendar, 
   ChevronRight, Plus, Trash2, MapPin, ListChecks, 
-  ShieldCheck, ArrowRight, ClipboardCheck
+  ShieldCheck, ArrowRight, Share2, Navigation as NavIcon
 } from 'lucide-react';
 
 const RouteListPage: React.FC = () => {
@@ -18,6 +18,42 @@ const RouteListPage: React.FC = () => {
     if (window.confirm(`Deseja remover o roteiro "${name}"?`)) {
       await deleteRoute(id);
       notify("Roteiro removido.");
+    }
+  };
+
+  const handleShareRoute = (routeId: string) => {
+    const route = routes.find(r => r.id === routeId);
+    if (!route) return;
+
+    // Coleta as coordenadas de todas as vistorias do roteiro
+    const points = route.requestIds
+      .map(id => requests.find(r => r.id === id))
+      .filter(req => !!req)
+      .map(req => `${req!.location.latitude},${req!.location.longitude}`);
+
+    if (points.length === 0) {
+        notify("Roteiro sem pontos válidos para mapeamento.", "error");
+        return;
+    }
+
+    // Gerar URL do Google Maps para Direções Multi-Ponto
+    // Formato: https://www.google.com/maps/dir/?api=1&destination=PONTO_FINAL&waypoints=PONTO1|PONTO2|PONTO3
+    const origin = points[0];
+    const destination = points[points.length - 1];
+    const waypoints = points.slice(1, -1).join('|');
+    
+    const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}${waypoints ? `&waypoints=${waypoints}` : ''}&travelmode=driving`;
+
+    // Tentar compartilhar nativamente ou abrir link
+    if (navigator.share) {
+        navigator.share({
+            title: `SGR-Vias: ${route.name}`,
+            text: `Itinerário técnico para: ${getTechnicianName(route.technicianId)}`,
+            url: googleMapsUrl
+        }).catch(() => window.open(googleMapsUrl, '_blank'));
+    } else {
+        window.open(googleMapsUrl, '_blank');
+        notify("Abrindo itinerário no Google Maps...");
     }
   };
 
@@ -72,8 +108,8 @@ const RouteListPage: React.FC = () => {
                   <div className="flex items-end justify-between">
                      <div>
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{route.name}</p>
-                        <div className="flex items-center gap-2 text-xs font-bold">
-                           <Calendar size={12} className="text-slate-500" />
+                        <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
+                           <Calendar size={12} />
                            {new Date(route.createdAt).toLocaleDateString('pt-BR')}
                         </div>
                      </div>
@@ -84,35 +120,52 @@ const RouteListPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Lista de Pontos do Roteiro */}
+                {/* Mini Traçado Visual (Simulado com lista) */}
                 <div className="p-6 flex-1 space-y-4">
-                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sequência de Vistoria</p>
-                   <div className="space-y-2">
-                      {route.requestIds.slice(0, 3).map((reqId, idx) => {
+                   <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Itinerário de Campo</p>
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>
+                   </div>
+                   <div className="space-y-2 relative">
+                      {/* Linha vertical tracejada unindo os pontos */}
+                      <div className="absolute left-[11px] top-4 bottom-4 w-0.5 border-l-2 border-dashed border-slate-100"></div>
+
+                      {route.requestIds.slice(0, 4).map((reqId, idx) => {
                         const req = requests.find(r => r.id === reqId);
                         return (
-                          <div key={reqId} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                             <div className="w-6 h-6 rounded-lg bg-slate-900 flex items-center justify-center text-white font-black text-[9px]">{idx + 1}</div>
-                             <div className="flex-1 min-w-0">
-                                <p className="text-[10px] font-bold text-slate-800 truncate">{req?.location.address || 'Localização Pendente'}</p>
-                                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{req?.protocol || '---'}</p>
+                          <div key={reqId} className="flex items-center gap-3 relative z-10">
+                             <div className="w-6 h-6 rounded-full bg-white border-2 border-slate-200 flex items-center justify-center text-slate-900 font-black text-[8px] shadow-sm">
+                                {idx + 1}
                              </div>
-                             <ChevronRight size={12} className="text-slate-300" />
+                             <div className="flex-1 min-w-0 bg-slate-50 p-2 rounded-xl border border-slate-100/50">
+                                <p className="text-[10px] font-bold text-slate-700 truncate">{req?.location.address || 'Localização Pendente'}</p>
+                             </div>
                           </div>
                         );
                       })}
-                      {pointsCount > 3 && (
+                      {pointsCount > 4 && (
                         <div className="text-center pt-2">
-                           <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">... e mais {pointsCount - 3} pontos</span>
+                           <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">... e mais {pointsCount - 4} paradas</span>
                         </div>
                       )}
                    </div>
                 </div>
 
-                <div className="p-4 border-t border-slate-50 bg-slate-50/50">
-                   <button className="w-full h-12 bg-white border border-slate-200 text-slate-900 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-900 hover:text-white transition-all flex items-center justify-center gap-2 shadow-sm">
-                      Iniciar Rota de Campo
-                      <ArrowRight size={14} />
+                {/* Ações de Navegação */}
+                <div className="p-4 border-t border-slate-50 bg-slate-50/50 grid grid-cols-2 gap-3">
+                   <button 
+                    onClick={() => handleShareRoute(route.id)}
+                    className="h-12 bg-white border border-slate-200 text-slate-600 rounded-2xl font-black uppercase text-[9px] tracking-widest hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center justify-center gap-2 shadow-sm"
+                   >
+                      <Share2 size={14} />
+                      Compartilhar
+                   </button>
+                   <button 
+                    onClick={() => handleShareRoute(route.id)}
+                    className="h-12 bg-blue-600 text-white rounded-2xl font-black uppercase text-[9px] tracking-widest hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-100"
+                   >
+                      <NavIcon size={14} />
+                      Abrir Mapa
                    </button>
                 </div>
               </div>

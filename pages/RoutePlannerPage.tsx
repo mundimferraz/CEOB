@@ -19,12 +19,11 @@ const RoutePlannerPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Filtra vistorias abertas para roteirização
+  // Filtra vistorias para roteirização (AGORA ACEITA TODOS OS STATUS)
   const availableRequests = useMemo(() => {
     return requests.filter(req => 
-      req.status !== RequestStatus.COMPLETED &&
-      (req.protocol.toLowerCase().includes(searchTerm.toLowerCase()) || 
-       req.location.address.toLowerCase().includes(searchTerm.toLowerCase()))
+      req.protocol.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      req.location.address.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [requests, searchTerm]);
 
@@ -37,7 +36,6 @@ const RoutePlannerPage: React.FC = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validações de obrigatoriedade removidas conforme pedido
     setIsSaving(true);
     const newRoute: VisitRoute = {
       id: `route_${Date.now()}`,
@@ -72,7 +70,6 @@ const RoutePlannerPage: React.FC = () => {
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Painel de Configuração da Rota */}
         <div className="lg:col-span-1 space-y-6">
           <form onSubmit={handleSave} className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-6 sticky top-8">
             <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
@@ -128,13 +125,12 @@ const RoutePlannerPage: React.FC = () => {
           </form>
         </div>
 
-        {/* Lista de Seleção de Vistorias */}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-4">
              <div className="relative flex-1">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <input 
-                  placeholder="Filtrar vistorias pendentes por logradouro..."
+                  placeholder="Filtrar vistorias por protocolo ou logradouro..."
                   className="w-full h-12 pl-12 pr-4 bg-slate-50 border-none rounded-xl font-medium text-sm outline-none"
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
@@ -178,7 +174,8 @@ const RoutePlannerPage: React.FC = () => {
                      </div>
 
                      <div className={`px-3 py-1 rounded-full text-[8px] font-black uppercase border ${
-                        req.status === RequestStatus.OPEN ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-amber-50 text-amber-700 border-amber-100'
+                        req.status === RequestStatus.COMPLETED ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 
+                        req.status === RequestStatus.OPEN ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-amber-50 text-amber-700 border-amber-100'
                      }`}>
                         {req.status}
                      </div>
@@ -188,7 +185,7 @@ const RoutePlannerPage: React.FC = () => {
              ) : (
                 <div className="py-20 text-center bg-white rounded-[2.5rem] border-2 border-dashed border-slate-100">
                    <Info size={40} className="mx-auto text-slate-200 mb-4" />
-                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nenhuma vistoria pendente encontrada</p>
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nenhuma vistoria encontrada</p>
                 </div>
              )}
           </div>
