@@ -184,8 +184,8 @@ export const dbApi = {
       status: req.status,
       technicianId: req.technician_id,
       zonal: req.zonal,
-      photo_before: req.photo_before,
-      photo_after: req.photo_after,
+      photoBefore: req.photo_before,
+      photoAfter: req.photo_after,
       createdAt: req.created_at
     }));
   },
