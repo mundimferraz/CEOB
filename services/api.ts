@@ -1,5 +1,5 @@
 
-import { RepairRequest, User, ZonalMetadata, AuditLog } from '../types';
+import { RepairRequest, User, ZonalMetadata, AuditLog, VisitRoute } from '../types';
 import { supabase } from './supabase';
 
 export const dbApi = {
@@ -15,7 +15,6 @@ export const dbApi = {
     if (error) return null;
     if (!data) return null;
 
-    // Atualiza atividade no login
     await this.updateUserActivity(data.id);
 
     return {
@@ -77,14 +76,56 @@ export const dbApi = {
       .from('users')
       .upsert([payload], { onConflict: 'id' });
     
-    if (error) {
-      console.error("Erro no upsert de usuário:", error);
-      throw error;
-    }
+    if (error) throw error;
   },
 
   async deleteUser(id: string): Promise<void> {
     await supabase.from('users').delete().eq('id', id);
+  },
+
+  // Roteiros de Visitas (Novo)
+  async getRoutes(): Promise<VisitRoute[]> {
+    const { data, error } = await supabase.from('visit_routes').select('*').order('created_at', { ascending: false });
+    if (error) {
+      // Fallback para localStorage se a tabela não existir ainda no Supabase do usuário
+      const local = localStorage.getItem('sgr_vias_routes');
+      return local ? JSON.parse(local) : [];
+    }
+    return (data || []).map(r => ({
+      id: r.id,
+      name: r.name,
+      technicianId: r.technician_id,
+      requestIds: r.request_ids,
+      createdAt: r.created_at,
+      status: r.status
+    }));
+  },
+
+  async saveRoute(route: VisitRoute): Promise<void> {
+    const { error } = await supabase.from('visit_routes').upsert([{
+      id: route.id,
+      name: route.name,
+      technician_id: route.technicianId,
+      request_ids: route.requestIds,
+      created_at: route.createdAt,
+      status: route.status
+    }]);
+
+    // Backup em localStorage por segurança
+    const routes = await this.getRoutes();
+    const index = routes.findIndex(r => r.id === route.id);
+    if (index >= 0) routes[index] = route; else routes.push(route);
+    localStorage.setItem('sgr_vias_routes', JSON.stringify(routes));
+
+    if (error && error.code !== 'PGRST116') {
+      console.warn("Supabase Table visit_routes may be missing. Using LocalStorage fallback.");
+    }
+  },
+
+  async deleteRoute(id: string): Promise<void> {
+    await supabase.from('visit_routes').delete().eq('id', id);
+    const routes = await this.getRoutes();
+    localStorage.setItem('sgr_vias_routes', JSON.stringify(routes.filter(r => r.id !== id)));
   },
 
   // Zonais
@@ -107,7 +148,6 @@ export const dbApi = {
         id: zonal.id,
         name: zonal.name,
         manager_id: zonal.managerId || null,
-        // Fixed: Mapping domain assistantId to database assistant_id
         assistant_id: zonal.assistantId || null,
         description: zonal.description || null
       }], { onConflict: 'id' });
@@ -144,9 +184,8 @@ export const dbApi = {
       status: req.status,
       technicianId: req.technician_id,
       zonal: req.zonal,
-      // Fixed: Mapping database snake_case to domain camelCase
-      photoBefore: req.photo_before,
-      photoAfter: req.photo_after,
+      photo_before: req.photo_before,
+      photo_after: req.photo_after,
       createdAt: req.created_at
     }));
   },
@@ -161,7 +200,6 @@ export const dbApi = {
       latitude: request.location.latitude,
       longitude: request.location.longitude,
       address: request.location.address,
-      // Fixed property access: changed request.visit_date to request.visitDate
       visit_date: request.visitDate,
       status: request.status,
       technician_id: request.technicianId,

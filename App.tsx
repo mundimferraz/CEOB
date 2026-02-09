@@ -7,9 +7,9 @@ import {
   Loader2, LogOut, ShieldCheck, Map as MapIcon, History, 
   Lock, User as UserIcon, Eye, EyeOff, Settings, 
   Briefcase, FileText, Navigation as NavIcon, Route as RouteIcon,
-  Database, UserCog, UserCheck
+  Database, UserCog, UserCheck, MapPinned, ListChecks
 } from 'lucide-react';
-import { RepairRequest, User, ZonalType, RequestStatus, ZonalMetadata, AppRole, AuditAction, AuditEntity } from './types';
+import { RepairRequest, User, ZonalType, RequestStatus, ZonalMetadata, AppRole, AuditAction, AuditEntity, VisitRoute } from './types';
 import { ROLE_CONFIG, DEFAULT_ROLE_CONFIG, INITIAL_ZONAL_METADATA } from './constants';
 import DashboardPage from './pages/DashboardPage';
 import RequestListPage from './pages/RequestListPage';
@@ -19,6 +19,8 @@ import OrgSetupPage from './pages/OrgSetupPage';
 import MapOverviewPage from './pages/MapOverviewPage';
 import AuditLogPage from './pages/AuditLogPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
+import RouteListPage from './pages/RouteListPage';
+import RoutePlannerPage from './pages/RoutePlannerPage';
 import { dbApi } from './services/api';
 
 // --- CONTEXTO DA APLICAÇÃO ---
@@ -34,6 +36,7 @@ interface AppContextType {
   requests: RepairRequest[];
   users: User[];
   zonals: ZonalMetadata[];
+  routes: VisitRoute[];
   currentUser: User | null;
   loading: boolean;
   canDo: (action: string) => boolean;
@@ -44,9 +47,12 @@ interface AppContextType {
   deleteRequest: (id: string) => Promise<void>;
   refreshRequests: () => Promise<void>;
   refreshUsers: () => Promise<void>;
+  refreshRoutes: () => Promise<void>;
   addUser: (user: User) => Promise<void>;
   updateUser: (user: User) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
+  addRoute: (route: VisitRoute) => Promise<void>;
+  deleteRoute: (id: string) => Promise<void>;
   updateZonal: (zonal: ZonalMetadata) => Promise<void>;
   getZonalName: (id: ZonalType | string) => string;
   getRoleLabel: (role: AppRole) => string;
@@ -212,10 +218,11 @@ const Navigation = () => {
         <span className="font-black uppercase text-[11px] tracking-widest">Dashboard</span>
       </Link>
 
-      <NavGroup label="Vistorias" icon={ClipboardList} defaultOpen={location.pathname.startsWith('/new') || location.pathname.startsWith('/map') || location.pathname.startsWith('/requests')}>
+      <NavGroup label="Vistorias" icon={ClipboardList} defaultOpen={location.pathname.startsWith('/new') || location.pathname.startsWith('/map') || location.pathname.startsWith('/requests') || location.pathname.startsWith('/routes')}>
         <NavSubItem to="/new" label="Nova Vistoria" icon={PlusCircle} onClick={closeMobileMenu} />
         <NavSubItem to="/map" label="Mapa Interativo" icon={MapIcon} onClick={closeMobileMenu} />
         <NavSubItem to="/requests" label="Relatórios" icon={FileText} onClick={closeMobileMenu} />
+        <NavSubItem to="/routes" label="Roteiro de Visitas" icon={RouteIcon} onClick={closeMobileMenu} />
       </NavGroup>
 
       {/* ADMIN HUB CENTRALIZADO */}
@@ -342,6 +349,7 @@ const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
 const App = () => {
   const [requests, setRequests] = useState<RepairRequest[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [routes, setRoutes] = useState<VisitRoute[]>([]);
   const [zonals, setZonals] = useState<ZonalMetadata[]>(INITIAL_ZONAL_METADATA);
   const [loading, setLoading] = useState(true);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -362,26 +370,23 @@ const App = () => {
     }
   }, []);
 
-  // --- HEARTBEAT DE ATIVIDADE + POLLING DE USUÁRIOS ---
+  const refreshRoutes = useCallback(async () => {
+    try {
+      const dbRoutes = await dbApi.getRoutes();
+      setRoutes(dbRoutes);
+    } catch (e) {
+      console.error("Erro ao sincronizar roteiros:", e);
+    }
+  }, []);
+
   useEffect(() => {
     if (!currentUser) return;
-
-    // Sinaliza atividade do usuário atual imediatamente
     dbApi.updateUserActivity(currentUser.id);
-
-    // Heartbeat: sinaliza presença a cada 60s
-    const heartbeatInterval = setInterval(() => {
-      dbApi.updateUserActivity(currentUser.id);
-    }, 60000);
-
-    // Monitoramento Live: Atualiza lista de usuários para Admin a cada 30s
+    const heartbeatInterval = setInterval(() => { dbApi.updateUserActivity(currentUser.id); }, 60000);
     let pollingInterval: any;
     if (currentUser.role === AppRole.ADMIN) {
-      pollingInterval = setInterval(() => {
-        refreshUsers();
-      }, 30000);
+      pollingInterval = setInterval(() => { refreshUsers(); }, 30000);
     }
-
     return () => {
       clearInterval(heartbeatInterval);
       if (pollingInterval) clearInterval(pollingInterval);
@@ -398,9 +403,7 @@ const App = () => {
         return true;
       }
       return false;
-    } catch (e) {
-      return false;
-    }
+    } catch (e) { return false; }
   };
 
   const logout = () => {
@@ -418,6 +421,7 @@ const App = () => {
       case 'create_request': return isAdmin || currentUser.role === AppRole.OPERATOR || currentUser.role === AppRole.EDITOR;
       case 'edit_request': return isAdmin || currentUser.role === AppRole.OPERATOR || currentUser.role === AppRole.EDITOR;
       case 'delete_request': return isAdmin;
+      case 'manage_routes': return isAdmin || currentUser.role === AppRole.EDITOR;
       default: return false;
     }
   }, [currentUser]);
@@ -427,19 +431,17 @@ const App = () => {
       setLoading(true);
       const saved = localStorage.getItem('sgr_vias_session');
       if (saved) setCurrentUser(JSON.parse(saved));
-      const [dbReqs, dbUsers, dbZonals] = await Promise.all([
+      const [dbReqs, dbUsers, dbZonals, dbRoutes] = await Promise.all([
         dbApi.getRequests(),
         dbApi.getUsers(),
-        dbApi.getZonals()
+        dbApi.getZonals(),
+        dbApi.getRoutes()
       ]);
       setRequests(dbReqs);
       setUsers(dbUsers);
+      setRoutes(dbRoutes);
       setZonals(dbZonals.length > 0 ? dbZonals : INITIAL_ZONAL_METADATA);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
   useEffect(() => { initData(); }, []);
@@ -450,17 +452,9 @@ const App = () => {
     await dbApi.createRequest(req); 
     if (currentUser) {
       await dbApi.createAuditLog({
-        user_id: currentUser.id,
-        user_name: currentUser.name,
-        action: AuditAction.CREATE,
-        entity_type: AuditEntity.REQUEST,
-        entity_id: req.id,
-        details: { 
-          protocol: req.protocol, 
-          status: req.status,
-          executor: currentUser.name,
-          rf: currentUser.registrationNumber
-        }
+        user_id: currentUser.id, user_name: currentUser.name,
+        action: AuditAction.CREATE, entity_type: AuditEntity.REQUEST, entity_id: req.id,
+        details: { protocol: req.protocol, status: req.status, executor: currentUser.name, rf: currentUser.registrationNumber }
       });
     }
     refreshRequests(); 
@@ -470,17 +464,9 @@ const App = () => {
     await dbApi.updateRequest(req); 
     if (currentUser) {
       await dbApi.createAuditLog({
-        user_id: currentUser.id,
-        user_name: currentUser.name,
-        action: AuditAction.UPDATE,
-        entity_type: AuditEntity.REQUEST,
-        entity_id: req.id,
-        details: { 
-          protocol: req.protocol, 
-          status: req.status,
-          executor: currentUser.name,
-          rf: currentUser.registrationNumber
-        }
+        user_id: currentUser.id, user_name: currentUser.name,
+        action: AuditAction.UPDATE, entity_type: AuditEntity.REQUEST, entity_id: req.id,
+        details: { protocol: req.protocol, status: req.status, executor: currentUser.name }
       });
     }
     refreshRequests(); 
@@ -491,15 +477,9 @@ const App = () => {
     await dbApi.deleteRequest(id); 
     if (currentUser && target) {
       await dbApi.createAuditLog({
-        user_id: currentUser.id,
-        user_name: currentUser.name,
-        action: AuditAction.DELETE,
-        entity_type: AuditEntity.REQUEST,
-        entity_id: id,
-        details: { 
-          protocol: target.protocol,
-          executor: currentUser.name
-        }
+        user_id: currentUser.id, user_name: currentUser.name,
+        action: AuditAction.DELETE, entity_type: AuditEntity.REQUEST, entity_id: id,
+        details: { protocol: target.protocol, executor: currentUser.name }
       });
     }
     refreshRequests(); 
@@ -509,16 +489,9 @@ const App = () => {
     await dbApi.saveUser(u); 
     if (currentUser) {
       await dbApi.createAuditLog({
-        user_id: currentUser.id,
-        user_name: currentUser.name,
-        action: AuditAction.CREATE,
-        entity_type: AuditEntity.USER,
-        entity_id: u.id,
-        details: { 
-          name: u.name, 
-          role: u.role,
-          executor: currentUser.name
-        }
+        user_id: currentUser.id, user_name: currentUser.name,
+        action: AuditAction.CREATE, entity_type: AuditEntity.USER, entity_id: u.id,
+        details: { name: u.name, role: u.role, executor: currentUser.name }
       });
     }
     refreshUsers(); 
@@ -528,16 +501,9 @@ const App = () => {
     await dbApi.saveUser(u); 
     if (currentUser) {
       await dbApi.createAuditLog({
-        user_id: currentUser.id,
-        user_name: currentUser.name,
-        action: AuditAction.UPDATE,
-        entity_type: AuditEntity.USER,
-        entity_id: u.id,
-        details: { 
-          name: u.name, 
-          role: u.role,
-          executor: currentUser.name
-        }
+        user_id: currentUser.id, user_name: currentUser.name,
+        action: AuditAction.UPDATE, entity_type: AuditEntity.USER, entity_id: u.id,
+        details: { name: u.name, role: u.role, executor: currentUser.name }
       });
     }
     refreshUsers(); 
@@ -552,34 +518,39 @@ const App = () => {
     await dbApi.deleteUser(id); 
     if (currentUser && target) {
       await dbApi.createAuditLog({
-        user_id: currentUser.id,
-        user_name: currentUser.name,
-        action: AuditAction.DELETE,
-        entity_type: AuditEntity.USER,
-        entity_id: id,
-        details: { 
-          name: target.name,
-          executor: currentUser.name
-        }
+        user_id: currentUser.id, user_name: currentUser.name,
+        action: AuditAction.DELETE, entity_type: AuditEntity.USER, entity_id: id,
+        details: { name: target.name, executor: currentUser.name }
       });
     }
     refreshUsers(); 
     notify("Servidor removido do sistema.");
   };
 
+  const addRoute = async (route: VisitRoute) => {
+    await dbApi.saveRoute(route);
+    if (currentUser) {
+      await dbApi.createAuditLog({
+        user_id: currentUser.id, user_name: currentUser.name,
+        action: AuditAction.CREATE, entity_type: AuditEntity.ROUTE, entity_id: route.id,
+        details: { name: route.name, points: route.requestIds.length, executor: currentUser.name }
+      });
+    }
+    refreshRoutes();
+  };
+
+  const deleteRoute = async (id: string) => {
+    await dbApi.deleteRoute(id);
+    refreshRoutes();
+  };
+
   const updateZonal = async (z: ZonalMetadata) => { 
     await dbApi.saveZonal(z); 
     if (currentUser) {
       await dbApi.createAuditLog({
-        user_id: currentUser.id,
-        user_name: currentUser.name,
-        action: AuditAction.UPDATE,
-        entity_type: AuditEntity.ZONAL,
-        entity_id: z.id,
-        details: { 
-          name: z.name,
-          executor: currentUser.name
-        }
+        user_id: currentUser.id, user_name: currentUser.name,
+        action: AuditAction.UPDATE, entity_type: AuditEntity.ZONAL, entity_id: z.id,
+        details: { name: z.name, executor: currentUser.name }
       });
     }
     setZonals(await dbApi.getZonals()); 
@@ -590,9 +561,9 @@ const App = () => {
 
   return (
     <AppContext.Provider value={{ 
-      requests, users, zonals, currentUser, loading, canDo, handleLogin, logout,
-      addRequest, updateRequest, deleteRequest, refreshRequests, refreshUsers,
-      addUser, updateUser, deleteUser, updateZonal, getZonalName, getRoleLabel, notify
+      requests, users, zonals, routes, currentUser, loading, canDo, handleLogin, logout,
+      addRequest, updateRequest, deleteRequest, refreshRequests, refreshUsers, refreshRoutes,
+      addUser, updateUser, deleteUser, addRoute, deleteRoute, updateZonal, getZonalName, getRoleLabel, notify
     }}>
       <HashRouter>
         <Routes>
@@ -608,6 +579,8 @@ const App = () => {
                     <Route path="/requests" element={<RequestListPage />} />
                     <Route path="/requests/:id" element={<RequestDetailsPage />} />
                     <Route path="/new" element={<NewRequestPage />} />
+                    <Route path="/routes" element={<RouteListPage />} />
+                    <Route path="/routes/planner" element={<RoutePlannerPage />} />
                     <Route path="/org" element={<OrgSetupPage />} />
                     <Route path="/audit" element={<AuditLogPage />} />
                     <Route path="/profile/password" element={<ChangePasswordPage />} />

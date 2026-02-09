@@ -46,7 +46,17 @@ CREATE TABLE IF NOT EXISTS repair_requests (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 5. TABELA DE AUDITORIA (CORREÇÃO DE PERMISSÕES)
+-- 5. TABELA DE ROTEIROS DE VISITAS (NOVO)
+CREATE TABLE IF NOT EXISTS visit_routes (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    technician_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+    request_ids TEXT[] NOT NULL,
+    status TEXT DEFAULT 'Pendente',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 6. TABELA DE AUDITORIA
 CREATE TABLE IF NOT EXISTS audit_logs (
     id BIGSERIAL PRIMARY KEY,
     user_id TEXT,
@@ -58,13 +68,14 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 6. DESABILITAR RLS EM TODAS AS TABELAS PARA PROTOTIPAGEM
+-- 7. DESABILITAR RLS
 ALTER TABLE users DISABLE ROW LEVEL SECURITY;
 ALTER TABLE zonals DISABLE ROW LEVEL SECURITY;
 ALTER TABLE repair_requests DISABLE ROW LEVEL SECURITY;
+ALTER TABLE visit_routes DISABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs DISABLE ROW LEVEL SECURITY;
 
--- 7. INSERIR USUÁRIOS MESTRE
+-- 8. INSERIR USUÁRIOS MESTRE
 INSERT INTO users (id, name, role, zonal, registration_number, email, password, position, function)
 VALUES 
 ('root_master_id', 'claudioasousa', 'Admin', 'Zonal Norte', 'ROOT-001', 'claudio@sgrvias.gov.br', 'cas661010', 'Engenheiro Civil', 'Administrador Root')

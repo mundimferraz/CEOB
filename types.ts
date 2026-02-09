@@ -58,6 +58,15 @@ export interface RepairRequest {
   createdAt: string;
 }
 
+export interface VisitRoute {
+  id: string;
+  name: string;
+  technicianId: string;
+  requestIds: string[];
+  createdAt: string;
+  status: 'Pendente' | 'Em Execução' | 'Finalizado';
+}
+
 export interface ZonalMetadata {
   id: string;
   name: string;
@@ -75,7 +84,8 @@ export enum AuditAction {
 export enum AuditEntity {
   REQUEST = 'VISTORIA',
   USER = 'USUÁRIO',
-  ZONAL = 'UNIDADE'
+  ZONAL = 'UNIDADE',
+  ROUTE = 'ROTEIRO'
 }
 
 export interface AuditLog {
