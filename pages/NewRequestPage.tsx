@@ -180,11 +180,7 @@ const NewRequestPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.photoBefore) {
-      notify("A foto do local (Antes) é obrigatória.", "error");
-      return;
-    }
-
+    // Validação de foto obrigatória removida conforme pedido
     setIsSaving(true);
     const newRequest: RepairRequest = {
       id: `req_${Date.now()}`,
@@ -201,7 +197,7 @@ const NewRequestPage: React.FC = () => {
       status: formData.photoAfter ? RequestStatus.COMPLETED : RequestStatus.OPEN,
       technicianId: formData.technicianId,
       zonal: formData.zonal,
-      photoBefore: formData.photoBefore,
+      photoBefore: formData.photoBefore || undefined,
       photoAfter: formData.photoAfter || undefined,
       createdAt: new Date().toISOString(),
     };
@@ -295,7 +291,6 @@ const NewRequestPage: React.FC = () => {
                   placeholder="00.000.000/0000-00"
                   value={formData.seiNumber}
                   onChange={e => setFormData({...formData, seiNumber: e.target.value})}
-                  required
                 />
               </div>
               <div>
@@ -306,7 +301,6 @@ const NewRequestPage: React.FC = () => {
                   placeholder="Ex: CTR-05/2023"
                   value={formData.contract}
                   onChange={e => setFormData({...formData, contract: e.target.value})}
-                  required
                 />
               </div>
             </div>
@@ -334,7 +328,6 @@ const NewRequestPage: React.FC = () => {
                   className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900 appearance-none bg-slate-50 uppercase text-xs"
                   value={formData.technicianId}
                   onChange={e => setFormData({...formData, technicianId: e.target.value})}
-                  required
                 >
                   <option value="">-- Selecione Profissional --</option>
                   {filteredPersonnel.map(u => (
@@ -482,7 +475,6 @@ const NewRequestPage: React.FC = () => {
               placeholder="Descreva as anomalias, patologias e necessidades de reparo observadas..."
               value={formData.description}
               onChange={e => setFormData({...formData, description: e.target.value})}
-              required
             />
           </div>
         </div>

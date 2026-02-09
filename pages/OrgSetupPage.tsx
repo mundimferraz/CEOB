@@ -88,9 +88,9 @@ const OrgSetupPage: React.FC = () => {
       const formData = new FormData(e.currentTarget);
       const userData: User = {
         id: editingUser?.id || `u_${Date.now()}`,
-        name: formData.get('name') as string,
-        role: formData.get('role') as AppRole,
-        zonal: formData.get('zonal') as string,
+        name: (formData.get('name') as string) || 'Sem Nome',
+        role: (formData.get('role') as AppRole) || AppRole.OPERATOR,
+        zonal: (formData.get('zonal') as string) || '',
         registrationNumber: formData.get('registrationNumber') as string,
         position: formData.get('position') as string,
         function: formData.get('function') as string,
@@ -120,7 +120,7 @@ const OrgSetupPage: React.FC = () => {
       const formData = new FormData(e.currentTarget);
       const zonalData: ZonalMetadata = {
         id: editingZonal?.id || `zonal_${Date.now()}`,
-        name: formData.get('name') as string,
+        name: (formData.get('name') as string) || 'Unidade sem Nome',
         managerId: formData.get('managerId') as string,
         assistantId: formData.get('assistantId') as string,
         description: formData.get('description') as string,
@@ -227,7 +227,6 @@ const OrgSetupPage: React.FC = () => {
                              <div>
                                <div className="font-bold text-slate-900 text-sm flex items-center gap-2">
                                  {user.name} 
-                                 {/* Fix: Lucide icons do not accept 'title' prop. Wrapped in span. */}
                                  {isRoot && (
                                    <span title="Super Usuário Root">
                                      <ShieldCheck size={14} className="text-amber-600" />
@@ -372,7 +371,7 @@ const OrgSetupPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 block">Nome Completo</label>
-                  <input name="name" defaultValue={editingUser?.name} required placeholder="Nome do Servidor" className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500/20" />
+                  <input name="name" defaultValue={editingUser?.name} placeholder="Nome do Servidor" className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500/20" />
                 </div>
                 
                 <div>
@@ -385,7 +384,7 @@ const OrgSetupPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 block">Regra de Acesso</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 block">Permissão de Acesso</label>
                   <select 
                     name="role" 
                     defaultValue={editingUser?.role || AppRole.OPERATOR} 
@@ -428,7 +427,7 @@ const OrgSetupPage: React.FC = () => {
       {/* MODAL UNIDADE */}
       {isZonalModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-300 border border-white/20">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-md overflow-hidden animate-in zoom-in-95 duration-300 border border-white/20">
             <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white shadow-lg"><Database size={24} /></div>
@@ -443,7 +442,7 @@ const OrgSetupPage: React.FC = () => {
             <form onSubmit={handleSaveZonal} className="p-8 space-y-6">
               <div>
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 block">Nome da Unidade Zonal</label>
-                <input name="name" defaultValue={editingZonal?.name} required placeholder="Ex: Zonal Centro-Sul" className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500/20 shadow-inner" />
+                <input name="name" defaultValue={editingZonal?.name} placeholder="Ex: Zonal Centro-Sul" className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500/20 shadow-inner" />
               </div>
 
               <div className="grid grid-cols-1 gap-4">
@@ -467,7 +466,6 @@ const OrgSetupPage: React.FC = () => {
                   </label>
                   <select name="assistantId" defaultValue={editingZonal?.assistantId} className="w-full h-12 px-4 border border-slate-200 rounded-xl font-bold text-sm appearance-none bg-white outline-none focus:ring-2 focus:ring-blue-500/20">
                     <option value="">Nenhum Técnico Vinculado</option>
-                    {/* Filtra para exibir apenas não administradores conforme solicitado */}
                     {users.filter(u => u.role !== AppRole.ADMIN).map(u => (
                       <option key={u.id} value={u.id}>{u.name} ({ROLE_CONFIG[u.role]?.label})</option>
                     ))}

@@ -37,20 +37,12 @@ const RoutePlannerPage: React.FC = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedTechId) {
-      notify("Selecione o técnico responsável.", "error");
-      return;
-    }
-    if (selectedRequestIds.length === 0) {
-      notify("Selecione ao menos um ponto de vistoria.", "error");
-      return;
-    }
-
+    // Validações de obrigatoriedade removidas conforme pedido
     setIsSaving(true);
     const newRoute: VisitRoute = {
       id: `route_${Date.now()}`,
       name: routeName || `Rota ${new Date().toLocaleDateString('pt-BR')}`,
-      technicianId: selectedTechId,
+      technicianId: selectedTechId || 'Não definido',
       requestIds: selectedRequestIds,
       createdAt: new Date().toISOString(),
       status: 'Pendente'
@@ -105,7 +97,6 @@ const RoutePlannerPage: React.FC = () => {
                   className="w-full h-12 px-10 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs outline-none appearance-none"
                   value={selectedTechId}
                   onChange={e => setSelectedTechId(e.target.value)}
-                  required
                 >
                   <option value="">Selecione o Profissional</option>
                   {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
