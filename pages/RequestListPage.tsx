@@ -103,7 +103,6 @@ const RequestListPage: React.FC = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     
-    // Header
     doc.setFillColor(15, 23, 42);
     doc.rect(0, 0, pageWidth, 30, 'F');
     doc.setTextColor(255, 255, 255);
@@ -114,7 +113,6 @@ const RequestListPage: React.FC = () => {
     doc.setFont('helvetica', 'normal');
     doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')} | Total de Registros: ${filteredRequests.length}`, 15, 22);
 
-    // Tabela Manual (Alternativa ao autotable para evitar dependências extras)
     let y = 45;
     doc.setTextColor(15, 23, 42);
     doc.setFontSize(9);
@@ -197,19 +195,33 @@ const RequestListPage: React.FC = () => {
                 <div className="w-24 h-24 md:w-32 md:h-32 rounded-2xl bg-slate-100 flex-shrink-0 overflow-hidden border border-slate-100 shadow-inner">{req.photoBefore ? (<img src={req.photoBefore} alt="Miniatura" className="w-full h-full object-cover" />) : (<div className="w-full h-full flex flex-col items-center justify-center text-slate-300"><ImageIcon size={24} /><span className="text-[8px] font-black uppercase mt-1 text-center px-2">Sem Imagem</span></div>)}</div>
                 <div className="flex-1 flex flex-col justify-between overflow-hidden pr-10">
                   <div>
-                    <div className="flex flex-col mb-2">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate mb-1">{req.protocol}</span>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">{req.protocol}</span>
                       <div className="relative w-fit" onClick={e => e.preventDefault()}>
-                        <select value={req.status} disabled={!canEdit} onChange={e => handleQuickStatusChange(e, req)} className={`appearance-none pl-2.5 pr-6 py-1 rounded-lg text-[9px] font-black border uppercase tracking-tighter outline-none cursor-pointer transition-colors ${STATUS_COLORS[req.status]} ${!canEdit ? 'opacity-70 cursor-not-allowed' : ''}`}>
+                        <select value={req.status} disabled={!canEdit} onChange={e => handleQuickStatusChange(e, req)} className={`appearance-none pl-2 pr-6 py-0.5 rounded-lg text-[8px] font-black border uppercase tracking-tighter outline-none cursor-pointer transition-colors ${STATUS_COLORS[req.status]} ${!canEdit ? 'opacity-70 cursor-not-allowed' : ''}`}>
                           {Object.values(RequestStatus).map(status => (<option key={status} value={status} className="bg-white text-slate-900">{status}</option>))}
                         </select>
-                        {canEdit && <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />}
+                        {canEdit && <ChevronDown size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />}
                       </div>
                     </div>
-                    <h3 className="text-sm md:text-base font-black text-slate-900 leading-tight line-clamp-2 mb-2 group-hover:text-blue-600 transition-colors">{req.description}</h3>
-                    <div className="flex items-center gap-1.5 text-slate-500 mb-2"><MapPin size={12} className="text-blue-500 flex-shrink-0" /><span className="text-[10px] font-bold truncate leading-none">{req.location.address || 'Localização não definida'}</span></div>
+                    <h3 className="text-sm font-black text-slate-900 leading-tight line-clamp-2 mb-1 group-hover:text-blue-600 transition-colors uppercase italic">{req.location.address}</h3>
+                    <div className="flex items-center gap-1 text-blue-600 mb-2">
+                        <MapPin size={12} className="flex-shrink-0" />
+                        <span className="text-[10px] font-black uppercase tracking-widest truncate">{getZonalName(req.zonal)}</span>
+                    </div>
                   </div>
-                  <div className="flex flex-col gap-1.5 pt-2 border-t border-slate-50"><div className="flex items-center justify-between"><div className="flex items-center gap-2 overflow-hidden"><div className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center font-black text-[10px] text-blue-600 border border-blue-100 uppercase">{tech?.name.charAt(0) || '?'}</div><span className="text-[10px] font-black text-slate-700 truncate">{tech?.name || 'Não atribuído'}</span></div><div className="flex items-center gap-1 text-slate-400 text-[9px] font-black uppercase tracking-tighter"><Calendar size={10} />{new Date(req.visitDate).toLocaleDateString('pt-BR')}</div></div></div>
+                  <div className="flex flex-col gap-1.5 pt-2 border-t border-slate-50">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                            <div className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center font-black text-[10px] text-blue-600 border border-blue-100 uppercase">{tech?.name.charAt(0) || '?'}</div>
+                            <span className="text-[10px] font-black text-slate-700 truncate">{tech?.name || 'Não atribuído'}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-slate-400 text-[9px] font-black uppercase tracking-tighter">
+                            <Calendar size={10} />
+                            {new Date(req.visitDate).toLocaleDateString('pt-BR')}
+                        </div>
+                    </div>
+                  </div>
                 </div>
               </Link>
             );

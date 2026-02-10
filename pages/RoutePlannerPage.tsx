@@ -11,7 +11,7 @@ import { RequestStatus, VisitRoute, LocationData } from '../types';
 import { STATUS_COLORS } from '../constants';
 
 const RoutePlannerPage: React.FC = () => {
-  const { requests, users, addRoute, notify } = useApp();
+  const { requests, users, addRoute, notify, getZonalName } = useApp();
   const navigate = useNavigate();
   
   const [routeName, setRouteName] = useState('');
@@ -240,11 +240,11 @@ const RoutePlannerPage: React.FC = () => {
 
                      <div className="flex-1 min-w-0">
                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest truncate">{req.protocol}</p>
-                        <h4 className="font-bold text-slate-900 text-sm leading-tight truncate">{req.location.address}</h4>
+                        <h4 className="font-bold text-slate-900 text-sm leading-tight truncate uppercase italic">{req.location.address}</h4>
                         <div className="flex items-center gap-3 mt-1">
-                           <span className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1">
+                           <span className="text-[9px] font-black text-blue-600 uppercase flex items-center gap-1 tracking-widest">
                               <MapPin size={10} className="text-blue-500" />
-                              {req.zonal}
+                              {getZonalName(req.zonal)}
                            </span>
                         </div>
                      </div>
