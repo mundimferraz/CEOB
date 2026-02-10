@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- 2. GARANTIR COLUNAS DE CARGO E FUNÇÃO
 ALTER TABLE users ADD COLUMN IF NOT EXISTS position TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS function TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMP WITH TIME ZONE;
 
 -- 3. TABELA DE ZONAIS
 CREATE TABLE IF NOT EXISTS zonals (
@@ -46,12 +47,13 @@ CREATE TABLE IF NOT EXISTS repair_requests (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 5. TABELA DE ROTEIROS DE VISITAS (NOVO)
+-- 5. TABELA DE ROTEIROS DE VISITAS (ATUALIZADA)
 CREATE TABLE IF NOT EXISTS visit_routes (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     technician_id TEXT REFERENCES users(id) ON DELETE CASCADE,
     request_ids TEXT[] NOT NULL,
+    start_location JSONB, -- Coluna essencial para o ponto de partida georreferenciado
     status TEXT DEFAULT 'Pendente',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );

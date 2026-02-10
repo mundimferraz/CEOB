@@ -9,12 +9,13 @@
 
 -- 3. TABELA DE VISTORIAS ... (já existente)
 
--- 4. TABELA DE ROTEIROS DE VISITAS (COPIE ESTA PARTE SE O RESTO JÁ EXISTIR)
+-- 4. TABELA DE ROTEIROS DE VISITAS (ATUALIZADA)
 CREATE TABLE IF NOT EXISTS visit_routes (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     technician_id TEXT REFERENCES users(id) ON DELETE CASCADE,
     request_ids TEXT[] NOT NULL,
+    start_location JSONB, -- NOVO CAMPO PARA GEOLOCALIZAÇÃO INICIAL
     status TEXT DEFAULT 'Pendente',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );

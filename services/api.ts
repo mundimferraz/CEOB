@@ -87,7 +87,7 @@ export const dbApi = {
   async getRoutes(): Promise<VisitRoute[]> {
     const { data, error } = await supabase.from('visit_routes').select('*').order('created_at', { ascending: false });
     if (error) {
-      // Fallback para localStorage se a tabela não existir ainda no Supabase do usuário
+      console.warn("Erro ao buscar rotas no Supabase, tentando LocalStorage:", error.message);
       const local = localStorage.getItem('sgr_vias_routes');
       return local ? JSON.parse(local) : [];
     }
@@ -103,6 +103,7 @@ export const dbApi = {
   },
 
   async saveRoute(route: VisitRoute): Promise<void> {
+    // 1. Tentar salvar no Supabase
     const { error } = await supabase.from('visit_routes').upsert([{
       id: route.id,
       name: route.name,
@@ -113,21 +114,32 @@ export const dbApi = {
       status: route.status
     }]);
 
-    // Backup em localStorage por segurança
-    const routes = await this.getRoutes();
-    const index = routes.findIndex(r => r.id === route.id);
-    if (index >= 0) routes[index] = route; else routes.push(route);
-    localStorage.setItem('sgr_vias_routes', JSON.stringify(routes));
-
-    if (error && error.code !== 'PGRST116') {
-      console.warn("Supabase Table visit_routes may be missing. Using LocalStorage fallback.");
+    if (error) {
+      console.error("Falha Crítica na Persistência Supabase (visit_routes):", error);
+      // Se falhar no banco, ainda assim salvamos no LocalStorage para não perder o trabalho do usuário
     }
+
+    // 2. Backup robusto em localStorage
+    try {
+      const local = localStorage.getItem('sgr_vias_routes');
+      const routes = local ? JSON.parse(local) : [];
+      const index = routes.findIndex((r: any) => r.id === route.id);
+      if (index >= 0) routes[index] = route; else routes.push(route);
+      localStorage.setItem('sgr_vias_routes', JSON.stringify(routes));
+    } catch (e) {
+      console.error("Erro ao salvar backup local:", e);
+    }
+    
+    if (error) throw new Error("Erro de comunicação com o servidor, dados salvos localmente.");
   },
 
   async deleteRoute(id: string): Promise<void> {
     await supabase.from('visit_routes').delete().eq('id', id);
-    const routes = await this.getRoutes();
-    localStorage.setItem('sgr_vias_routes', JSON.stringify(routes.filter(r => r.id !== id)));
+    const local = localStorage.getItem('sgr_vias_routes');
+    if (local) {
+      const routes = JSON.parse(local);
+      localStorage.setItem('sgr_vias_routes', JSON.stringify(routes.filter((r: any) => r.id !== id)));
+    }
   },
 
   // Zonais
@@ -178,7 +190,7 @@ export const dbApi = {
     return (data || []).map(req => ({
       id: req.id,
       protocol: req.protocol,
-      seiNumber: req.sei_number,
+      sei_number: req.sei_number,
       contract: req.contract,
       description: req.description,
       location: { latitude: req.latitude, longitude: req.longitude, address: req.address },
