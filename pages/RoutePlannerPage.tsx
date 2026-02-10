@@ -1,13 +1,13 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../App';
 import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Save, MapPin, ListChecks, Search, 
   Loader2, User as UserIcon, CheckSquare, Square,
-  ShieldCheck, Info
+  ShieldCheck, Info, Navigation as NavigationIcon, LocateFixed
 } from 'lucide-react';
-import { RequestStatus, VisitRoute } from '../types';
+import { RequestStatus, VisitRoute, LocationData } from '../types';
 import { STATUS_COLORS } from '../constants';
 
 const RoutePlannerPage: React.FC = () => {
@@ -19,8 +19,47 @@ const RoutePlannerPage: React.FC = () => {
   const [selectedRequestIds, setSelectedRequestIds] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  
+  const [startLocation, setStartLocation] = useState<LocationData | null>(null);
+  const [isLocating, setIsLocating] = useState(true);
 
-  // Lista absolutamente todos os registros para roteirização
+  // Captura geolocalização na montagem da página
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      notify("Geolocalização não suportada no navegador.", "error");
+      setIsLocating(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`);
+          const data = await res.json();
+          setStartLocation({
+            latitude,
+            longitude,
+            address: data.display_name || "Coordenada Atual Capturada"
+          });
+        } catch (e) {
+          setStartLocation({
+            latitude,
+            longitude,
+            address: "Sua Localização Atual (Endereço não identificado)"
+          });
+        } finally {
+          setIsLocating(false);
+        }
+      },
+      () => {
+        notify("Falha ao capturar ponto de partida automático.", "error");
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: true }
+    );
+  }, [notify]);
+
   const availableRequests = useMemo(() => {
     return requests.filter(req => 
       req.protocol.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -37,12 +76,23 @@ const RoutePlannerPage: React.FC = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!startLocation) {
+      notify("Aguardando geolocalização de partida.", "error");
+      return;
+    }
+
+    if (selectedRequestIds.length === 0) {
+      notify("Selecione pelo menos um ponto de vistoria.", "error");
+      return;
+    }
+
     setIsSaving(true);
     const newRoute: VisitRoute = {
       id: `route_${Date.now()}`,
       name: routeName || `Rota ${new Date().toLocaleDateString('pt-BR')}`,
       technicianId: selectedTechId || 'Não definido',
       requestIds: selectedRequestIds,
+      startLocation: startLocation,
       createdAt: new Date().toISOString(),
       status: 'Pendente'
     };
@@ -78,6 +128,31 @@ const RoutePlannerPage: React.FC = () => {
               Configurar Rota
             </h2>
 
+            {/* PONTO DE PARTIDA AUTOMÁTICO */}
+            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 shadow-xl overflow-hidden relative">
+               <div className="absolute right-[-10px] top-[-10px] opacity-10">
+                  <LocateFixed size={80} className="text-emerald-400" />
+               </div>
+               <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                 <NavigationIcon size={12} /> Ponto de Partida Detectado
+               </p>
+               {isLocating ? (
+                 <div className="flex items-center gap-3 py-2">
+                    <Loader2 className="animate-spin text-emerald-400" size={16} />
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Triangulando GPS...</span>
+                 </div>
+               ) : (
+                 <div className="space-y-1">
+                    <p className="text-[11px] font-black text-white uppercase tracking-tight line-clamp-2">
+                       {startLocation?.address}
+                    </p>
+                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                       {startLocation?.latitude.toFixed(6)}, {startLocation?.longitude.toFixed(6)}
+                    </p>
+                 </div>
+               )}
+            </div>
+
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 block">Nome do Roteiro</label>
               <input 
@@ -110,14 +185,14 @@ const RoutePlannerPage: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-lg font-black text-blue-900">{selectedRequestIds.length}</p>
-                    <p className="text-[8px] font-black text-blue-600 uppercase tracking-widest">Pontos na Rota</p>
+                    <p className="text-[8px] font-black text-blue-600 uppercase tracking-widest">Destinos na Rota</p>
                   </div>
                </div>
 
                <button 
                 type="submit"
-                disabled={isSaving}
-                className="w-full h-16 bg-slate-900 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-2xl hover:bg-slate-800 active:scale-95 transition-all flex items-center justify-center gap-3"
+                disabled={isSaving || isLocating}
+                className="w-full h-16 bg-blue-600 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-2xl hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                >
                  {isSaving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
                  Finalizar Roteiro
@@ -139,7 +214,7 @@ const RoutePlannerPage: React.FC = () => {
              </div>
              <div className="bg-emerald-50 px-4 py-2 rounded-xl flex items-center gap-2 border border-emerald-100">
                 <ShieldCheck size={16} className="text-emerald-600" />
-                <span className="text-[10px] font-black text-emerald-700 uppercase">Modo Full Access</span>
+                <span className="text-[10px] font-black text-emerald-700 uppercase">Seleção de Destinos</span>
              </div>
           </div>
 

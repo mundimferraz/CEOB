@@ -5,7 +5,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { 
   Route as RouteIcon, MapPinned, User as UserIcon, Calendar, 
   Plus, Trash2, MapPin, ListChecks, 
-  Share2, Navigation as NavIcon, X, Maximize2, Map as MapIcon, ChevronRight
+  Share2, Navigation as NavIcon, X, Maximize2, Map as MapIcon, ChevronRight, Home, Flag
 } from 'lucide-react';
 import { STATUS_COLORS } from '../constants';
 
@@ -37,7 +37,17 @@ const RouteListPage: React.FC = () => {
         return;
     }
 
-    const points = routeRequests.map(req => `${req!.location.latitude},${req!.location.longitude}`);
+    const points = [];
+    
+    // Ponto de partida
+    if (route.startLocation) {
+      points.push(`${route.startLocation.latitude},${route.startLocation.longitude}`);
+    }
+    
+    // Destinos
+    routeRequests.forEach(req => {
+      points.push(`${req!.location.latitude},${req!.location.longitude}`);
+    });
     
     // Google Maps multi-point directions
     const origin = points[0];
@@ -71,7 +81,7 @@ const RouteListPage: React.FC = () => {
         .map(id => requests.find(r => r.id === id))
         .filter(req => !!req);
 
-      if (routeRequests.length === 0) return;
+      if (routeRequests.length === 0 && !route.startLocation) return;
 
       setTimeout(() => {
         if (mapRef.current) {
@@ -85,8 +95,34 @@ const RouteListPage: React.FC = () => {
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapRef.current);
 
-        const latlngs = routeRequests.map(req => [req!.location.latitude, req!.location.longitude]);
+        const latlngs: any[] = [];
         
+        // Adiciona ponto de partida ao mapa
+        if (route.startLocation) {
+          latlngs.push([route.startLocation.latitude, route.startLocation.longitude]);
+          const startIcon = L.divIcon({
+            html: `<div class="w-8 h-8 bg-emerald-600 border-4 border-white rounded-full flex items-center justify-center text-white shadow-lg animate-pulse"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>`,
+            className: 'custom-route-marker',
+            iconSize: [32, 32],
+            iconAnchor: [16, 16]
+          });
+          L.marker([route.startLocation.latitude, route.startLocation.longitude], { icon: startIcon })
+            .bindPopup(`<p class="text-[10px] font-black uppercase tracking-widest text-emerald-600">PONTO DE PARTIDA (GPS ATUAL)</p><p class="text-[9px] font-bold text-slate-600">${route.startLocation.address}</p>`)
+            .addTo(mapRef.current);
+        }
+
+        // Adiciona destinos ao mapa
+        routeRequests.forEach((req, idx) => {
+          latlngs.push([req!.location.latitude, req!.location.longitude]);
+          const icon = L.divIcon({
+            html: `<div class="w-6 h-6 bg-blue-600 border-2 border-white rounded-full flex items-center justify-center text-white font-black text-[10px] shadow-lg">${idx + 1}</div>`,
+            className: 'custom-route-marker',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+          });
+          L.marker([req!.location.latitude, req!.location.longitude], { icon }).addTo(mapRef.current);
+        });
+
         // Desenha o traçado (Polyline)
         const polyline = L.polyline(latlngs, {
           color: '#2563eb',
@@ -95,20 +131,10 @@ const RouteListPage: React.FC = () => {
           dashArray: '10, 10'
         }).addTo(mapRef.current);
 
-        // Adiciona marcadores numerados
-        routeRequests.forEach((req, idx) => {
-          const icon = L.divIcon({
-            html: `<div class="w-6 h-6 bg-blue-600 border-2 border-white rounded-full flex items-center justify-center text-white font-black text-[10px] shadow-lg">${idx + 1}</div>`,
-            className: 'custom-route-marker',
-            iconSize: [24, 24]
-          });
-          L.marker([req!.location.latitude, req!.location.longitude], { icon }).addTo(mapRef.current);
-        });
-
         mapRef.current.fitBounds(polyline.getBounds().pad(0.3));
       }, 100);
     }
-  }, [selectedRouteForMap]);
+  }, [selectedRouteForMap, routes, requests]);
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto w-full space-y-8 animate-in fade-in duration-500">
@@ -185,7 +211,23 @@ const RouteListPage: React.FC = () => {
                    <div className="space-y-2 relative">
                       <div className="absolute left-[11px] top-4 bottom-4 w-0.5 border-l-2 border-dashed border-slate-100"></div>
 
-                      {route.requestIds.slice(0, 3).map((reqId, idx) => {
+                      {/* PONTO DE PARTIDA (SEMPRE O PRIMEIRO) */}
+                      {route.startLocation && (
+                        <div className="flex items-center gap-3 relative z-10">
+                           <div className="w-6 h-6 rounded-full bg-emerald-600 border-2 border-white flex items-center justify-center text-white font-black text-[8px] shadow-sm animate-pulse">
+                              <Home size={10} />
+                           </div>
+                           <div className="flex-1 min-w-0 bg-emerald-50 p-2 rounded-xl border border-emerald-100 flex items-center justify-between gap-2">
+                              <div>
+                                 <p className="text-[7px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-0.5">Partida (GPS)</p>
+                                 <p className="text-[10px] font-bold text-emerald-800 truncate">{route.startLocation.address}</p>
+                              </div>
+                              <Flag size={12} className="text-emerald-400" />
+                           </div>
+                        </div>
+                      )}
+
+                      {route.requestIds.slice(0, 2).map((reqId, idx) => {
                         const req = requests.find(r => r.id === reqId);
                         return (
                           <div key={reqId} className="flex items-center gap-3 relative z-10">
@@ -199,10 +241,10 @@ const RouteListPage: React.FC = () => {
                           </div>
                         );
                       })}
-                      {pointsCount > 3 && (
+                      {pointsCount > 2 && (
                         <div className="flex items-center gap-3 ml-[7px]">
                            <div className="w-2.5 h-2.5 rounded-full bg-slate-100 border border-slate-200"></div>
-                           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">... e mais {pointsCount - 3} vistorias</span>
+                           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">... e mais {pointsCount - 2} vistorias</span>
                         </div>
                       )}
                    </div>
@@ -266,7 +308,15 @@ const RouteListPage: React.FC = () => {
                 <div className="absolute bottom-6 left-6 right-6 z-20 flex flex-col md:flex-row gap-4 pointer-events-none">
                    <div className="bg-white/90 backdrop-blur-md p-5 rounded-3xl border border-white shadow-2xl pointer-events-auto max-w-sm">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Resumo do Itinerário</p>
-                      <div className="space-y-3">
+                      <div className="space-y-3 max-h-48 overflow-y-auto pr-2 scrollbar-thin">
+                         {/* Início */}
+                         {routes.find(r => r.id === selectedRouteForMap)?.startLocation && (
+                            <div className="flex items-center gap-3">
+                               <div className="w-5 h-5 bg-emerald-600 rounded-full flex items-center justify-center text-[8px] text-white font-black"><Home size={10} /></div>
+                               <span className="text-[10px] font-black text-emerald-700 truncate">{routes.find(r => r.id === selectedRouteForMap)?.startLocation?.address}</span>
+                            </div>
+                         )}
+                         {/* Pontos */}
                          {routes.find(r => r.id === selectedRouteForMap)?.requestIds.map((reqId, idx) => {
                             const req = requests.find(r => r.id === reqId);
                             return (

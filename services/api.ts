@@ -96,6 +96,7 @@ export const dbApi = {
       name: r.name,
       technicianId: r.technician_id,
       requestIds: r.request_ids,
+      startLocation: r.start_location,
       createdAt: r.created_at,
       status: r.status
     }));
@@ -107,6 +108,7 @@ export const dbApi = {
       name: route.name,
       technician_id: route.technicianId,
       request_ids: route.requestIds,
+      start_location: route.startLocation,
       created_at: route.createdAt,
       status: route.status
     }]);

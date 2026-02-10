@@ -63,6 +63,7 @@ export interface VisitRoute {
   name: string;
   technicianId: string;
   requestIds: string[];
+  startLocation?: LocationData;
   createdAt: string;
   status: 'Pendente' | 'Em Execução' | 'Finalizado';
 }
