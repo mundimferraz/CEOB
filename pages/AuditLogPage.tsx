@@ -6,7 +6,7 @@ import { dbApi } from '../services/api';
 import { 
   History, Search, Filter, Calendar, ShieldCheck, User as UserIcon, 
   AlertCircle, FileText, ChevronRight, Loader2, RotateCw, Database, 
-  X, Eye, Terminal, Fingerprint, Clock, ExternalLink, UserCheck
+  X, Eye, Terminal, Fingerprint, Clock, ExternalLink, UserCheck, SearchCode
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -58,6 +58,35 @@ const AuditLogPage: React.FC = () => {
     });
   }, [logs, searchTerm, actionFilter]);
 
+  const navigateToEntity = (e: React.MouseEvent, log: AuditLog) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!log.entity_id && log.entity_type !== AuditEntity.ROUTE) {
+      notify("ID da entidade não disponível para navegação.", "error");
+      return;
+    }
+
+    // Redirecionamento baseado no tipo de entidade
+    switch (log.entity_type) {
+      case AuditEntity.REQUEST:
+        navigate(`/requests/${log.entity_id}`);
+        break;
+      case AuditEntity.USER:
+        navigate(`/org?tab=personnel`);
+        break;
+      case AuditEntity.ZONAL:
+        navigate(`/org?tab=zonals`);
+        break;
+      case AuditEntity.ROUTE:
+        navigate(`/routes`);
+        break;
+      default:
+        notify("Destino de navegação não mapeado para este tipo de log.", "info");
+    }
+    setSelectedLog(null);
+  };
+
   if (!canDo('view_audit')) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] p-8 text-center bg-white m-4 md:m-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
@@ -77,17 +106,6 @@ const AuditLogPage: React.FC = () => {
       case AuditAction.DELETE: return 'bg-rose-50 text-rose-700 border-rose-100';
       default: return 'bg-slate-50 text-slate-700 border-slate-100';
     }
-  };
-
-  const navigateToEntity = (log: AuditLog) => {
-    if (log.entity_type === AuditEntity.REQUEST) {
-      navigate(`/requests/${log.entity_id}`);
-    } else if (log.entity_type === AuditEntity.USER) {
-      navigate(`/org?tab=personnel`);
-    } else if (log.entity_type === AuditEntity.ZONAL) {
-      navigate(`/org?tab=zonals`);
-    }
-    setSelectedLog(null);
   };
 
   return (
@@ -148,9 +166,9 @@ const AuditLogPage: React.FC = () => {
               <div 
                 key={log.id} 
                 onClick={() => setSelectedLog(log)}
-                className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-xl transition-all group cursor-pointer active:scale-[0.99]"
+                className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-xl transition-all group cursor-pointer active:scale-[0.99] relative overflow-hidden"
               >
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
                   <div className="flex items-start gap-4">
                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-inner border ${getActionColor(log.action as AuditAction)}`}>
                        <Database size={24} />
@@ -180,14 +198,28 @@ const AuditLogPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4">
-                    <div className="hidden md:block flex-1 max-w-[200px] bg-slate-50 p-3 rounded-xl border border-slate-100 overflow-hidden">
+                  <div className="flex items-center gap-2">
+                    <div className="hidden md:block flex-1 max-w-[180px] bg-slate-50 p-2.5 rounded-xl border border-slate-100 overflow-hidden">
                       <div className="text-[9px] font-mono text-slate-500 truncate">
                           {JSON.stringify(log.details)}
                       </div>
                     </div>
-                    <div className="p-3 bg-slate-900 text-white rounded-xl opacity-0 group-hover:opacity-100 transition-all shadow-lg">
-                       <Eye size={18} />
+                    
+                    {/* Botões de Ação na Lista */}
+                    <div className="flex gap-2">
+                      {log.action !== AuditAction.DELETE && (
+                        <button 
+                          onClick={(e) => navigateToEntity(e, log)}
+                          className="p-3 bg-blue-600 text-white rounded-xl opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-blue-700 flex items-center gap-2"
+                          title="Acessar Registro"
+                        >
+                          <ExternalLink size={16} />
+                          <span className="text-[10px] font-black uppercase hidden lg:block">Ficha</span>
+                        </button>
+                      )}
+                      <div className="p-3 bg-slate-900 text-white rounded-xl group-hover:bg-slate-800 transition-all shadow-lg">
+                        <Eye size={18} />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -281,19 +313,22 @@ const AuditLogPage: React.FC = () => {
                  </div>
               </div>
 
-              {/* Banner de Ação de Contexto */}
+              {/* Banner de Ação de Contexto Reestruturado */}
               {selectedLog.action !== AuditAction.DELETE && (
-                <div className="bg-blue-600 p-6 rounded-3xl text-white shadow-xl shadow-blue-200 flex items-center justify-between group overflow-hidden relative">
-                   <div className="absolute right-0 top-0 translate-x-1/3 -translate-y-1/3 opacity-10 group-hover:scale-110 transition-transform">
-                      <Database size={120} />
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 rounded-3xl text-white shadow-xl shadow-blue-200 flex items-center justify-between group overflow-hidden relative border border-white/10">
+                   <div className="absolute right-0 top-0 translate-x-1/4 -translate-y-1/4 opacity-10 group-hover:scale-110 transition-transform">
+                      <SearchCode size={140} />
                    </div>
                    <div className="relative z-10">
-                      <p className="text-[10px] font-black uppercase tracking-widest mb-1 opacity-80">Rastreamento de Objeto</p>
-                      <h4 className="font-black text-lg uppercase tracking-tight">Inspecionar {selectedLog.entity_type} Atual</h4>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-1 opacity-80">Conformidade e Revisão</p>
+                      <h4 className="font-black text-lg uppercase tracking-tight flex items-center gap-2">
+                        Ver {selectedLog.entity_type} <ArrowRight size={18} className="opacity-50" />
+                      </h4>
+                      <p className="text-[9px] font-bold opacity-60 uppercase mt-1">Acessar estado atual do objeto auditado</p>
                    </div>
                    <button 
-                    onClick={() => navigateToEntity(selectedLog)}
-                    className="relative z-10 flex items-center gap-2 px-6 py-3 bg-white text-blue-600 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-slate-50 transition-all active:scale-95"
+                    onClick={(e) => navigateToEntity(e, selectedLog)}
+                    className="relative z-10 flex items-center gap-2 px-6 py-3 bg-white text-blue-600 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-slate-50 hover:scale-105 transition-all active:scale-95"
                    >
                      Acessar Ficha
                      <ExternalLink size={14} />
@@ -312,5 +347,10 @@ const AuditLogPage: React.FC = () => {
     </div>
   );
 };
+
+// Ícone Auxiliar para o banner
+const ArrowRight = ({ size, className }: { size: number, className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+);
 
 export default AuditLogPage;
