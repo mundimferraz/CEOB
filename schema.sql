@@ -1,7 +1,21 @@
 
--- SCRIPT DE PREPARAÇÃO DO BANCO SGR-VIAS ATUALIZADO
+-- SCRIPT DE ATUALIZAÇÃO SGR-VIAS
 
--- 1. CRIAÇÃO DA TABELA DE USUÁRIOS
+-- 1. GARANTIR QUE A TABELA DE ROTEIROS EXISTA
+CREATE TABLE IF NOT EXISTS visit_routes (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    technician_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+    request_ids TEXT[] NOT NULL,
+    status TEXT DEFAULT 'Pendente',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 2. COMANDO CRÍTICO: ADICIONAR COLUNA DE GEOLOCALIZAÇÃO SE NÃO EXISTIR
+-- Execute este bloco no SQL Editor do Supabase para corrigir o erro PGRST204
+ALTER TABLE visit_routes ADD COLUMN IF NOT EXISTS start_location JSONB;
+
+-- 3. OUTRAS TABELAS (GARANTIA DE INTEGRIDADE)
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -10,15 +24,12 @@ CREATE TABLE IF NOT EXISTS users (
     registration_number TEXT,
     email TEXT,
     password TEXT DEFAULT '123456',
+    position TEXT,
+    function TEXT,
+    last_active_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 2. GARANTIR COLUNAS DE CARGO E FUNÇÃO
-ALTER TABLE users ADD COLUMN IF NOT EXISTS position TEXT;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS function TEXT;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMP WITH TIME ZONE;
-
--- 3. TABELA DE ZONAIS
 CREATE TABLE IF NOT EXISTS zonals (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -28,7 +39,6 @@ CREATE TABLE IF NOT EXISTS zonals (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 4. TABELA DE VISTORIAS
 CREATE TABLE IF NOT EXISTS repair_requests (
     id TEXT PRIMARY KEY,
     protocol TEXT NOT NULL,
@@ -47,50 +57,8 @@ CREATE TABLE IF NOT EXISTS repair_requests (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 5. TABELA DE ROTEIROS DE VISITAS (ATUALIZADA)
-CREATE TABLE IF NOT EXISTS visit_routes (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    technician_id TEXT REFERENCES users(id) ON DELETE CASCADE,
-    request_ids TEXT[] NOT NULL,
-    start_location JSONB, -- Coluna essencial para o ponto de partida georreferenciado
-    status TEXT DEFAULT 'Pendente',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- 6. TABELA DE AUDITORIA
-CREATE TABLE IF NOT EXISTS audit_logs (
-    id BIGSERIAL PRIMARY KEY,
-    user_id TEXT,
-    user_name TEXT,
-    action TEXT NOT NULL,
-    entity_type TEXT NOT NULL,
-    entity_id TEXT,
-    details JSONB,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- 7. DESABILITAR RLS
+-- DESABILITAR RLS PARA FACILITAR OPERAÇÃO EM CAMPO
 ALTER TABLE users DISABLE ROW LEVEL SECURITY;
 ALTER TABLE zonals DISABLE ROW LEVEL SECURITY;
 ALTER TABLE repair_requests DISABLE ROW LEVEL SECURITY;
 ALTER TABLE visit_routes DISABLE ROW LEVEL SECURITY;
-ALTER TABLE audit_logs DISABLE ROW LEVEL SECURITY;
-
--- 8. INSERIR USUÁRIOS MESTRE
-INSERT INTO users (id, name, role, zonal, registration_number, email, password, position, function)
-VALUES 
-('root_master_id', 'claudioasousa', 'Admin', 'Zonal Norte', 'ROOT-001', 'claudio@sgrvias.gov.br', 'cas661010', 'Engenheiro Civil', 'Administrador Root')
-ON CONFLICT (id) DO UPDATE SET 
-    password = EXCLUDED.password, 
-    role = EXCLUDED.role,
-    position = EXCLUDED.position,
-    function = EXCLUDED.function;
-
-INSERT INTO users (id, name, role, zonal, registration_number, email, password, position, function)
-VALUES 
-('admin_manual_id', 'admin', 'Admin', 'Zonal Norte', 'ADMIN-001', 'admin@sgrvias.gov.br', 'admin', 'Gestor de TI', 'Administrador de Sistema')
-ON CONFLICT (id) DO UPDATE SET 
-    password = EXCLUDED.password,
-    position = EXCLUDED.position,
-    function = EXCLUDED.function;

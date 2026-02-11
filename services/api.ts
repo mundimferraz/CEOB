@@ -83,11 +83,11 @@ export const dbApi = {
     await supabase.from('users').delete().eq('id', id);
   },
 
-  // Roteiros de Visitas (Novo)
+  // Roteiros de Visitas
   async getRoutes(): Promise<VisitRoute[]> {
     const { data, error } = await supabase.from('visit_routes').select('*').order('created_at', { ascending: false });
     if (error) {
-      console.warn("Erro ao buscar rotas no Supabase, tentando LocalStorage:", error.message);
+      console.warn("Sincronização Supabase offline, usando LocalStorage.");
       const local = localStorage.getItem('sgr_vias_routes');
       return local ? JSON.parse(local) : [];
     }
@@ -103,8 +103,8 @@ export const dbApi = {
   },
 
   async saveRoute(route: VisitRoute): Promise<void> {
-    // 1. Tentar salvar no Supabase
-    const { error } = await supabase.from('visit_routes').upsert([{
+    // 1. Tentar salvar completo (com start_location)
+    const payload = {
       id: route.id,
       name: route.name,
       technician_id: route.technicianId,
@@ -112,14 +112,26 @@ export const dbApi = {
       start_location: route.startLocation,
       created_at: route.createdAt,
       status: route.status
-    }]);
+    };
 
-    if (error) {
-      console.error("Falha Crítica na Persistência Supabase (visit_routes):", error);
-      // Se falhar no banco, ainda assim salvamos no LocalStorage para não perder o trabalho do usuário
+    let { error } = await supabase.from('visit_routes').upsert([payload]);
+
+    // 2. FALLBACK: Se a coluna 'start_location' não existir no banco (Erro PGRST204)
+    if (error && error.code === 'PGRST204') {
+      console.error("ERRO DE ESQUEMA: Coluna 'start_location' ausente. Tentando salvamento simplificado...");
+      
+      const fallbackPayload = { ...payload };
+      delete (fallbackPayload as any).start_location;
+
+      const { error: retryError } = await supabase.from('visit_routes').upsert([fallbackPayload]);
+      error = retryError;
     }
 
-    // 2. Backup robusto em localStorage
+    if (error) {
+      console.error("Erro persistente na persistência remota:", error);
+    }
+
+    // 3. Persistência Local (Sempre executada para evitar perda de dados)
     try {
       const local = localStorage.getItem('sgr_vias_routes');
       const routes = local ? JSON.parse(local) : [];
@@ -127,10 +139,10 @@ export const dbApi = {
       if (index >= 0) routes[index] = route; else routes.push(route);
       localStorage.setItem('sgr_vias_routes', JSON.stringify(routes));
     } catch (e) {
-      console.error("Erro ao salvar backup local:", e);
+      console.error("Falha no backup local.");
     }
-    
-    if (error) throw new Error("Erro de comunicação com o servidor, dados salvos localmente.");
+
+    if (error) throw new Error(`Falha no banco de dados (${error.message}). Tente executar o script de atualização SQL no Supabase.`);
   },
 
   async deleteRoute(id: string): Promise<void> {
@@ -190,7 +202,7 @@ export const dbApi = {
     return (data || []).map(req => ({
       id: req.id,
       protocol: req.protocol,
-      sei_number: req.sei_number,
+      seiNumber: req.sei_number,
       contract: req.contract,
       description: req.description,
       location: { latitude: req.latitude, longitude: req.longitude, address: req.address },

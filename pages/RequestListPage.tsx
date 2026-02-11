@@ -2,10 +2,15 @@
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
-import { Search, Filter, Download, Plus, ChevronRight, MapPin, Calendar, User as UserIcon, ClipboardList, ImageIcon, ShieldCheck, Users, FileText, FileSpreadsheet, ChevronDown, ShieldAlert, Trash2, Loader2, RotateCw } from 'lucide-react';
+import { 
+  Search, Download, Plus, MapPin, Calendar, 
+  ClipboardList, ImageIcon, FileText, FileSpreadsheet, 
+  ChevronDown, Trash2, Loader2, RotateCw, Map as MapIcon,
+  Globe
+} from 'lucide-react';
 import { useApp } from '../App';
-import { RequestStatus, ZonalType, AppRole } from '../types';
-import { STATUS_COLORS, ZONALS_LIST } from '../constants';
+import { RequestStatus, AppRole, RepairRequest } from '../types';
+import { STATUS_COLORS } from '../constants';
 import * as XLSX from 'xlsx';
 
 const RequestListPage: React.FC = () => {
@@ -72,6 +77,75 @@ const RequestListPage: React.FC = () => {
         setDeletingId(null);
       }
     }
+  };
+
+  const exportToKML = () => {
+    // Agrupar vistorias por zonal para criar pastas no KML
+    // Fix: Explicitly type the accumulator as Record<string, RepairRequest[]> to avoid 'unknown' inference in Object.entries
+    const groupedByZonal = filteredRequests.reduce((acc, req) => {
+      const zonalName = getZonalName(req.zonal);
+      if (!acc[zonalName]) acc[zonalName] = [];
+      acc[zonalName].push(req);
+      return acc;
+    }, {} as Record<string, RepairRequest[]>);
+
+    let kmlContent = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Vistorias SGR-Vias - ${new Date().toLocaleDateString('pt-BR')}</name>
+    <description>Exportação georreferenciada do sistema SGR-Vias</description>
+`;
+
+    // Criar estilos básicos
+    kmlContent += `
+    <Style id="icon-open">
+      <IconStyle><color>ffffc107</color><scale>1.1</scale><Icon><href>http://maps.google.com/mapfiles/kml/paddle/blu-blank.png</href></Icon></IconStyle>
+    </Style>
+    <Style id="icon-completed">
+      <IconStyle><color>ff28a745</color><scale>1.1</scale><Icon><href>http://maps.google.com/mapfiles/kml/paddle/grn-blank.png</href></Icon></IconStyle>
+    </Style>
+`;
+
+    // Object.entries on a typed record now provides correctly typed reqs
+    for (const [zonalName, reqs] of Object.entries(groupedByZonal)) {
+      kmlContent += `    <Folder>
+      <name>${zonalName}</name>
+`;
+      // Fix: Now reqs is correctly typed as RepairRequest[] and forEach is available
+      reqs.forEach(req => {
+        const tech = users.find(u => u.id === req.technicianId);
+        kmlContent += `      <Placemark>
+        <name>${req.protocol}</name>
+        <description><![CDATA[
+          <div style="font-family: Arial, sans-serif; padding: 10px;">
+            <h3 style="color: #1e293b; margin-top: 0;">${req.protocol}</h3>
+            <p><strong>Status:</strong> ${req.status}</p>
+            <p><strong>SEI:</strong> ${req.seiNumber}</p>
+            <p><strong>Vistoriador:</strong> ${tech?.name || 'Não atribuído'}</p>
+            <p><strong>Endereço:</strong> ${req.location.address}</p>
+            <p><strong>Descrição:</strong> ${req.description}</p>
+            <p><small>Gerado via SGR-Vias em ${new Date(req.createdAt).toLocaleString('pt-BR')}</small></p>
+          </div>
+        ]]></description>
+        <Point>
+          <coordinates>${req.location.longitude},${req.location.latitude},0</coordinates>
+        </Point>
+      </Placemark>
+`;
+      });
+      kmlContent += `    </Folder>\n`;
+    }
+
+    kmlContent += `  </Document>
+</kml>`;
+
+    const blob = new Blob([kmlContent], { type: 'application/vnd.google-earth.kml+xml' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `SGR_Georreferenciado_${Date.now()}.kml`;
+    link.click();
+    notify("KML para Google Earth gerado com sucesso!", "success");
   };
 
   const exportToCSV = () => {
@@ -163,6 +237,7 @@ const RequestListPage: React.FC = () => {
         <div className="flex flex-wrap gap-2">
           <button onClick={handleManualRefresh} disabled={isRefreshing} className="flex items-center justify-center w-11 h-11 bg-white text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all shadow-sm active:scale-95 disabled:opacity-50" title="Sincronizar Manualmente"><RotateCw size={18} className={isRefreshing ? "animate-spin text-blue-600" : ""} /></button>
           
+          <button onClick={exportToKML} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-900 border border-slate-200 rounded-xl hover:bg-white font-bold transition-all shadow-sm text-sm" title="Abrir no Google Earth"><Globe size={16} className="text-blue-500" />Google Earth (KML)</button>
           <button onClick={generatePDFReport} className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl hover:bg-slate-800 font-bold transition-all shadow-lg text-sm"><FileText size={16} className="text-blue-400" />Relatório PDF</button>
           <button onClick={exportToCSV} className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 font-bold transition-all shadow-sm text-sm"><FileSpreadsheet size={16} className="text-emerald-600" />Planilha CSV</button>
           
@@ -173,7 +248,7 @@ const RequestListPage: React.FC = () => {
       <div className="bg-white p-2 md:p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input type="text" placeholder="Buscar por protocolo ou endereço..." className="w-full pl-12 pr-4 h-12 bg-slate-50 border-transparent focus:bg-white focus:border-blue-500 rounded-xl outline-none transition-all text-slate-900 font-medium" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          <input type="text" placeholder="Buscar por protocolo ou endereço..." className="w-full h-12 pl-12 pr-4 bg-slate-50 border-transparent focus:bg-white focus:border-blue-500 rounded-xl outline-none transition-all text-slate-900 font-medium" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
         </div>
         <div className="flex gap-2">
           <select className="flex-1 md:w-44 h-12 px-4 bg-slate-50 border-transparent rounded-xl focus:bg-white focus:border-blue-500 outline-none font-semibold text-slate-700 appearance-none text-sm" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
