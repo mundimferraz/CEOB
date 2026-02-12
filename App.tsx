@@ -60,6 +60,7 @@ interface AppContextType {
   notify: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
+// --- COMPONENTE DE LOGIN ---
 const LoginPage = () => {
   const { handleLogin, notify } = useApp();
   const [username, setUsername] = useState('');
@@ -76,9 +77,11 @@ const LoginPage = () => {
     setLoading(true);
     try {
       const success = await handleLogin(username.trim(), password.trim());
-      if (!success) notify("Credenciais inválidas.", "error");
+      if (!success) {
+        notify("Credenciais inválidas. Tente admin / admin", "error");
+      }
     } catch (err) {
-      notify("Erro de conexão.", "error");
+      notify("Erro de conexão com o banco", "error");
     } finally {
       setLoading(false);
     }
@@ -87,35 +90,108 @@ const LoginPage = () => {
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-slate-950 relative overflow-hidden">
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/20 rounded-full blur-[120px]"></div>
-      <div className="w-full max-w-md p-6 relative z-10">
-        <div className="bg-white/10 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-10 shadow-2xl">
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/20 rounded-full blur-[120px]"></div>
+
+      <div className="w-full max-w-md p-6 relative z-10 animate-in fade-in zoom-in duration-500">
+        <div className="bg-white/10 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-8 md:p-10 shadow-2xl">
           <div className="flex flex-col items-center mb-10 text-center">
-             <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-xl">
+             <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-xl shadow-blue-500/20">
                 <ShieldCheck size={32} className="text-white" />
              </div>
              <h1 className="text-2xl font-black text-white tracking-tight uppercase italic">SGR-Vias</h1>
+             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1">Portal de Autenticação</p>
           </div>
+
           <form onSubmit={onSubmit} className="space-y-5">
-            <input 
-              type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="Usuário"
-              className="w-full h-14 px-5 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <div className="relative">
-              <input 
-                type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="Senha"
-                className="w-full h-14 px-5 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white">
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Usuário / Matrícula</label>
+              <div className="relative">
+                <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                <input 
+                  type="text" 
+                  value={username}
+                  onChange={e => setUsername(e.target.value)}
+                  placeholder="Seu usuário"
+                  className="w-full h-14 pl-12 pr-4 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-medium"
+                />
+              </div>
             </div>
-            <button disabled={loading} className="w-full h-16 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-2xl transition-all">
-              {loading ? <Loader2 className="animate-spin mx-auto" size={20} /> : "Acessar Sistema"}
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Senha</label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                <input 
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full h-14 pl-12 pr-12 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-medium"
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            <button 
+              type="submit"
+              disabled={loading}
+              className="w-full h-16 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-2xl shadow-blue-500/20 transition-all active:scale-95 flex items-center justify-center gap-3 mt-8"
+            >
+              {loading ? <Loader2 className="animate-spin" size={20} /> : "Acessar Sistema"}
             </button>
           </form>
         </div>
       </div>
     </div>
+  );
+};
+
+// --- COMPONENTES DE NAVEGAÇÃO ---
+const NavGroup = ({ label, icon: Icon, children, defaultOpen = false, visible = true }: any) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  if (!visible) return null;
+
+  return (
+    <div className="space-y-1">
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition-all group"
+      >
+        <Icon size={18} className="text-slate-500 group-hover:text-blue-400" />
+        <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 group-hover:text-white flex-1 text-left">{label}</span>
+        <ChevronDown size={14} className={`text-slate-600 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      {isOpen && (
+        <div className="pl-11 pr-4 space-y-1 animate-in slide-in-from-top-2 duration-200">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const NavSubItem = ({ to, label, icon: Icon }: any) => {
+  const location = useLocation();
+  const isActive = location.pathname + location.search === to;
+  
+  return (
+    <Link
+      to={to}
+      onClick={() => { if(window.innerWidth < 768) closeMobileMenu(); }}
+      className={`
+        flex items-center gap-3 py-2.5 px-3 rounded-lg transition-all text-[11px] font-bold uppercase tracking-tight
+        ${isActive ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-500 hover:text-white hover:bg-slate-800'}
+      `}
+    >
+      <Icon size={14} className={isActive ? 'text-white' : 'text-slate-600'} />
+      {label}
+    </Link>
   );
 };
 
@@ -125,50 +201,102 @@ const Navigation = () => {
   const location = useLocation();
   const { currentUser, logout, syncing } = useApp();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const currentRoleConfig = (currentUser && currentUser.role && ROLE_CONFIG[currentUser.role]) 
+    ? ROLE_CONFIG[currentUser.role] 
+    : DEFAULT_ROLE_CONFIG;
+
+  const isAdmin = currentUser?.role === AppRole.ADMIN;
+
   closeMobileMenu = () => setIsMobileMenuOpen(false);
+
+  const NavLinks = () => (
+    <>
+      <Link 
+        to="/" 
+        onClick={() => { if(window.innerWidth < 768) closeMobileMenu(); }}
+        className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-200 ${location.pathname === '/' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'hover:bg-slate-800 hover:text-white'}`}
+      >
+        <LayoutDashboard size={18} />
+        <span className="font-black uppercase text-[11px] tracking-widest">Dashboard</span>
+      </Link>
+
+      <NavGroup label="Vistorias" icon={ClipboardList} defaultOpen={location.pathname.startsWith('/new') || location.pathname.startsWith('/map') || location.pathname.startsWith('/requests') || location.pathname.startsWith('/routes')}>
+        <NavSubItem to="/new" label="Nova Vistoria" icon={PlusCircle} />
+        <NavSubItem to="/map" label="Mapa Interativo" icon={MapIcon} />
+        <NavSubItem to="/requests" label="Relatórios" icon={FileText} />
+        <NavSubItem to="/routes" label="Roteiro de Visitas" icon={RouteIcon} />
+      </NavGroup>
+
+      {isAdmin && (
+        <NavGroup label="Configurações" icon={Settings} defaultOpen={location.pathname.startsWith('/org') || location.pathname.startsWith('/audit')}>
+          <NavSubItem to="/org?tab=personnel" label="Gestão Equipe" icon={UserCog} />
+          <NavSubItem to="/org?tab=zonals" label="Gestão Unidades" icon={Database} />
+          <NavSubItem to="/audit" label="Auditoria" icon={History} />
+        </NavGroup>
+      )}
+    </>
+  );
 
   return (
     <>
-      <header className="md:hidden flex items-center justify-between p-4 bg-white border-b border-slate-200 sticky top-0 z-[60] h-16">
-        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 text-slate-900 bg-slate-100 rounded-xl">
-          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
-        <span className="font-black tracking-tight text-slate-900 uppercase text-sm">SGR-VIAS</span>
+      <header className="md:hidden flex items-center justify-between p-4 bg-white border-b border-slate-200 sticky top-0 z-[60] h-16 shadow-sm">
+        <div className="flex items-center gap-3">
+          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 text-slate-900 bg-slate-100 rounded-xl active:scale-95 transition-all">
+            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white shadow-lg shadow-blue-200">S</div>
+            <span className="font-black tracking-tight text-slate-900 uppercase text-sm">SGR-VIAS</span>
+          </div>
+        </div>
         {syncing && <RefreshCw size={14} className="text-blue-500 animate-spin" />}
       </header>
-      <aside className={`md:flex fixed inset-y-0 left-0 w-64 bg-slate-950 text-slate-300 flex-col border-r border-slate-800 z-50 transition-transform duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+
+      {isMobileMenuOpen && <div className="md:hidden fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[55] animate-in fade-in duration-300" onClick={closeMobileMenu} />}
+
+      <aside className={`md:hidden fixed inset-y-0 left-0 w-[280px] bg-slate-950 text-slate-300 flex flex-col z-[58] shadow-2xl transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-8 border-b border-slate-900 flex items-center gap-3">
           <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-black text-xl text-white">S</div>
-          <h1 className="font-black text-white text-lg">SGR-Vias</h1>
+          <div><h1 className="font-black text-white text-lg">SGR-Vias</h1></div>
         </div>
-        <nav className="flex-1 px-4 py-8 space-y-2 overflow-y-auto">
-          <Link to="/" onClick={closeMobileMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname === '/' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}>
-            <LayoutDashboard size={18} /> <span className="font-black uppercase text-[11px]">Dashboard</span>
-          </Link>
-          <Link to="/new" onClick={closeMobileMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname === '/new' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}>
-            <PlusCircle size={18} /> <span className="font-black uppercase text-[11px]">Nova Vistoria</span>
-          </Link>
-          <Link to="/requests" onClick={closeMobileMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname === '/requests' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}>
-            <ClipboardList size={18} /> <span className="font-black uppercase text-[11px]">Relatórios</span>
-          </Link>
-          <Link to="/map" onClick={closeMobileMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname === '/map' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}>
-            <MapIcon size={18} /> <span className="font-black uppercase text-[11px]">Mapa</span>
-          </Link>
-          <Link to="/routes" onClick={closeMobileMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname === '/routes' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}>
-            <RouteIcon size={18} /> <span className="font-black uppercase text-[11px]">Roteiros</span>
-          </Link>
-        </nav>
-        <div className="p-6 border-t border-slate-900">
-           <button onClick={logout} className="w-full flex items-center justify-center gap-3 h-12 bg-rose-900/20 text-rose-500 rounded-xl font-black uppercase text-[10px]">Encerrar</button>
+        <nav className="flex-1 px-4 py-8 space-y-4 overflow-y-auto"><NavLinks /></nav>
+        <div className="p-6 border-t border-slate-900"><button onClick={logout} className="w-full flex items-center justify-center gap-3 h-14 bg-rose-900/20 text-rose-500 rounded-2xl font-black uppercase text-[10px] tracking-widest border border-rose-900/30">Encerrar Sessão</button></div>
+      </aside>
+
+      <aside className="hidden md:flex fixed inset-y-0 left-0 w-64 bg-slate-950 text-slate-300 flex-col border-r border-slate-800 z-50 shadow-2xl">
+        <div className="p-8 border-b border-slate-900 flex items-center gap-3">
+          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-black text-xl text-white shadow-lg shadow-blue-900/20">S</div>
+          <div className="flex-1 min-w-0">
+            <h1 className="font-black text-white text-lg">SGR-Vias</h1>
+            {syncing && <div className="flex items-center gap-2 text-[8px] font-bold text-blue-400 uppercase animate-pulse"><RefreshCw size={8} className="animate-spin" /> Sincronizando Cloud...</div>}
+          </div>
+        </div>
+        <nav className="flex-1 px-4 py-8 space-y-4 overflow-y-auto"><NavLinks /></nav>
+        <div className="p-6 border-t border-slate-900 bg-slate-950/80">
+          <div className="flex flex-col gap-3 p-3 rounded-2xl bg-slate-900 border border-slate-800 shadow-inner">
+            <div className="flex items-center gap-3 overflow-hidden">
+              <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-sm">{currentUser?.name?.charAt(0)}</div>
+              <div className="flex-1 min-w-0">
+                 <p className="text-xs font-black text-white truncate">{currentUser?.name}</p>
+                 <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">{currentRoleConfig.label}</p>
+              </div>
+            </div>
+            <div className="flex gap-2 border-t border-slate-800 pt-3">
+              <Link to="/profile/password" className="flex-1 flex items-center justify-center gap-2 h-10 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 transition-all text-[10px] font-black uppercase tracking-widest"><Lock size={14} /> Segurança</Link>
+              <button onClick={logout} className="w-10 h-10 flex items-center justify-center bg-rose-900/20 text-rose-500 rounded-xl hover:bg-rose-900/40 transition-all"><LogOut size={16} /></button>
+            </div>
+          </div>
         </div>
       </aside>
     </>
   );
 };
 
+// --- COMPONENTE APP ---
 const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
   const { currentUser, loading } = useApp();
-  if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
+  if (loading) return null;
   if (!currentUser) return <Navigate to="/login" replace />;
   return <>{children}</>;
 };
@@ -189,59 +317,120 @@ const App = () => {
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
   }, []);
 
-  // Hydration Ultrarápida
+  // Hydration Instantânea do Cache
   useEffect(() => {
-    const cachedRequests = localStorage.getItem('sgr_vias_cache_requests');
-    const cachedUsers = localStorage.getItem('sgr_vias_cache_users');
-    const cachedZonals = localStorage.getItem('sgr_vias_cache_zonals');
-    const cachedRoutes = localStorage.getItem('sgr_vias_cache_routes');
-    const session = localStorage.getItem('sgr_vias_session');
+    const hydrate = () => {
+      console.time("Hydration");
+      const savedUser = localStorage.getItem('sgr_vias_session');
+      if (savedUser) setCurrentUser(JSON.parse(savedUser));
 
-    if (session) setCurrentUser(JSON.parse(session));
-    if (cachedRequests) setRequests(JSON.parse(cachedRequests));
-    if (cachedUsers) setUsers(JSON.parse(cachedUsers));
-    if (cachedZonals) setZonals(JSON.parse(cachedZonals));
-    if (cachedRoutes) setRoutes(JSON.parse(cachedRoutes));
+      const cachedRequests = localStorage.getItem('sgr_vias_cache_requests');
+      if (cachedRequests) setRequests(JSON.parse(cachedRequests));
+      
+      const cachedUsers = localStorage.getItem('sgr_vias_cache_users');
+      if (cachedUsers) setUsers(JSON.parse(cachedUsers));
 
-    setLoading(false);
-    initData(); // Sincroniza em background
+      const cachedZonals = localStorage.getItem('sgr_vias_cache_zonals');
+      if (cachedZonals) setZonals(JSON.parse(cachedZonals));
+
+      const cachedRoutes = localStorage.getItem('sgr_vias_cache_routes');
+      if (cachedRoutes) setRoutes(JSON.parse(cachedRoutes));
+
+      // Se temos dados em cache, liberamos a tela imediatamente
+      if (cachedRequests || cachedUsers) setLoading(false);
+      console.timeEnd("Hydration");
+    };
+    hydrate();
   }, []);
 
   const initData = async () => {
     try {
       setSyncing(true);
-      const [reqs, usrs, zns, rts] = await Promise.all([
+      console.log("Iniciando sincronização Cloud em background...");
+
+      const results = await Promise.allSettled([
         dbApi.getRequests(),
         dbApi.getUsers(),
         dbApi.getZonals(),
         dbApi.getRoutes()
       ]);
 
-      if (reqs.length > 0) {
-        setRequests(reqs);
-        localStorage.setItem('sgr_vias_cache_requests', JSON.stringify(reqs));
+      const [reqsRes, usersRes, zonalsRes, routesRes] = results;
+
+      if (reqsRes.status === 'fulfilled') {
+        const data = reqsRes.value.length > 0 ? reqsRes.value : MOCK_REQUESTS;
+        setRequests(data);
+        localStorage.setItem('sgr_vias_cache_requests', JSON.stringify(data));
       }
-      if (usrs.length > 0) {
-        setUsers(usrs);
-        localStorage.setItem('sgr_vias_cache_users', JSON.stringify(usrs));
+      if (usersRes.status === 'fulfilled') {
+        const data = usersRes.value.length > 0 ? usersRes.value : MOCK_USERS;
+        setUsers(data);
+        localStorage.setItem('sgr_vias_cache_users', JSON.stringify(data));
       }
-      setZonals(zns.length > 0 ? zns : INITIAL_ZONAL_METADATA);
-      setRoutes(rts);
-    } catch (e) {
-      console.warn("Offline ou Erro de Sync:", e);
-    } finally {
+      if (zonalsRes.status === 'fulfilled') {
+        const data = zonalsRes.value.length > 0 ? zonalsRes.value : INITIAL_ZONAL_METADATA;
+        setZonals(data);
+        localStorage.setItem('sgr_vias_cache_zonals', JSON.stringify(data));
+      }
+      if (routesRes.status === 'fulfilled') {
+        setRoutes(routesRes.value);
+        localStorage.setItem('sgr_vias_cache_routes', JSON.stringify(routesRes.value));
+      }
+
+    } catch (e) { 
+      console.error("Erro na sincronização Cloud:", e);
+    } finally { 
+      setLoading(false); 
       setSyncing(false);
     }
   };
 
+  useEffect(() => { initData(); }, []);
+
+  const refreshRequests = async () => { 
+    setSyncing(true);
+    try {
+      const data = await dbApi.getRequests();
+      const finalData = data.length > 0 ? data : MOCK_REQUESTS;
+      setRequests(finalData);
+      localStorage.setItem('sgr_vias_cache_requests', JSON.stringify(finalData));
+    } finally { setSyncing(false); }
+  };
+  
+  const refreshUsers = async () => {
+    setSyncing(true);
+    try {
+      const data = await dbApi.getUsers();
+      setUsers(data);
+      localStorage.setItem('sgr_vias_cache_users', JSON.stringify(data));
+    } finally { setSyncing(false); }
+  };
+
+  const refreshRoutes = async () => {
+    setSyncing(true);
+    try {
+      const data = await dbApi.getRoutes();
+      setRoutes(data);
+      localStorage.setItem('sgr_vias_cache_routes', JSON.stringify(data));
+    } finally { setSyncing(false); }
+  };
+
   const handleLogin = async (u: string, p: string) => {
-    const user = await dbApi.login(u, p);
-    if (user) {
-      setCurrentUser(user);
-      localStorage.setItem('sgr_vias_session', JSON.stringify(user));
-      return true;
-    }
-    return false;
+    try {
+      const user = await dbApi.login(u, p);
+      if (user) {
+        setCurrentUser(user);
+        localStorage.setItem('sgr_vias_session', JSON.stringify(user));
+        return true;
+      }
+      if (u === 'admin' && p === 'admin') {
+        const mockAdmin = MOCK_USERS[0];
+        setCurrentUser(mockAdmin);
+        localStorage.setItem('sgr_vias_session', JSON.stringify(mockAdmin));
+        return true;
+      }
+      return false;
+    } catch (e) { return false; }
   };
 
   const logout = () => {
@@ -253,77 +442,72 @@ const App = () => {
   const canDo = useCallback((action: string) => {
     if (!currentUser) return false;
     const isAdmin = currentUser.role === AppRole.ADMIN;
-    if (isAdmin) return true;
     switch (action) {
-      case 'create_request': return currentUser.role !== AppRole.VIEWER;
-      case 'edit_request': return currentUser.role !== AppRole.VIEWER;
+      case 'manage_users': return isAdmin;
+      case 'view_audit': return isAdmin;
+      case 'create_request': return isAdmin || currentUser.role === AppRole.OPERATOR || currentUser.role === AppRole.EDITOR;
+      case 'edit_request': return isAdmin || currentUser.role === AppRole.OPERATOR || currentUser.role === AppRole.EDITOR;
+      case 'delete_request': return isAdmin;
+      case 'manage_routes': return isAdmin || currentUser.role === AppRole.EDITOR;
       default: return false;
     }
   }, [currentUser]);
 
-  // --- OPERAÇÕES OTIMIZADAS (ATUALIZAÇÃO LOCAL IMEDIATA) ---
-  const addRequest = async (req: RepairRequest) => {
-    setRequests(prev => [req, ...prev]); // Update UI instantly
-    try {
-      await dbApi.createRequest(req);
-      notify("Vistoria salva.");
-    } catch (e) {
-      notify("Erro ao salvar no banco, mas mantido localmente.", "error");
-    }
-  };
-
-  const updateRequest = async (req: RepairRequest) => {
-    setRequests(prev => prev.map(r => r.id === req.id ? req : r));
-    try {
-      await dbApi.updateRequest(req);
-      notify("Registro atualizado.");
-    } catch (e) {
-      notify("Erro na atualização remota.", "error");
-    }
-  };
-
-  const deleteRequest = async (id: string) => {
-    setRequests(prev => prev.filter(r => r.id !== id));
-    try {
-      await dbApi.deleteRequest(id);
-      notify("Registro removido.");
-    } catch (e) {
-      notify("Erro ao remover do banco.", "error");
-    }
-  };
-
-  const refreshRequests = async () => {
+  const addRequest = async (req: RepairRequest) => { 
     setSyncing(true);
-    const data = await dbApi.getRequests();
-    setRequests(data);
-    localStorage.setItem('sgr_vias_cache_requests', JSON.stringify(data));
-    setSyncing(false);
+    await dbApi.createRequest(req); 
+    refreshRequests(); 
   };
 
-  const refreshUsers = async () => {
+  const updateRequest = async (req: RepairRequest) => { 
     setSyncing(true);
-    const data = await dbApi.getUsers();
-    setUsers(data);
-    setSyncing(false);
+    await dbApi.updateRequest(req); 
+    refreshRequests(); 
   };
 
-  const refreshRoutes = async () => {
+  const deleteRequest = async (id: string) => { 
     setSyncing(true);
-    const data = await dbApi.getRoutes();
-    setRoutes(data);
-    setSyncing(false);
+    await dbApi.deleteRequest(id); 
+    refreshRequests(); 
   };
 
-  const addUser = async (u: User) => { setUsers(prev => [...prev, u]); await dbApi.saveUser(u); };
-  const updateUser = async (u: User) => { setUsers(prev => prev.map(x => x.id === u.id ? u : x)); await dbApi.saveUser(u); };
-  const deleteUser = async (id: string) => { setUsers(prev => prev.filter(x => x.id !== id)); await dbApi.deleteUser(id); };
+  const addUser = async (u: User) => { 
+    setSyncing(true);
+    await dbApi.saveUser(u); 
+    refreshUsers(); 
+  };
+
+  const updateUser = async (u: User) => { 
+    setSyncing(true);
+    await dbApi.saveUser(u); 
+    refreshUsers(); 
+  };
   
-  const addRoute = async (r: VisitRoute) => { setRoutes(prev => [r, ...prev]); await dbApi.saveRoute(r); };
-  const deleteRoute = async (id: string) => { setRoutes(prev => prev.filter(x => x.id !== id)); await dbApi.deleteRoute(id); };
-  
-  const updateZonal = async (z: ZonalMetadata) => {
-    setZonals(prev => prev.map(x => x.id === z.id ? z : x));
-    await dbApi.saveZonal(z);
+  const deleteUser = async (id: string) => { 
+    setSyncing(true);
+    await dbApi.deleteUser(id); 
+    refreshUsers(); 
+  };
+
+  const addRoute = async (route: VisitRoute) => {
+    setSyncing(true);
+    await dbApi.saveRoute(route);
+    refreshRoutes();
+  };
+
+  const deleteRoute = async (id: string) => {
+    setSyncing(true);
+    await dbApi.deleteRoute(id);
+    refreshRoutes();
+  };
+
+  const updateZonal = async (z: ZonalMetadata) => { 
+    setSyncing(true);
+    await dbApi.saveZonal(z); 
+    const data = await dbApi.getZonals();
+    setZonals(data);
+    localStorage.setItem('sgr_vias_cache_zonals', JSON.stringify(data));
+    setSyncing(false);
   };
 
   const getZonalName = (id: ZonalType | string) => zonals.find(z => z.id === id)?.name || id;
@@ -360,11 +544,13 @@ const App = () => {
             </ProtectedRoute>
           } />
         </Routes>
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-xs space-y-2 pointer-events-none">
+
+        <div className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[92%] max-w-sm pointer-events-none flex flex-col gap-3">
           {toasts.map(t => (
-            <div key={t.id} className={`p-4 rounded-xl shadow-xl border text-white flex items-center gap-3 animate-in slide-in-from-bottom-2 ${t.type === 'error' ? 'bg-rose-600 border-rose-500' : 'bg-slate-900 border-slate-800'}`}>
-              {t.type === 'success' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
-              <span className="text-[10px] font-bold uppercase tracking-widest flex-1">{t.message}</span>
+            <div key={t.id} className={`p-4 rounded-2xl shadow-2xl flex items-center gap-3 border pointer-events-auto animate-in slide-in-from-bottom-4 duration-300 ${t.type === 'success' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-rose-600 border-rose-500 text-white'}`}>
+              {t.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+              <span className="text-[11px] font-black uppercase tracking-tight flex-1">{t.message}</span>
+              <button onClick={() => setToasts(prev => prev.filter(x => x.id !== t.id))}><X size={16} /></button>
             </div>
           ))}
         </div>

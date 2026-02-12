@@ -177,160 +177,68 @@ const RequestDetailsPage: React.FC = () => {
   const generatePDF = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 20;
-    const contentWidth = pageWidth - (margin * 2);
     
-    // Header Modernizado
     doc.setFillColor(15, 23, 42);
-    doc.rect(0, 0, pageWidth, 45, 'F');
-    
+    doc.rect(0, 0, pageWidth, 40, 'F');
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(16);
+    doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
-    doc.text('LAUDO TÉCNICO DE INSPEÇÃO', margin, 20);
-    
+    doc.text('LAUDO TÉCNICO DE INSPEÇÃO - SGR-VIAS', 20, 20);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text('SISTEMA DE GESTÃO DE REPAROS EM VIAS - SGR-VIAS', margin, 26);
-    
-    doc.setFontSize(10);
+    doc.text(`Protocolo: ${request.protocol} | Documento SEI: ${request.seiNumber}`, 20, 28);
+    doc.text(`Data do Relatório: ${new Date().toLocaleDateString('pt-BR')}`, 20, 33);
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text(`PROTOCOLO: ${request.protocol}`, pageWidth - margin, 20, { align: 'right' });
-    doc.text(`STATUS: ${request.status.toUpperCase()}`, pageWidth - margin, 26, { align: 'right' });
-    
-    // Sub-header Info
-    doc.setFillColor(30, 41, 59);
-    doc.rect(0, 35, pageWidth, 10, 'F');
-    doc.setFontSize(8);
-    doc.setTextColor(200, 200, 200);
-    doc.text(`Documento SEI: ${request.seiNumber || 'N/A'}  |  Contrato: ${request.contract || 'N/A'}  |  Emissão: ${new Date().toLocaleDateString('pt-BR')}`, margin, 41.5);
-
-    let y = 60;
-
-    // Seção 1: Localização em Grid
-    doc.setTextColor(15, 23, 42);
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text('1. DADOS DE LOCALIZAÇÃO', margin, y);
+    doc.text('1. LOCALIZAÇÃO E IDENTIFICAÇÃO', 20, 55);
     doc.setDrawColor(226, 232, 240);
-    doc.line(margin, y + 2, pageWidth - margin, y + 2);
-    
-    y += 10;
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Endereço:', margin, y);
+    doc.line(20, 58, pageWidth - 20, 58);
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    const addressLines = doc.splitTextToSize(request.location.address, contentWidth - 25);
-    doc.text(addressLines, margin + 25, y);
-    
-    y += (addressLines.length * 5) + 2;
+    doc.text(`Endereço: ${request.location.address}`, 20, 68, { maxWidth: pageWidth - 40 });
+    doc.text(`Coordenadas: ${request.location.latitude.toFixed(6)}, ${request.location.longitude.toFixed(6)}`, 20, 78);
+    doc.text(`Unidade Zonal: ${getZonalName(request.zonal)}`, 20, 83);
+    doc.text(`Status Atual: ${request.status}`, 20, 88);
     doc.setFont('helvetica', 'bold');
-    doc.text('Coordenadas:', margin, y);
+    doc.text('2. EQUIPE TÉCNICA', 20, 105);
+    doc.line(20, 108, pageWidth - 20, 108);
     doc.setFont('helvetica', 'normal');
-    doc.text(`${request.location.latitude.toFixed(6)}, ${request.location.longitude.toFixed(6)}`, margin + 25, y);
-    
+    doc.text(`Engenheiro Responsável: ${engineer?.name || 'Não designado'}`, 20, 118);
+    doc.text(`Técnico de Campo: ${tech?.name || 'Não designado'}`, 20, 123);
     doc.setFont('helvetica', 'bold');
-    doc.text('Unidade:', margin + contentWidth/2, y);
-    doc.setFont('helvetica', 'normal');
-    doc.text(getZonalName(request.zonal), margin + contentWidth/2 + 20, y);
+    doc.text('3. DESCRITIVO / PARECER TÉCNICO', 20, 140);
+    doc.line(20, 143, pageWidth - 20, 143);
+    doc.setFont('helvetica', 'italic');
+    doc.text(request.description, 20, 153, { maxWidth: pageWidth - 40, align: 'justify' });
 
-    y += 12;
-
-    // Seção 2: Equipe
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text('2. RESPONSABILIDADE TÉCNICA', margin, y);
-    doc.line(margin, y + 2, pageWidth - margin, y + 2);
-    
-    y += 10;
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Eng. Responsável:', margin, y);
-    doc.setFont('helvetica', 'normal');
-    doc.text(engineer?.name || 'Não designado', margin + 35, y);
-    
-    y += 6;
-    doc.setFont('helvetica', 'bold');
-    doc.text('Vistoriador:', margin, y);
-    doc.setFont('helvetica', 'normal');
-    doc.text(tech?.name || 'Não designado', margin + 35, y);
-
-    y += 12;
-
-    // Seção 3: Descritivo
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text('3. DESCRITIVO TÉCNICO E PARECER', margin, y);
-    doc.line(margin, y + 2, pageWidth - margin, y + 2);
-    
-    y += 10;
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    const descLines = doc.splitTextToSize(request.description, contentWidth);
-    doc.text(descLines, margin, y, { align: 'justify' });
-    
-    y += (descLines.length * 5) + 15;
-
-    // Seção 4: Evidências Fotográficas (Lado a Lado e Menores)
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text('4. EVIDÊNCIAS FOTOGRÁFICAS', margin, y);
-    doc.line(margin, y + 2, pageWidth - margin, y + 2);
-    
-    y += 10;
-    
-    const imgWidth = (contentWidth / 2) - 5;
-    const imgHeight = 60; // Altura otimizada
-    
-    if (request.photoBefore) {
-      doc.setFontSize(8);
-      doc.setTextColor(100, 116, 139);
-      doc.text('REGISTRO INICIAL (ANTES)', margin, y - 2);
-      try {
-        doc.addImage(request.photoBefore, 'JPEG', margin, y, imgWidth, imgHeight);
-      } catch (e) {
-        doc.rect(margin, y, imgWidth, imgHeight);
-        doc.text('Erro ao carregar imagem', margin + 5, y + imgHeight/2);
+    if (request.photoBefore || request.photoAfter) {
+      doc.addPage();
+      doc.setFillColor(15, 23, 42);
+      doc.rect(0, 0, pageWidth, 20, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('ANEXO FOTOGRÁFICO', 20, 13);
+      let photoY = 40;
+      if (request.photoBefore) {
+        doc.setTextColor(30, 41, 59);
+        doc.text('EVIDÊNCIA INICIAL (ANTES)', 20, photoY);
+        try { doc.addImage(request.photoBefore, 'JPEG', 20, photoY + 5, pageWidth - 40, 90); photoY += 105; } catch (e) { photoY += 20; }
       }
-    } else {
-      doc.setDrawColor(241, 245, 249);
-      doc.rect(margin, y, imgWidth, imgHeight, 'F');
-      doc.setFontSize(8);
-      doc.setTextColor(148, 163, 184);
-      doc.text('Sem registro inicial', margin + imgWidth/2, y + imgHeight/2, { align: 'center' });
-    }
-
-    if (request.photoAfter) {
-      doc.setFontSize(8);
-      doc.setTextColor(100, 116, 139);
-      doc.text('REGISTRO FINAL (DEPOIS)', margin + imgWidth + 10, y - 2);
-      try {
-        doc.addImage(request.photoAfter, 'JPEG', margin + imgWidth + 10, y, imgWidth, imgHeight);
-      } catch (e) {
-        doc.rect(margin + imgWidth + 10, y, imgWidth, imgHeight);
-        doc.text('Erro ao carregar imagem', margin + imgWidth + 15, y + imgHeight/2);
+      if (request.photoAfter) {
+        doc.text('EVIDÊNCIA FINAL (DEPOIS)', 20, photoY);
+        try { doc.addImage(request.photoAfter, 'JPEG', 20, photoY + 5, pageWidth - 40, 90); } catch (e) { }
       }
-    } else {
-      doc.setDrawColor(241, 245, 249);
-      doc.rect(margin + imgWidth + 10, y, imgWidth, imgHeight, 'F');
-      doc.setFontSize(8);
-      doc.setTextColor(148, 163, 184);
-      doc.text('Aguardando conclusão', margin + imgWidth + 10 + imgWidth/2, y + imgHeight/2, { align: 'center' });
     }
-
-    // Rodapé em todas as páginas
     const totalPages = doc.internal.pages.length - 1;
     for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
-        doc.setFontSize(7);
+        doc.setFontSize(8);
         doc.setTextColor(148, 163, 184);
-        doc.line(margin, doc.internal.pageSize.getHeight() - 15, pageWidth - margin, doc.internal.pageSize.getHeight() - 15);
-        doc.text(`SGR-Vias - Sistema de Gestão de Reparos  |  Página ${i} de ${totalPages}`, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
-        doc.text(`ID Único: ${request.id}`, pageWidth - margin, doc.internal.pageSize.getHeight() - 10, { align: 'right' });
+        doc.text(`SGR-Vias - Página ${i} de ${totalPages}`, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
     }
-    
-    doc.save(`Laudo_Tecnico_${request.protocol.replace('.', '_')}.pdf`);
-    notify("Laudo técnico gerado com sucesso!");
+    doc.save(`Laudo_${request.protocol.replace('.', '_')}.pdf`);
   };
 
   // Funções de Zoom
@@ -397,45 +305,12 @@ const RequestDetailsPage: React.FC = () => {
           <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden p-6 md:p-8 space-y-8">
             
             {isEditingCoords ? (
-              <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Reposicionamento Geográfico</h3>
-                  <div className="text-[10px] font-bold text-blue-600">Arraste o pino ou digite os valores</div>
+                  <div className="text-[10px] font-bold text-blue-600">Arraste o pino para o novo local</div>
                 </div>
                 <div id="edit-map-container" className="h-64 w-full rounded-2xl border border-slate-200 shadow-inner overflow-hidden"></div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Latitude</label>
-                    <input 
-                      type="number" 
-                      step="0.000001"
-                      value={editedLat}
-                      onChange={e => {
-                        const val = parseFloat(e.target.value);
-                        setEditedLat(val);
-                        if (markerRef.current) markerRef.current.setLatLng([val, editedLng]);
-                        if (mapRef.current) mapRef.current.panTo([val, editedLng]);
-                      }}
-                      className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Longitude</label>
-                    <input 
-                      type="number" 
-                      step="0.000001"
-                      value={editedLng}
-                      onChange={e => {
-                        const val = parseFloat(e.target.value);
-                        setEditedLng(val);
-                        if (markerRef.current) markerRef.current.setLatLng([editedLat, val]);
-                        if (mapRef.current) mapRef.current.panTo([editedLat, val]);
-                      }}
-                      className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
-                  </div>
-                </div>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
