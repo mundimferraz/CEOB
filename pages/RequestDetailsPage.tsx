@@ -397,12 +397,45 @@ const RequestDetailsPage: React.FC = () => {
           <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden p-6 md:p-8 space-y-8">
             
             {isEditingCoords ? (
-              <div className="space-y-4">
+              <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Reposicionamento Geográfico</h3>
-                  <div className="text-[10px] font-bold text-blue-600">Arraste o pino para o novo local</div>
+                  <div className="text-[10px] font-bold text-blue-600">Arraste o pino ou digite os valores</div>
                 </div>
                 <div id="edit-map-container" className="h-64 w-full rounded-2xl border border-slate-200 shadow-inner overflow-hidden"></div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Latitude</label>
+                    <input 
+                      type="number" 
+                      step="0.000001"
+                      value={editedLat}
+                      onChange={e => {
+                        const val = parseFloat(e.target.value);
+                        setEditedLat(val);
+                        if (markerRef.current) markerRef.current.setLatLng([val, editedLng]);
+                        if (mapRef.current) mapRef.current.panTo([val, editedLng]);
+                      }}
+                      className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Longitude</label>
+                    <input 
+                      type="number" 
+                      step="0.000001"
+                      value={editedLng}
+                      onChange={e => {
+                        const val = parseFloat(e.target.value);
+                        setEditedLng(val);
+                        if (markerRef.current) markerRef.current.setLatLng([editedLat, val]);
+                        if (mapRef.current) mapRef.current.panTo([editedLat, val]);
+                      }}
+                      className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
+                    />
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
