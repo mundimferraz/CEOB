@@ -80,8 +80,6 @@ const RequestListPage: React.FC = () => {
   };
 
   const exportToKML = () => {
-    // Agrupar vistorias por zonal para criar pastas no KML
-    // Fixed: Explicitly type the accumulator as Record<string, RepairRequest[]>
     const groupedByZonal: Record<string, RepairRequest[]> = filteredRequests.reduce((acc: Record<string, RepairRequest[]>, req) => {
       const zonalName = getZonalName(req.zonal);
       if (!acc[zonalName]) acc[zonalName] = [];
@@ -96,7 +94,6 @@ const RequestListPage: React.FC = () => {
     <description>Exportação georreferenciada do sistema SGR-Vias</description>
 `;
 
-    // Criar estilos básicos
     kmlContent += `
     <Style id="icon-open">
       <IconStyle><color>ffffc107</color><scale>1.1</scale><Icon><href>http://maps.google.com/mapfiles/kml/paddle/blu-blank.png</href></Icon></IconStyle>
@@ -106,7 +103,6 @@ const RequestListPage: React.FC = () => {
     </Style>
 `;
 
-    // Fixed: Use Object.keys to iterate and ensure reqs is correctly typed to avoid 'unknown' issues in some TS versions with Object.entries
     Object.keys(groupedByZonal).forEach(zonalName => {
       const reqs = groupedByZonal[zonalName];
       kmlContent += `    <Folder>
@@ -176,53 +172,92 @@ const RequestListPage: React.FC = () => {
   const generatePDFReport = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 15;
     
+    // Header
     doc.setFillColor(15, 23, 42);
-    doc.rect(0, 0, pageWidth, 30, 'F');
+    doc.rect(0, 0, pageWidth, 35, 'F');
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(14);
+    doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text('RELATÓRIO CONSOLIDADO DE VISTORIAS - SGR-VIAS', 15, 15);
+    doc.text('RELAÇÃO CONSOLIDADA DE VISTORIAS', margin, 18);
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')} | Total de Registros: ${filteredRequests.length}`, 15, 22);
+    doc.text(`SGR-VIAS - SISTEMA DE GESTÃO DE REPAROS`, margin, 24);
+    doc.text(`GERADO EM: ${new Date().toLocaleString('pt-BR')}  |  REGISTROS FILTRADOS: ${filteredRequests.length}`, margin, 28);
 
-    let y = 45;
-    doc.setTextColor(15, 23, 42);
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Protocolo', 15, y);
-    doc.text('Status', 45, y);
-    doc.text('Unidade', 75, y);
-    doc.text('Localização', 105, y);
+    let y = 50;
     
-    y += 4;
-    doc.setDrawColor(200, 200, 200);
-    doc.line(15, y, pageWidth - 15, y);
+    // Tabela Header
+    doc.setFillColor(248, 250, 252);
+    doc.rect(margin, y - 5, pageWidth - (margin * 2), 8, 'F');
+    doc.setTextColor(100, 116, 139);
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PROTOCOLO', margin + 2, y);
+    doc.text('FOTO', margin + 32, y);
+    doc.text('STATUS', margin + 45, y);
+    doc.text('UNIDADE ZONAL', margin + 70, y);
+    doc.text('ENDEREÇO E LOCALIZAÇÃO', margin + 105, y);
+    
     y += 8;
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
+    doc.setTextColor(30, 41, 59);
 
     filteredRequests.forEach((req, index) => {
-      if (y > 270) {
+      if (y > 275) {
         doc.addPage();
+        y = 20;
+        // Re-print header simplified
+        doc.setFillColor(15, 23, 42);
+        doc.rect(0, 0, pageWidth, 10, 'F');
         y = 20;
       }
       
-      doc.text(req.protocol, 15, y);
-      doc.text(req.status, 45, y);
-      doc.text(getZonalName(req.zonal), 75, y);
-      const addr = req.location.address.substring(0, 45) + (req.location.address.length > 45 ? '...' : '');
-      doc.text(addr, 105, y);
+      // Background zebrado
+      if (index % 2 === 0) {
+        doc.setFillColor(252, 253, 254);
+        doc.rect(margin, y - 4, pageWidth - (margin * 2), 12, 'F');
+      }
+
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'bold');
+      doc.text(req.protocol, margin + 2, y + 2);
       
-      y += 6;
-      doc.setDrawColor(240, 240, 240);
-      doc.line(15, y-2, pageWidth - 15, y-2);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6);
+      doc.text(req.status, margin + 45, y + 2);
+      doc.text(getZonalName(req.zonal), margin + 70, y + 2);
+      
+      const addr = req.location.address.substring(0, 50) + (req.location.address.length > 50 ? '...' : '');
+      doc.text(addr, margin + 105, y + 2);
+      
+      // Thumbnail
+      if (req.photoBefore) {
+        try {
+          doc.addImage(req.photoBefore, 'JPEG', margin + 32, y - 3, 10, 8);
+        } catch (e) {}
+      } else {
+        doc.setFontSize(5);
+        doc.text('S/ FOTO', margin + 32, y + 2);
+      }
+      
+      y += 12;
+      doc.setDrawColor(241, 245, 249);
+      doc.line(margin, y - 4, pageWidth - margin, y - 4);
     });
 
+    const totalPages = doc.internal.pages.length - 1;
+    for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(7);
+        doc.setTextColor(148, 163, 184);
+        doc.text(`SGR-Vias - Página ${i} de ${totalPages}`, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
+    }
+
     doc.save(`SGR_Relatorio_Consolidado_${Date.now()}.pdf`);
-    notify("Relatório PDF gerado com sucesso!");
+    notify("Relatório consolidado gerado!");
   };
 
   return (
