@@ -81,13 +81,13 @@ const RequestListPage: React.FC = () => {
 
   const exportToKML = () => {
     // Agrupar vistorias por zonal para criar pastas no KML
-    // Fix: Explicitly type the accumulator as Record<string, RepairRequest[]> to avoid 'unknown' inference in Object.entries
-    const groupedByZonal = filteredRequests.reduce((acc, req) => {
+    // Fixed: Explicitly type the accumulator as Record<string, RepairRequest[]>
+    const groupedByZonal: Record<string, RepairRequest[]> = filteredRequests.reduce((acc: Record<string, RepairRequest[]>, req) => {
       const zonalName = getZonalName(req.zonal);
       if (!acc[zonalName]) acc[zonalName] = [];
       acc[zonalName].push(req);
       return acc;
-    }, {} as Record<string, RepairRequest[]>);
+    }, {});
 
     let kmlContent = `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
@@ -106,12 +106,12 @@ const RequestListPage: React.FC = () => {
     </Style>
 `;
 
-    // Object.entries on a typed record now provides correctly typed reqs
-    for (const [zonalName, reqs] of Object.entries(groupedByZonal)) {
+    // Fixed: Use Object.keys to iterate and ensure reqs is correctly typed to avoid 'unknown' issues in some TS versions with Object.entries
+    Object.keys(groupedByZonal).forEach(zonalName => {
+      const reqs = groupedByZonal[zonalName];
       kmlContent += `    <Folder>
       <name>${zonalName}</name>
 `;
-      // Fix: Now reqs is correctly typed as RepairRequest[] and forEach is available
       reqs.forEach(req => {
         const tech = users.find(u => u.id === req.technicianId);
         kmlContent += `      <Placemark>
@@ -134,7 +134,7 @@ const RequestListPage: React.FC = () => {
 `;
       });
       kmlContent += `    </Folder>\n`;
-    }
+    });
 
     kmlContent += `  </Document>
 </kml>`;

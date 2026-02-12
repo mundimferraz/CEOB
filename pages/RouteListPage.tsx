@@ -5,7 +5,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { 
   Route as RouteIcon, MapPinned, User as UserIcon, Calendar, 
   Plus, Trash2, MapPin, ListChecks, 
-  Share2, Navigation as NavIcon, X, Maximize2, Map as MapIcon, ChevronRight, Home, Flag
+  Share2, Navigation as NavIcon, X, Maximize2, Map as MapIcon, ChevronRight, Home, Flag,
+  Edit2
 } from 'lucide-react';
 import { STATUS_COLORS } from '../constants';
 
@@ -176,12 +177,22 @@ const RouteListPage: React.FC = () => {
                       <h3 className="font-black text-sm uppercase tracking-tight truncate">{techName}</h3>
                       <p className="text-[9px] text-blue-400 font-bold uppercase tracking-widest">Encarregado</p>
                     </div>
-                    <button 
-                      onClick={() => handleDelete(route.id, route.name)}
-                      className="ml-auto p-2 text-slate-500 hover:text-rose-500 transition-colors"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    <div className="ml-auto flex items-center gap-1">
+                      <button 
+                        onClick={() => navigate(`/routes/planner?edit=${route.id}`)}
+                        className="p-2 text-slate-500 hover:text-blue-400 transition-colors"
+                        title="Editar Itinerário"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(route.id, route.name)}
+                        className="p-2 text-slate-500 hover:text-rose-500 transition-colors"
+                        title="Excluir Roteiro"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
                   <div className="flex items-end justify-between">
                      <div>
