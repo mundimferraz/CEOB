@@ -104,7 +104,7 @@ const LoginPage = () => {
 
           <form onSubmit={onSubmit} className="space-y-5">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Usuário / Matrícula</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Usuário / Matrícula</label>
               <div className="relative">
                 <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                 <input 
@@ -118,7 +118,7 @@ const LoginPage = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Senha</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Senha</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                 <input 
@@ -320,7 +320,6 @@ const App = () => {
   // Hydration Instantânea do Cache
   useEffect(() => {
     const hydrate = () => {
-      console.time("Hydration");
       const savedUser = localStorage.getItem('sgr_vias_session');
       if (savedUser) setCurrentUser(JSON.parse(savedUser));
 
@@ -336,9 +335,7 @@ const App = () => {
       const cachedRoutes = localStorage.getItem('sgr_vias_cache_routes');
       if (cachedRoutes) setRoutes(JSON.parse(cachedRoutes));
 
-      // Se temos dados em cache, liberamos a tela imediatamente
-      if (cachedRequests || cachedUsers) setLoading(false);
-      console.timeEnd("Hydration");
+      if (cachedRequests || cachedUsers || cachedRoutes) setLoading(false);
     };
     hydrate();
   }, []);
@@ -346,8 +343,6 @@ const App = () => {
   const initData = async () => {
     try {
       setSyncing(true);
-      console.log("Iniciando sincronização Cloud em background...");
-
       const results = await Promise.allSettled([
         dbApi.getRequests(),
         dbApi.getUsers(),
@@ -373,8 +368,10 @@ const App = () => {
         localStorage.setItem('sgr_vias_cache_zonals', JSON.stringify(data));
       }
       if (routesRes.status === 'fulfilled') {
-        setRoutes(routesRes.value);
-        localStorage.setItem('sgr_vias_cache_routes', JSON.stringify(routesRes.value));
+        const data = routesRes.value || [];
+        setRoutes(data);
+        localStorage.setItem('sgr_vias_cache_routes', JSON.stringify(data));
+        console.log(`[Sincronização] ${data.length} roteiros carregados do banco.`);
       }
 
     } catch (e) { 

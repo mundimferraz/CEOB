@@ -104,20 +104,24 @@ export const dbApi = {
   async getRoutes(): Promise<VisitRoute[]> {
     try {
       const { data, error } = await supabase.from('visit_routes').select('*').order('created_at', { ascending: false });
+      
       if (error) {
-        const local = localStorage.getItem('sgr_vias_routes');
+        console.error("Erro Supabase GetRoutes:", error.message);
+        const local = localStorage.getItem('sgr_vias_cache_routes');
         return local ? JSON.parse(local) : [];
       }
+
       return (data || []).map(r => ({
         id: r.id,
         name: r.name,
         technicianId: r.technician_id,
-        requestIds: r.request_ids,
+        requestIds: Array.isArray(r.request_ids) ? r.request_ids : [],
         startLocation: r.start_location,
         createdAt: r.created_at,
         status: r.status
       }));
     } catch (e) {
+      console.error("Erro crítico em getRoutes:", e);
       return [];
     }
   },
@@ -138,11 +142,11 @@ export const dbApi = {
       
       if (error) {
         // Fallback local caso o banco falhe
-        const local = localStorage.getItem('sgr_vias_routes');
+        const local = localStorage.getItem('sgr_vias_cache_routes');
         const routes = local ? JSON.parse(local) : [];
         const index = routes.findIndex((r: any) => r.id === route.id);
         if (index >= 0) routes[index] = route; else routes.push(route);
-        localStorage.setItem('sgr_vias_routes', JSON.stringify(routes));
+        localStorage.setItem('sgr_vias_cache_routes', JSON.stringify(routes));
         console.warn("Salvamento remoto falhou, persistido localmente.");
       }
     } catch (e) {
@@ -152,10 +156,10 @@ export const dbApi = {
 
   async deleteRoute(id: string): Promise<void> {
     await supabase.from('visit_routes').delete().eq('id', id);
-    const local = localStorage.getItem('sgr_vias_routes');
+    const local = localStorage.getItem('sgr_vias_cache_routes');
     if (local) {
       const routes = JSON.parse(local);
-      localStorage.setItem('sgr_vias_routes', JSON.stringify(routes.filter((r: any) => r.id !== id)));
+      localStorage.setItem('sgr_vias_cache_routes', JSON.stringify(routes.filter((r: any) => r.id !== id)));
     }
   },
 
