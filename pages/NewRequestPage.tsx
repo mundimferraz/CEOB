@@ -4,11 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import { Camera, MapPin, Save, Loader2, Navigation as NavigationIcon, Crosshair, Check, UploadCloud, ImageIcon, Trash2, RefreshCw } from 'lucide-react';
 import { useApp } from '../App';
 import { RequestStatus, ZonalType, RepairRequest } from '../types';
-import { ZONALS_LIST } from '../constants';
 import { addWatermarkToImage } from '../services/imageUtils';
 
 const NewRequestPage: React.FC = () => {
-  const { addRequest, users, currentUser, getZonalName, getRoleLabel, notify } = useApp();
+  const { addRequest, users, zonals, currentUser, getZonalName, notify } = useApp();
   const navigate = useNavigate();
   
   const mapRef = useRef<any>(null);
@@ -31,7 +30,7 @@ const NewRequestPage: React.FC = () => {
     seiNumber: '',
     contract: '',
     description: '',
-    zonal: ZonalType.NORTH,
+    zonal: '', // Inicialmente vazio para ser preenchido pelos dados do banco
     technicianId: '',
     visitDate: new Date().toISOString().split('T')[0],
     latitude: -23.5505,
@@ -43,6 +42,15 @@ const NewRequestPage: React.FC = () => {
 
   const [imagePreviewBefore, setImagePreviewBefore] = useState<string | null>(null);
   const [imagePreviewAfter, setImagePreviewAfter] = useState<string | null>(null);
+
+  // Define uma zonal padrão assim que os dados carregarem
+  useEffect(() => {
+    if (zonals.length > 0 && !formData.zonal) {
+      // Se o usuário atual tiver uma zonal vinculada, seleciona ela, senão a primeira da lista
+      const defaultZonal = currentUser?.zonal || zonals[0].id;
+      setFormData(prev => ({ ...prev, zonal: defaultZonal }));
+    }
+  }, [zonals, currentUser]);
 
   useEffect(() => {
     if (!mapRef.current) {
@@ -180,7 +188,11 @@ const NewRequestPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Validação de foto obrigatória removida conforme pedido
+    if (!formData.zonal) {
+      notify("Selecione uma unidade zonal.", "error");
+      return;
+    }
+    
     setIsSaving(true);
     const newRequest: RepairRequest = {
       id: `req_${Date.now()}`,
@@ -212,6 +224,7 @@ const NewRequestPage: React.FC = () => {
     }
   };
 
+  // Filtra os profissionais (usuários) que pertencem à unidade zonal selecionada
   const filteredPersonnel = users.filter(u => u.zonal === formData.zonal);
 
   return (
@@ -317,9 +330,10 @@ const NewRequestPage: React.FC = () => {
                 <select 
                   className="w-full h-12 px-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-slate-900 appearance-none bg-slate-50 uppercase text-xs"
                   value={formData.zonal}
-                  onChange={e => setFormData({...formData, zonal: e.target.value as ZonalType, technicianId: ''})}
+                  onChange={e => setFormData({...formData, zonal: e.target.value, technicianId: ''})}
                 >
-                  {ZONALS_LIST.map(z => <option key={z} value={z}>{getZonalName(z)}</option>)}
+                  <option value="">-- Selecione a Unidade --</option>
+                  {zonals.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
                 </select>
               </div>
               <div>
@@ -339,7 +353,7 @@ const NewRequestPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Registro Fotográfico Dual (Antes e Depois clonados) */}
+        {/* Registro Fotográfico Dual */}
         <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm space-y-6">
            <h2 className="text-sm font-black text-slate-900 border-b border-slate-100 pb-4 flex items-center gap-2 uppercase tracking-tight">
              <div className="w-1.5 h-6 bg-rose-600 rounded-full"></div>
@@ -398,7 +412,7 @@ const NewRequestPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Slot DEPOIS (Clonado do Antes) */}
+            {/* Slot DEPOIS */}
             <div className="space-y-3">
               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Vista Final (Depois)</label>
               <div className="relative group rounded-[2rem] overflow-hidden border-2 border-slate-200 bg-slate-50 min-h-[240px] flex flex-col items-center justify-center transition-all">
@@ -450,7 +464,6 @@ const NewRequestPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Inputs Ocultos Reutilizáveis */}
           <input 
             ref={cameraInputRef}
             type="file" 
