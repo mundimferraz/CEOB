@@ -97,7 +97,6 @@ const RequestDetailsPage: React.FC = () => {
 
   if (!request) return <div className="p-12 text-center font-bold text-slate-400">Solicitação não encontrada</div>;
 
-  // REGRA DE NEGÓCIO: Administradores editam sempre. Outros apenas se não estiver concluído/cancelado.
   const isAdmin = currentUser?.role === AppRole.ADMIN;
   const isFinished = request.status === RequestStatus.COMPLETED || request.status === RequestStatus.CANCELED;
   const canModify = isAdmin || (!isFinished && canDo('edit_request'));
@@ -241,6 +240,11 @@ const RequestDetailsPage: React.FC = () => {
     }
     doc.save(`Laudo_${request.protocol.replace('.', '_')}.pdf`);
   };
+
+  // Funções de Zoom
+  const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 0.5, 5));
+  const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 0.5, 1));
+  const handleResetZoom = () => setZoomLevel(1);
 
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto w-full space-y-8 pb-24">
@@ -510,8 +514,50 @@ const RequestDetailsPage: React.FC = () => {
               <button onClick={() => { setFullscreenImage(null); setZoomLevel(1); }} className="w-12 h-12 flex items-center justify-center bg-white/10 hover:bg-rose-600 text-white rounded-2xl transition-all border border-white/10"><X size={24} /></button>
             </div>
           </div>
+
           <div className="w-full h-full flex items-center justify-center overflow-auto p-4 cursor-grab active:cursor-grabbing scrollbar-hide">
-             <img src={fullscreenImage.url} alt="ZoomView" style={{ transform: `scale(${zoomLevel})`, transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)', maxWidth: zoomLevel > 1 ? 'none' : '90%', maxHeight: zoomLevel > 1 ? 'none' : '85%' }} className="rounded-lg shadow-2xl pointer-events-auto" />
+             <img 
+               src={fullscreenImage.url} 
+               alt="ZoomView" 
+               style={{ 
+                 transform: `scale(${zoomLevel})`, 
+                 transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 
+                 maxWidth: zoomLevel > 1 ? 'none' : '90%', 
+                 maxHeight: zoomLevel > 1 ? 'none' : '85%' 
+               }} 
+               className="rounded-lg shadow-2xl pointer-events-auto" 
+             />
+          </div>
+
+          {/* BARRA DE CONTROLE DE ZOOM FLUTUANTE */}
+          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-2 p-2 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 z-50 animate-in slide-in-from-bottom-4 duration-500 shadow-2xl">
+            <button 
+              onClick={handleZoomOut}
+              disabled={zoomLevel <= 1}
+              className="w-12 h-12 flex items-center justify-center bg-white/10 text-white rounded-xl hover:bg-white/20 transition-all disabled:opacity-30"
+              title="Diminuir Zoom"
+            >
+              <ZoomOut size={20} />
+            </button>
+            <div className="px-4 text-[10px] font-black text-white uppercase tracking-widest min-w-[80px] text-center">
+              {Math.round(zoomLevel * 100)}%
+            </div>
+            <button 
+              onClick={handleZoomIn}
+              disabled={zoomLevel >= 5}
+              className="w-12 h-12 flex items-center justify-center bg-white/10 text-white rounded-xl hover:bg-white/20 transition-all disabled:opacity-30"
+              title="Aumentar Zoom"
+            >
+              <ZoomIn size={20} />
+            </button>
+            <div className="w-px h-6 bg-white/10 mx-1"></div>
+            <button 
+              onClick={handleResetZoom}
+              className="w-12 h-12 flex items-center justify-center bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all"
+              title="Resetar Zoom"
+            >
+              <RotateCcw size={20} />
+            </button>
           </div>
         </div>
       )}

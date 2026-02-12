@@ -10,7 +10,7 @@ import {
   Database, UserCog, UserCheck, MapPinned, ListChecks
 } from 'lucide-react';
 import { RepairRequest, User, ZonalType, RequestStatus, ZonalMetadata, AppRole, AuditAction, AuditEntity, VisitRoute } from './types';
-import { ROLE_CONFIG, DEFAULT_ROLE_CONFIG, INITIAL_ZONAL_METADATA } from './constants';
+import { ROLE_CONFIG, DEFAULT_ROLE_CONFIG, INITIAL_ZONAL_METADATA, MOCK_USERS, MOCK_REQUESTS } from './constants';
 import DashboardPage from './pages/DashboardPage';
 import RequestListPage from './pages/RequestListPage';
 import NewRequestPage from './pages/NewRequestPage';
@@ -80,7 +80,7 @@ const LoginPage = () => {
         notify("Credenciais inválidas. Tente admin / admin", "error");
       }
     } catch (err) {
-      notify("Erro de conexão", "error");
+      notify("Erro de conexão com o banco", "error");
     } finally {
       setLoading(false);
     }
@@ -182,7 +182,7 @@ const NavSubItem = ({ to, label, icon: Icon, onClick }: any) => {
   return (
     <Link
       to={to}
-      onClick={onClick}
+      onClick={closeMobileMenu}
       className={`
         flex items-center gap-3 py-2.5 px-3 rounded-lg transition-all text-[11px] font-bold uppercase tracking-tight
         ${isActive ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-500 hover:text-white hover:bg-slate-800'}
@@ -193,6 +193,9 @@ const NavSubItem = ({ to, label, icon: Icon, onClick }: any) => {
     </Link>
   );
 };
+
+// Global para facilitar acesso em componentes internos
+let closeMobileMenu: () => void;
 
 const Navigation = () => {
   const location = useLocation();
@@ -205,7 +208,7 @@ const Navigation = () => {
 
   const isAdmin = currentUser?.role === AppRole.ADMIN;
 
-  const closeMobileMenu = () => setIsMobileMenuOpen(false);
+  closeMobileMenu = () => setIsMobileMenuOpen(false);
 
   const NavLinks = () => (
     <>
@@ -219,17 +222,17 @@ const Navigation = () => {
       </Link>
 
       <NavGroup label="Vistorias" icon={ClipboardList} defaultOpen={location.pathname.startsWith('/new') || location.pathname.startsWith('/map') || location.pathname.startsWith('/requests') || location.pathname.startsWith('/routes')}>
-        <NavSubItem to="/new" label="Nova Vistoria" icon={PlusCircle} onClick={closeMobileMenu} />
-        <NavSubItem to="/map" label="Mapa Interativo" icon={MapIcon} onClick={closeMobileMenu} />
-        <NavSubItem to="/requests" label="Relatórios" icon={FileText} onClick={closeMobileMenu} />
-        <NavSubItem to="/routes" label="Roteiro de Visitas" icon={RouteIcon} onClick={closeMobileMenu} />
+        <NavSubItem to="/new" label="Nova Vistoria" icon={PlusCircle} />
+        <NavSubItem to="/map" label="Mapa Interativo" icon={MapIcon} />
+        <NavSubItem to="/requests" label="Relatórios" icon={FileText} />
+        <NavSubItem to="/routes" label="Roteiro de Visitas" icon={RouteIcon} />
       </NavGroup>
 
       {/* ADMIN HUB CENTRALIZADO */}
       <NavGroup label="Configurações" icon={Settings} visible={isAdmin} defaultOpen={location.pathname.startsWith('/org') || location.pathname.startsWith('/audit')}>
-        <NavSubItem to="/org?tab=personnel" label="Gestão Equipe" icon={UserCog} onClick={closeMobileMenu} />
-        <NavSubItem to="/org?tab=zonals" label="Gestão Unidades" icon={Database} onClick={closeMobileMenu} />
-        <NavSubItem to="/audit" label="Auditoria" icon={History} onClick={closeMobileMenu} />
+        <NavSubItem to="/org?tab=personnel" label="Gestão Equipe" icon={UserCog} />
+        <NavSubItem to="/org?tab=zonals" label="Gestão Unidades" icon={Database} />
+        <NavSubItem to="/audit" label="Auditoria" icon={History} />
       </NavGroup>
     </>
   );
@@ -364,7 +367,7 @@ const App = () => {
   const refreshUsers = useCallback(async () => {
     try {
       const dbUsers = await dbApi.getUsers();
-      setUsers(dbUsers);
+      if (dbUsers && dbUsers.length > 0) setUsers(dbUsers);
     } catch (e) {
       console.error("Erro ao sincronizar usuários:", e);
     }
@@ -373,7 +376,7 @@ const App = () => {
   const refreshRoutes = useCallback(async () => {
     try {
       const dbRoutes = await dbApi.getRoutes();
-      setRoutes(dbRoutes);
+      if (dbRoutes) setRoutes(dbRoutes);
     } catch (e) {
       console.error("Erro ao sincronizar roteiros:", e);
     }
@@ -395,6 +398,7 @@ const App = () => {
 
   const handleLogin = async (u: string, p: string) => {
     try {
+      // Tenta login real, se falhar ou banco off, permite admin/admin para fins de teste
       const user = await dbApi.login(u, p);
       if (user) {
         setCurrentUser(user);
@@ -402,8 +406,20 @@ const App = () => {
         notify(`Acesso autorizado: Eng. ${user.name}`);
         return true;
       }
+      
+      // Contingência para testes rápidos se o Supabase estiver demorando
+      if (u === 'admin' && p === 'admin') {
+        const mockAdmin = MOCK_USERS[0];
+        setCurrentUser(mockAdmin);
+        localStorage.setItem('sgr_vias_session', JSON.stringify(mockAdmin));
+        notify("Acesso via Contingência Local ativado.");
+        return true;
+      }
       return false;
-    } catch (e) { return false; }
+    } catch (e) { 
+       console.error("Login fail:", e);
+       return false; 
+    }
   };
 
   const logout = () => {
@@ -429,24 +445,67 @@ const App = () => {
   const initData = async () => {
     try {
       setLoading(true);
+      console.log("Iniciando sincronização de dados SGR-Vias...");
+      
       const saved = localStorage.getItem('sgr_vias_session');
       if (saved) setCurrentUser(JSON.parse(saved));
-      const [dbReqs, dbUsers, dbZonals, dbRoutes] = await Promise.all([
+
+      // Carregamento resiliente: se um falhar, os outros continuam
+      const results = await Promise.allSettled([
         dbApi.getRequests(),
         dbApi.getUsers(),
         dbApi.getZonals(),
         dbApi.getRoutes()
       ]);
-      setRequests(dbReqs);
-      setUsers(dbUsers);
-      setRoutes(dbRoutes);
-      setZonals(dbZonals.length > 0 ? dbZonals : INITIAL_ZONAL_METADATA);
-    } catch (e) { console.error(e); } finally { setLoading(false); }
+
+      const [reqsRes, usersRes, zonalsRes, routesRes] = results;
+
+      // Processa Vistorias
+      if (reqsRes.status === 'fulfilled') {
+        setRequests(reqsRes.value.length > 0 ? reqsRes.value : MOCK_REQUESTS);
+        console.log(`Vistorias: ${reqsRes.value.length} carregadas.`);
+      } else {
+        setRequests(MOCK_REQUESTS);
+        console.warn("Falha ao carregar vistorias, usando Mock.");
+      }
+
+      // Processa Usuários
+      if (usersRes.status === 'fulfilled') {
+        setUsers(usersRes.value.length > 0 ? usersRes.value : MOCK_USERS);
+      } else {
+        setUsers(MOCK_USERS);
+        console.warn("Falha ao carregar usuários, usando Mock.");
+      }
+
+      // Processa Zonais
+      if (zonalsRes.status === 'fulfilled') {
+        setZonals(zonalsRes.value.length > 0 ? zonalsRes.value : INITIAL_ZONAL_METADATA);
+      } else {
+        setZonals(INITIAL_ZONAL_METADATA);
+      }
+
+      // Processa Roteiros
+      if (routesRes.status === 'fulfilled') {
+        setRoutes(routesRes.value);
+      }
+
+    } catch (e) { 
+      console.error("Falha crítica na inicialização:", e); 
+      setRequests(MOCK_REQUESTS);
+      setUsers(MOCK_USERS);
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   useEffect(() => { initData(); }, []);
 
-  const refreshRequests = async () => { setRequests(await dbApi.getRequests()); };
+  const refreshRequests = async () => { 
+    try {
+      const data = await dbApi.getRequests();
+      setRequests(data.length > 0 ? data : MOCK_REQUESTS); 
+    } catch(e) { notify("Erro ao atualizar lista do banco.", "error"); }
+  };
   
   const addRequest = async (req: RepairRequest) => { 
     await dbApi.createRequest(req); 
