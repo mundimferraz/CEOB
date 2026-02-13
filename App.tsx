@@ -7,10 +7,10 @@ import {
   Loader2, LogOut, ShieldCheck, Map as MapIcon, History, 
   Lock, User as UserIcon, Eye, EyeOff, Settings, 
   Briefcase, FileText, Navigation as NavIcon, Route as RouteIcon,
-  Database, UserCog, UserCheck, MapPinned, ListChecks, RefreshCw
+  Database, UserCog, UserCheck, MapPinned, ListChecks
 } from 'lucide-react';
 import { RepairRequest, User, ZonalType, RequestStatus, ZonalMetadata, AppRole, AuditAction, AuditEntity, VisitRoute } from './types';
-import { ROLE_CONFIG, DEFAULT_ROLE_CONFIG, INITIAL_ZONAL_METADATA, MOCK_USERS, MOCK_REQUESTS } from './constants';
+import { ROLE_CONFIG, DEFAULT_ROLE_CONFIG, INITIAL_ZONAL_METADATA } from './constants';
 import DashboardPage from './pages/DashboardPage';
 import RequestListPage from './pages/RequestListPage';
 import NewRequestPage from './pages/NewRequestPage';
@@ -39,7 +39,6 @@ interface AppContextType {
   routes: VisitRoute[];
   currentUser: User | null;
   loading: boolean;
-  syncing: boolean;
   canDo: (action: string) => boolean;
   handleLogin: (u: string, p: string) => Promise<boolean>;
   logout: () => void;
@@ -81,7 +80,7 @@ const LoginPage = () => {
         notify("Credenciais inválidas. Tente admin / admin", "error");
       }
     } catch (err) {
-      notify("Erro de conexão com o banco", "error");
+      notify("Erro de conexão", "error");
     } finally {
       setLoading(false);
     }
@@ -176,14 +175,14 @@ const NavGroup = ({ label, icon: Icon, children, defaultOpen = false, visible = 
   );
 };
 
-const NavSubItem = ({ to, label, icon: Icon }: any) => {
+const NavSubItem = ({ to, label, icon: Icon, onClick }: any) => {
   const location = useLocation();
   const isActive = location.pathname + location.search === to;
   
   return (
     <Link
       to={to}
-      onClick={() => { if(window.innerWidth < 768) closeMobileMenu(); }}
+      onClick={onClick}
       className={`
         flex items-center gap-3 py-2.5 px-3 rounded-lg transition-all text-[11px] font-bold uppercase tracking-tight
         ${isActive ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-500 hover:text-white hover:bg-slate-800'}
@@ -195,11 +194,9 @@ const NavSubItem = ({ to, label, icon: Icon }: any) => {
   );
 };
 
-let closeMobileMenu: () => void;
-
 const Navigation = () => {
   const location = useLocation();
-  const { currentUser, logout, syncing } = useApp();
+  const { currentUser, logout } = useApp();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const currentRoleConfig = (currentUser && currentUser.role && ROLE_CONFIG[currentUser.role]) 
@@ -208,13 +205,13 @@ const Navigation = () => {
 
   const isAdmin = currentUser?.role === AppRole.ADMIN;
 
-  closeMobileMenu = () => setIsMobileMenuOpen(false);
+  const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
   const NavLinks = () => (
     <>
       <Link 
         to="/" 
-        onClick={() => { if(window.innerWidth < 768) closeMobileMenu(); }}
+        onClick={closeMobileMenu}
         className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-200 ${location.pathname === '/' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'hover:bg-slate-800 hover:text-white'}`}
       >
         <LayoutDashboard size={18} />
@@ -222,27 +219,30 @@ const Navigation = () => {
       </Link>
 
       <NavGroup label="Vistorias" icon={ClipboardList} defaultOpen={location.pathname.startsWith('/new') || location.pathname.startsWith('/map') || location.pathname.startsWith('/requests') || location.pathname.startsWith('/routes')}>
-        <NavSubItem to="/new" label="Nova Vistoria" icon={PlusCircle} />
-        <NavSubItem to="/map" label="Mapa Interativo" icon={MapIcon} />
-        <NavSubItem to="/requests" label="Relatórios" icon={FileText} />
-        <NavSubItem to="/routes" label="Roteiro de Visitas" icon={RouteIcon} />
+        <NavSubItem to="/new" label="Nova Vistoria" icon={PlusCircle} onClick={closeMobileMenu} />
+        <NavSubItem to="/map" label="Mapa Interativo" icon={MapIcon} onClick={closeMobileMenu} />
+        <NavSubItem to="/requests" label="Relatórios" icon={FileText} onClick={closeMobileMenu} />
+        <NavSubItem to="/routes" label="Roteiro de Visitas" icon={RouteIcon} onClick={closeMobileMenu} />
       </NavGroup>
 
-      {isAdmin && (
-        <NavGroup label="Configurações" icon={Settings} defaultOpen={location.pathname.startsWith('/org') || location.pathname.startsWith('/audit')}>
-          <NavSubItem to="/org?tab=personnel" label="Gestão Equipe" icon={UserCog} />
-          <NavSubItem to="/org?tab=zonals" label="Gestão Unidades" icon={Database} />
-          <NavSubItem to="/audit" label="Auditoria" icon={History} />
-        </NavGroup>
-      )}
+      {/* ADMIN HUB CENTRALIZADO */}
+      <NavGroup label="Configurações" icon={Settings} visible={isAdmin} defaultOpen={location.pathname.startsWith('/org') || location.pathname.startsWith('/audit')}>
+        <NavSubItem to="/org?tab=personnel" label="Gestão Equipe" icon={UserCog} onClick={closeMobileMenu} />
+        <NavSubItem to="/org?tab=zonals" label="Gestão Unidades" icon={Database} onClick={closeMobileMenu} />
+        <NavSubItem to="/audit" label="Auditoria" icon={History} onClick={closeMobileMenu} />
+      </NavGroup>
     </>
   );
 
   return (
     <>
+      {/* MOBILE HEADER */}
       <header className="md:hidden flex items-center justify-between p-4 bg-white border-b border-slate-200 sticky top-0 z-[60] h-16 shadow-sm">
         <div className="flex items-center gap-3">
-          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 text-slate-900 bg-slate-100 rounded-xl active:scale-95 transition-all">
+          <button 
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="p-2 text-slate-900 bg-slate-100 rounded-xl active:scale-95 transition-all"
+          >
             {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
           <div className="flex items-center gap-2">
@@ -250,41 +250,86 @@ const Navigation = () => {
             <span className="font-black tracking-tight text-slate-900 uppercase text-sm">SGR-VIAS</span>
           </div>
         </div>
-        {syncing && <RefreshCw size={14} className="text-blue-500 animate-spin" />}
+        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-black text-xs text-slate-900 border border-slate-200">
+          {currentUser?.name?.charAt(0)}
+        </div>
       </header>
 
-      {isMobileMenuOpen && <div className="md:hidden fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[55] animate-in fade-in duration-300" onClick={closeMobileMenu} />}
+      {/* MOBILE MENU OVERLAY */}
+      {isMobileMenuOpen && (
+        <div 
+          className="md:hidden fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[55] animate-in fade-in duration-300"
+          onClick={closeMobileMenu}
+        />
+      )}
 
-      <aside className={`md:hidden fixed inset-y-0 left-0 w-[280px] bg-slate-950 text-slate-300 flex flex-col z-[58] shadow-2xl transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      {/* MOBILE DRAWER */}
+      <aside className={`
+        md:hidden fixed inset-y-0 left-0 w-[280px] bg-slate-950 text-slate-300 flex flex-col z-[58] shadow-2xl transition-transform duration-300 ease-in-out
+        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
         <div className="p-8 border-b border-slate-900 flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-black text-xl text-white">S</div>
-          <div><h1 className="font-black text-white text-lg">SGR-Vias</h1></div>
+          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-black text-xl text-white shadow-lg shadow-blue-900/20">S</div>
+          <div>
+            <h1 className="font-black text-white tracking-tight leading-none text-lg">SGR-Vias</h1>
+            <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-1 font-bold italic">Portal Mobile</p>
+          </div>
         </div>
-        <nav className="flex-1 px-4 py-8 space-y-4 overflow-y-auto"><NavLinks /></nav>
-        <div className="p-6 border-t border-slate-900"><button onClick={logout} className="w-full flex items-center justify-center gap-3 h-14 bg-rose-900/20 text-rose-500 rounded-2xl font-black uppercase text-[10px] tracking-widest border border-rose-900/30">Encerrar Sessão</button></div>
+
+        <nav className="flex-1 px-4 py-8 space-y-4 overflow-y-auto">
+          <NavLinks />
+        </nav>
+
+        <div className="p-6 border-t border-slate-900 bg-slate-900/40">
+           <button 
+            onClick={logout} 
+            className="w-full flex items-center justify-center gap-3 h-14 bg-rose-900/20 text-rose-500 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-rose-900/40 transition-all border border-rose-900/30"
+          >
+            <LogOut size={16} />
+            Encerrar Sessão
+          </button>
+        </div>
       </aside>
 
+      {/* DESKTOP SIDEBAR */}
       <aside className="hidden md:flex fixed inset-y-0 left-0 w-64 bg-slate-950 text-slate-300 flex-col border-r border-slate-800 z-50 shadow-2xl">
         <div className="p-8 border-b border-slate-900 flex items-center gap-3">
           <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-black text-xl text-white shadow-lg shadow-blue-900/20">S</div>
-          <div className="flex-1 min-w-0">
-            <h1 className="font-black text-white text-lg">SGR-Vias</h1>
-            {syncing && <div className="flex items-center gap-2 text-[8px] font-bold text-blue-400 uppercase animate-pulse"><RefreshCw size={8} className="animate-spin" /> Sincronizando Cloud...</div>}
+          <div>
+            <h1 className="font-black text-white tracking-tight leading-none text-lg">SGR-Vias</h1>
+            <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-1 font-bold italic">Zeladoria Urbana</p>
           </div>
         </div>
-        <nav className="flex-1 px-4 py-8 space-y-4 overflow-y-auto"><NavLinks /></nav>
+        
+        <nav className="flex-1 px-4 py-8 space-y-4 overflow-y-auto scrollbar-thin">
+          <NavLinks />
+        </nav>
+
         <div className="p-6 border-t border-slate-900 bg-slate-950/80">
           <div className="flex flex-col gap-3 p-3 rounded-2xl bg-slate-900 border border-slate-800 shadow-inner">
             <div className="flex items-center gap-3 overflow-hidden">
-              <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-sm">{currentUser?.name?.charAt(0)}</div>
+              <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-sm flex-shrink-0">
+                {currentUser?.name?.charAt(0)}
+              </div>
               <div className="flex-1 min-w-0">
                  <p className="text-xs font-black text-white truncate">{currentUser?.name}</p>
                  <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">{currentRoleConfig.label}</p>
               </div>
             </div>
             <div className="flex gap-2 border-t border-slate-800 pt-3">
-              <Link to="/profile/password" className="flex-1 flex items-center justify-center gap-2 h-10 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 transition-all text-[10px] font-black uppercase tracking-widest"><Lock size={14} /> Segurança</Link>
-              <button onClick={logout} className="w-10 h-10 flex items-center justify-center bg-rose-900/20 text-rose-500 rounded-xl hover:bg-rose-900/40 transition-all"><LogOut size={16} /></button>
+              <Link 
+                to="/profile/password" 
+                className="flex-1 flex items-center justify-center gap-2 h-10 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 transition-all text-[10px] font-black uppercase tracking-widest"
+              >
+                <Lock size={14} />
+                Segurança
+              </Link>
+              <button 
+                onClick={logout} 
+                className="w-10 h-10 flex items-center justify-center bg-rose-900/20 text-rose-500 rounded-xl hover:bg-rose-900/40 transition-all shadow-sm"
+              >
+                <LogOut size={16} />
+              </button>
             </div>
           </div>
         </div>
@@ -307,113 +352,46 @@ const App = () => {
   const [routes, setRoutes] = useState<VisitRoute[]>([]);
   const [zonals, setZonals] = useState<ZonalMetadata[]>(INITIAL_ZONAL_METADATA);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   const notify = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
     const id = Date.now().toString();
     setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 5000);
   }, []);
 
-  // Hydration Instantânea do Cache
-  useEffect(() => {
-    const hydrate = () => {
-      console.time("Hydration");
-      const savedUser = localStorage.getItem('sgr_vias_session');
-      if (savedUser) setCurrentUser(JSON.parse(savedUser));
-
-      const cachedRequests = localStorage.getItem('sgr_vias_cache_requests');
-      if (cachedRequests) setRequests(JSON.parse(cachedRequests));
-      
-      const cachedUsers = localStorage.getItem('sgr_vias_cache_users');
-      if (cachedUsers) setUsers(JSON.parse(cachedUsers));
-
-      const cachedZonals = localStorage.getItem('sgr_vias_cache_zonals');
-      if (cachedZonals) setZonals(JSON.parse(cachedZonals));
-
-      const cachedRoutes = localStorage.getItem('sgr_vias_cache_routes');
-      if (cachedRoutes) setRoutes(JSON.parse(cachedRoutes));
-
-      // Se temos dados em cache, liberamos a tela imediatamente
-      if (cachedRequests || cachedUsers) setLoading(false);
-      console.timeEnd("Hydration");
-    };
-    hydrate();
-  }, []);
-
-  const initData = async () => {
+  const refreshUsers = useCallback(async () => {
     try {
-      setSyncing(true);
-      console.log("Iniciando sincronização Cloud em background...");
-
-      const results = await Promise.allSettled([
-        dbApi.getRequests(),
-        dbApi.getUsers(),
-        dbApi.getZonals(),
-        dbApi.getRoutes()
-      ]);
-
-      const [reqsRes, usersRes, zonalsRes, routesRes] = results;
-
-      if (reqsRes.status === 'fulfilled') {
-        const data = reqsRes.value.length > 0 ? reqsRes.value : MOCK_REQUESTS;
-        setRequests(data);
-        localStorage.setItem('sgr_vias_cache_requests', JSON.stringify(data));
-      }
-      if (usersRes.status === 'fulfilled') {
-        const data = usersRes.value.length > 0 ? usersRes.value : MOCK_USERS;
-        setUsers(data);
-        localStorage.setItem('sgr_vias_cache_users', JSON.stringify(data));
-      }
-      if (zonalsRes.status === 'fulfilled') {
-        const data = zonalsRes.value.length > 0 ? zonalsRes.value : INITIAL_ZONAL_METADATA;
-        setZonals(data);
-        localStorage.setItem('sgr_vias_cache_zonals', JSON.stringify(data));
-      }
-      if (routesRes.status === 'fulfilled') {
-        setRoutes(routesRes.value);
-        localStorage.setItem('sgr_vias_cache_routes', JSON.stringify(routesRes.value));
-      }
-
-    } catch (e) { 
-      console.error("Erro na sincronização Cloud:", e);
-    } finally { 
-      setLoading(false); 
-      setSyncing(false);
+      const dbUsers = await dbApi.getUsers();
+      setUsers(dbUsers);
+    } catch (e) {
+      console.error("Erro ao sincronizar usuários:", e);
     }
-  };
+  }, []);
 
-  useEffect(() => { initData(); }, []);
+  const refreshRoutes = useCallback(async () => {
+    try {
+      const dbRoutes = await dbApi.getRoutes();
+      setRoutes(dbRoutes);
+    } catch (e) {
+      console.error("Erro ao sincronizar roteiros:", e);
+    }
+  }, []);
 
-  const refreshRequests = async () => { 
-    setSyncing(true);
-    try {
-      const data = await dbApi.getRequests();
-      const finalData = data.length > 0 ? data : MOCK_REQUESTS;
-      setRequests(finalData);
-      localStorage.setItem('sgr_vias_cache_requests', JSON.stringify(finalData));
-    } finally { setSyncing(false); }
-  };
-  
-  const refreshUsers = async () => {
-    setSyncing(true);
-    try {
-      const data = await dbApi.getUsers();
-      setUsers(data);
-      localStorage.setItem('sgr_vias_cache_users', JSON.stringify(data));
-    } finally { setSyncing(false); }
-  };
-
-  const refreshRoutes = async () => {
-    setSyncing(true);
-    try {
-      const data = await dbApi.getRoutes();
-      setRoutes(data);
-      localStorage.setItem('sgr_vias_cache_routes', JSON.stringify(data));
-    } finally { setSyncing(false); }
-  };
+  useEffect(() => {
+    if (!currentUser) return;
+    dbApi.updateUserActivity(currentUser.id);
+    const heartbeatInterval = setInterval(() => { dbApi.updateUserActivity(currentUser.id); }, 60000);
+    let pollingInterval: any;
+    if (currentUser.role === AppRole.ADMIN) {
+      pollingInterval = setInterval(() => { refreshUsers(); }, 30000);
+    }
+    return () => {
+      clearInterval(heartbeatInterval);
+      if (pollingInterval) clearInterval(pollingInterval);
+    };
+  }, [currentUser, refreshUsers]);
 
   const handleLogin = async (u: string, p: string) => {
     try {
@@ -421,12 +399,7 @@ const App = () => {
       if (user) {
         setCurrentUser(user);
         localStorage.setItem('sgr_vias_session', JSON.stringify(user));
-        return true;
-      }
-      if (u === 'admin' && p === 'admin') {
-        const mockAdmin = MOCK_USERS[0];
-        setCurrentUser(mockAdmin);
-        localStorage.setItem('sgr_vias_session', JSON.stringify(mockAdmin));
+        notify(`Acesso autorizado: Eng. ${user.name}`);
         return true;
       }
       return false;
@@ -436,7 +409,7 @@ const App = () => {
   const logout = () => {
     setCurrentUser(null);
     localStorage.removeItem('sgr_vias_session');
-    notify("Sessão encerrada.");
+    notify("Sessão encerrada com sucesso.");
   };
 
   const canDo = useCallback((action: string) => {
@@ -453,61 +426,134 @@ const App = () => {
     }
   }, [currentUser]);
 
+  const initData = async () => {
+    try {
+      setLoading(true);
+      const saved = localStorage.getItem('sgr_vias_session');
+      if (saved) setCurrentUser(JSON.parse(saved));
+      const [dbReqs, dbUsers, dbZonals, dbRoutes] = await Promise.all([
+        dbApi.getRequests(),
+        dbApi.getUsers(),
+        dbApi.getZonals(),
+        dbApi.getRoutes()
+      ]);
+      setRequests(dbReqs);
+      setUsers(dbUsers);
+      setRoutes(dbRoutes);
+      setZonals(dbZonals.length > 0 ? dbZonals : INITIAL_ZONAL_METADATA);
+    } catch (e) { console.error(e); } finally { setLoading(false); }
+  };
+
+  useEffect(() => { initData(); }, []);
+
+  const refreshRequests = async () => { setRequests(await dbApi.getRequests()); };
+  
   const addRequest = async (req: RepairRequest) => { 
-    setSyncing(true);
     await dbApi.createRequest(req); 
+    if (currentUser) {
+      await dbApi.createAuditLog({
+        user_id: currentUser.id, user_name: currentUser.name,
+        action: AuditAction.CREATE, entity_type: AuditEntity.REQUEST, entity_id: req.id,
+        details: { protocol: req.protocol, status: req.status, executor: currentUser.name, rf: currentUser.registrationNumber }
+      });
+    }
     refreshRequests(); 
   };
 
   const updateRequest = async (req: RepairRequest) => { 
-    setSyncing(true);
     await dbApi.updateRequest(req); 
+    if (currentUser) {
+      await dbApi.createAuditLog({
+        user_id: currentUser.id, user_name: currentUser.name,
+        action: AuditAction.UPDATE, entity_type: AuditEntity.REQUEST, entity_id: req.id,
+        details: { protocol: req.protocol, status: req.status, executor: currentUser.name }
+      });
+    }
     refreshRequests(); 
   };
 
   const deleteRequest = async (id: string) => { 
-    setSyncing(true);
+    const target = requests.find(r => r.id === id);
     await dbApi.deleteRequest(id); 
+    if (currentUser && target) {
+      await dbApi.createAuditLog({
+        user_id: currentUser.id, user_name: currentUser.name,
+        action: AuditAction.DELETE, entity_type: AuditEntity.REQUEST, entity_id: id,
+        details: { protocol: target.protocol, executor: currentUser.name }
+      });
+    }
     refreshRequests(); 
   };
 
   const addUser = async (u: User) => { 
-    setSyncing(true);
     await dbApi.saveUser(u); 
+    if (currentUser) {
+      await dbApi.createAuditLog({
+        user_id: currentUser.id, user_name: currentUser.name,
+        action: AuditAction.CREATE, entity_type: AuditEntity.USER, entity_id: u.id,
+        details: { name: u.name, role: u.role, executor: currentUser.name }
+      });
+    }
     refreshUsers(); 
   };
 
   const updateUser = async (u: User) => { 
-    setSyncing(true);
     await dbApi.saveUser(u); 
+    if (currentUser) {
+      await dbApi.createAuditLog({
+        user_id: currentUser.id, user_name: currentUser.name,
+        action: AuditAction.UPDATE, entity_type: AuditEntity.USER, entity_id: u.id,
+        details: { name: u.name, role: u.role, executor: currentUser.name }
+      });
+    }
     refreshUsers(); 
   };
   
   const deleteUser = async (id: string) => { 
-    setSyncing(true);
+    const target = users.find(u => u.id === id);
+    if (target?.name === 'claudioasousa' || target?.id === 'root_master_id') {
+      notify("Erro: Usuário Root mestre não pode ser removido.", "error");
+      return;
+    }
     await dbApi.deleteUser(id); 
+    if (currentUser && target) {
+      await dbApi.createAuditLog({
+        user_id: currentUser.id, user_name: currentUser.name,
+        action: AuditAction.DELETE, entity_type: AuditEntity.USER, entity_id: id,
+        details: { name: target.name, executor: currentUser.name }
+      });
+    }
     refreshUsers(); 
+    notify("Servidor removido do sistema.");
   };
 
   const addRoute = async (route: VisitRoute) => {
-    setSyncing(true);
     await dbApi.saveRoute(route);
+    if (currentUser) {
+      await dbApi.createAuditLog({
+        user_id: currentUser.id, user_name: currentUser.name,
+        action: AuditAction.CREATE, entity_type: AuditEntity.ROUTE, entity_id: route.id,
+        details: { name: route.name, points: route.requestIds.length, executor: currentUser.name }
+      });
+    }
     refreshRoutes();
   };
 
   const deleteRoute = async (id: string) => {
-    setSyncing(true);
     await dbApi.deleteRoute(id);
     refreshRoutes();
   };
 
   const updateZonal = async (z: ZonalMetadata) => { 
-    setSyncing(true);
     await dbApi.saveZonal(z); 
-    const data = await dbApi.getZonals();
-    setZonals(data);
-    localStorage.setItem('sgr_vias_cache_zonals', JSON.stringify(data));
-    setSyncing(false);
+    if (currentUser) {
+      await dbApi.createAuditLog({
+        user_id: currentUser.id, user_name: currentUser.name,
+        action: AuditAction.UPDATE, entity_type: AuditEntity.ZONAL, entity_id: z.id,
+        details: { name: z.name, executor: currentUser.name }
+      });
+    }
+    setZonals(await dbApi.getZonals()); 
   };
 
   const getZonalName = (id: ZonalType | string) => zonals.find(z => z.id === id)?.name || id;
@@ -515,7 +561,7 @@ const App = () => {
 
   return (
     <AppContext.Provider value={{ 
-      requests, users, zonals, routes, currentUser, loading, syncing, canDo, handleLogin, logout,
+      requests, users, zonals, routes, currentUser, loading, canDo, handleLogin, logout,
       addRequest, updateRequest, deleteRequest, refreshRequests, refreshUsers, refreshRoutes,
       addUser, updateUser, deleteUser, addRoute, deleteRoute, updateZonal, getZonalName, getRoleLabel, notify
     }}>
@@ -526,7 +572,7 @@ const App = () => {
             <ProtectedRoute>
               <div className="flex flex-col md:flex-row min-h-screen bg-slate-50">
                 <Navigation />
-                <main className="flex-1 md:pl-64 h-full relative">
+                <main className="flex-1 md:pl-64 h-full">
                   <Routes>
                     <Route path="/" element={<DashboardPage />} />
                     <Route path="/map" element={<MapOverviewPage />} />
