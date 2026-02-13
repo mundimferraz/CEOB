@@ -79,9 +79,107 @@ const RequestListPage: React.FC = () => {
     }
   };
 
+  const generatePDFReport = async () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    
+    const renderHeader = (pageNum: number, totalPages: number) => {
+      // Cabeçalho institucional azul escuro
+      doc.setFillColor(15, 23, 42);
+      doc.rect(0, 0, pageWidth, 35, 'F');
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.text('RELAÇÃO CONSOLIDADA DE VISTORIAS', 15, 18);
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.text('SGR-VIAS - SISTEMA DE GESTÃO DE REPAROS', 15, 24);
+      
+      const now = new Date().toLocaleString('pt-BR');
+      doc.text(`GERADO EM: ${now}  |  REGISTROS FILTRADOS: ${filteredRequests.length}`, 15, 29);
+      
+      // Cabeçalho da Tabela
+      let headY = 48;
+      doc.setFillColor(248, 250, 252);
+      doc.rect(10, headY - 6, pageWidth - 20, 10, 'F');
+      
+      doc.setTextColor(100, 116, 139);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.text('PROTOCOLO', 15, headY);
+      doc.text('FOTO', 45, headY);
+      doc.text('STATUS', 70, headY);
+      doc.text('UNIDADE ZONAL', 100, headY);
+      doc.text('ENDEREÇO E LOCALIZAÇÃO', 140, headY);
+      
+      // Rodapé
+      doc.setTextColor(148, 163, 184);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`SGR-Vias - Página ${pageNum}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+    };
+
+    let y = 62;
+    let currentPage = 1;
+    
+    renderHeader(currentPage, 0); // O total será ajustado no final se necessário
+
+    for (let i = 0; i < filteredRequests.length; i++) {
+      const req = filteredRequests[i];
+      
+      // Checar quebra de página (25mm por linha aprox com foto)
+      if (y > 265) {
+        doc.addPage();
+        currentPage++;
+        renderHeader(currentPage, 0);
+        y = 62;
+      }
+
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.text(req.protocol, 15, y);
+      
+      // Foto ou "S/ Foto"
+      if (req.photoBefore) {
+        try {
+          doc.addImage(req.photoBefore, 'JPEG', 45, y - 6, 15, 12);
+        } catch (e) {
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(148, 163, 184);
+          doc.text('ERRO IMG', 45, y);
+        }
+      } else {
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(148, 163, 184);
+        doc.text('S/ FOTO', 45, y);
+      }
+
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'normal');
+      doc.text(req.status, 70, y);
+      doc.text(getZonalName(req.zonal), 100, y);
+      
+      // Endereço com Wrap
+      const address = req.location.address;
+      const splitAddress = doc.splitTextToSize(address, 55);
+      doc.text(splitAddress, 140, y);
+
+      // Linha separadora
+      doc.setDrawColor(241, 245, 249);
+      doc.line(10, y + 8, pageWidth - 10, y + 8);
+      
+      y += 18; // Espaçamento entre registros
+    }
+
+    doc.save(`Relatorio_Consolidado_SGRVias_${Date.now()}.pdf`);
+    notify("Relatório profissional gerado!");
+  };
+
   const exportToKML = () => {
-    // Agrupar vistorias por zonal para criar pastas no KML
-    // Fixed: Explicitly type the accumulator as Record<string, RepairRequest[]>
     const groupedByZonal: Record<string, RepairRequest[]> = filteredRequests.reduce((acc: Record<string, RepairRequest[]>, req) => {
       const zonalName = getZonalName(req.zonal);
       if (!acc[zonalName]) acc[zonalName] = [];
@@ -96,7 +194,6 @@ const RequestListPage: React.FC = () => {
     <description>Exportação georreferenciada do sistema SGR-Vias</description>
 `;
 
-    // Criar estilos básicos
     kmlContent += `
     <Style id="icon-open">
       <IconStyle><color>ffffc107</color><scale>1.1</scale><Icon><href>http://maps.google.com/mapfiles/kml/paddle/blu-blank.png</href></Icon></IconStyle>
@@ -106,7 +203,6 @@ const RequestListPage: React.FC = () => {
     </Style>
 `;
 
-    // Fixed: Use Object.keys to iterate and ensure reqs is correctly typed to avoid 'unknown' issues in some TS versions with Object.entries
     Object.keys(groupedByZonal).forEach(zonalName => {
       const reqs = groupedByZonal[zonalName];
       kmlContent += `    <Folder>
@@ -124,7 +220,6 @@ const RequestListPage: React.FC = () => {
             <p><strong>Vistoriador:</strong> ${tech?.name || 'Não atribuído'}</p>
             <p><strong>Endereço:</strong> ${req.location.address}</p>
             <p><strong>Descrição:</strong> ${req.description}</p>
-            <p><small>Gerado via SGR-Vias em ${new Date(req.createdAt).toLocaleString('pt-BR')}</small></p>
           </div>
         ]]></description>
         <Point>
@@ -145,7 +240,7 @@ const RequestListPage: React.FC = () => {
     link.href = url;
     link.download = `SGR_Georreferenciado_${Date.now()}.kml`;
     link.click();
-    notify("KML para Google Earth gerado com sucesso!", "success");
+    notify("KML gerado!", "success");
   };
 
   const exportToCSV = () => {
@@ -171,58 +266,6 @@ const RequestListPage: React.FC = () => {
     link.href = url;
     link.download = `SGR_Relatorio_${Date.now()}.csv`;
     link.click();
-  };
-
-  const generatePDFReport = () => {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    
-    doc.setFillColor(15, 23, 42);
-    doc.rect(0, 0, pageWidth, 30, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text('RELATÓRIO CONSOLIDADO DE VISTORIAS - SGR-VIAS', 15, 15);
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')} | Total de Registros: ${filteredRequests.length}`, 15, 22);
-
-    let y = 45;
-    doc.setTextColor(15, 23, 42);
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Protocolo', 15, y);
-    doc.text('Status', 45, y);
-    doc.text('Unidade', 75, y);
-    doc.text('Localização', 105, y);
-    
-    y += 4;
-    doc.setDrawColor(200, 200, 200);
-    doc.line(15, y, pageWidth - 15, y);
-    y += 8;
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-
-    filteredRequests.forEach((req, index) => {
-      if (y > 270) {
-        doc.addPage();
-        y = 20;
-      }
-      
-      doc.text(req.protocol, 15, y);
-      doc.text(req.status, 45, y);
-      doc.text(getZonalName(req.zonal), 75, y);
-      const addr = req.location.address.substring(0, 45) + (req.location.address.length > 45 ? '...' : '');
-      doc.text(addr, 105, y);
-      
-      y += 6;
-      doc.setDrawColor(240, 240, 240);
-      doc.line(15, y-2, pageWidth - 15, y-2);
-    });
-
-    doc.save(`SGR_Relatorio_Consolidado_${Date.now()}.pdf`);
-    notify("Relatório PDF gerado com sucesso!");
   };
 
   return (
