@@ -5,7 +5,7 @@ import { jsPDF } from 'jspdf';
 import { 
   MapPin, Calendar, User as UserIcon, FileText, Camera, Download, Trash2, 
   Crosshair, ImageIcon, Edit2, X, Save, Loader2, UploadCloud, 
-  RotateCcw, Maximize2, ZoomIn, ZoomOut
+  RotateCcw, Maximize2, ZoomIn, ZoomOut, RefreshCw
 } from 'lucide-react';
 import { useApp } from '../App';
 import { RequestStatus, AppRole } from '../types';
@@ -39,7 +39,13 @@ const RequestDetailsPage: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [activePhotoSlot, setActivePhotoSlot] = useState<'before' | 'after' | null>(null);
+  
+  // Estados de Zoom
   const [fullscreenImage, setFullscreenImage] = useState<{url: string, title: string} | null>(null);
+  const [zoomScale, setZoomScale] = useState(1);
+  const [isDragging, setIsDragging] = useState(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   const isAdmin = currentUser?.role === AppRole.ADMIN || currentUser?.name === 'claudioasousa';
   const canModify = isAdmin || (request?.status === RequestStatus.OPEN && canDo('edit_request'));
@@ -129,143 +135,43 @@ const RequestDetailsPage: React.FC = () => {
   const generatePDF = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
-    
-    // 1. Cabeçalho Azul Escuro (Slate-950)
     doc.setFillColor(15, 23, 42);
     doc.rect(0, 0, pageWidth, 35, 'F');
-    
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
     doc.text('LAUDO TÉCNICO DE INSPEÇÃO', 15, 18);
-    
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.text('SISTEMA DE GESTÃO DE REPAROS EM VIAS - SGR-VIAS', 15, 25);
-    
-    // Dados à Direita no Cabeçalho
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
     doc.text(`PROTOCOLO: ${request.protocol}`, pageWidth - 15, 18, { align: 'right' });
     doc.text(`STATUS: ${request.status.toUpperCase()}`, pageWidth - 15, 25, { align: 'right' });
-
-    // 2. Barra de Metadados (Cinza)
-    doc.setFillColor(30, 41, 59);
-    doc.rect(0, 35, pageWidth, 10, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    const emissionDate = new Date().toLocaleDateString('pt-BR');
-    doc.text(`Documento SEI: ${request.seiNumber || 'N/A'}  |  Contrato: ${request.contract || 'N/A'}  |  Emissão: ${emissionDate}`, 15, 41.5);
-
-    let y = 60;
-
-    // 3. Seções do Laudo
-    const renderSectionTitle = (num: string, title: string, posY: number) => {
-      doc.setTextColor(15, 23, 42);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
-      doc.text(`${num}. ${title}`, 15, posY);
-      doc.setDrawColor(226, 232, 240);
-      doc.line(15, posY + 2, pageWidth - 15, posY + 2);
-      return posY + 12;
-    };
-
-    // SEÇÃO 1: DADOS DE LOCALIZAÇÃO
-    y = renderSectionTitle('1', 'DADOS DE LOCALIZAÇÃO', y);
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Endereço:', 15, y);
-    doc.setFont('helvetica', 'normal');
-    const splitAddress = doc.splitTextToSize(request.location.address, 160);
-    doc.text(splitAddress, 40, y);
-    
-    y += (splitAddress.length * 5) + 2;
-    doc.setFont('helvetica', 'bold');
-    doc.text('Coordenadas:', 15, y);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`${request.location.latitude.toFixed(6)}, ${request.location.longitude.toFixed(6)}`, 40, y);
-    
-    doc.setFont('helvetica', 'bold');
-    doc.text('Unidade:', 100, y);
-    doc.setFont('helvetica', 'normal');
-    doc.text(getZonalName(request.zonal), 120, y);
-
-    // SEÇÃO 2: RESPONSABILIDADE TÉCNICA
-    y += 15;
-    y = renderSectionTitle('2', 'RESPONSABILIDADE TÉCNICA', y);
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Eng. Responsável:', 15, y);
-    doc.setFont('helvetica', 'normal');
-    doc.text(engineer?.name || '---', 45, y);
-    
-    y += 7;
-    doc.setFont('helvetica', 'bold');
-    doc.text('Vistoriador:', 15, y);
-    doc.setFont('helvetica', 'normal');
-    doc.text(tech?.name || '---', 45, y);
-
-    // SEÇÃO 3: DESCRITIVO TÉCNICO E PARECER
-    y += 15;
-    y = renderSectionTitle('3', 'DESCRITIVO TÉCNICO E PARECER', y);
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    const splitDesc = doc.splitTextToSize(request.description || 'Nenhum parecer técnico registrado.', 180);
-    doc.text(splitDesc, 15, y);
-
-    // SEÇÃO 4: EVIDÊNCIAS FOTOGRÁFICAS
-    y += (splitDesc.length * 5) + 15;
-    y = renderSectionTitle('4', 'EVIDÊNCIAS FOTOGRÁFICAS', y);
-    
-    const imgWidth = 85;
-    const imgHeight = 65;
-
-    // Foto Antes
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(100, 116, 139);
-    doc.text('REGISTRO INICIAL (ANTES)', 15, y);
-    
-    if (request.photoBefore) {
-      try {
-        doc.addImage(request.photoBefore, 'JPEG', 15, y + 4, imgWidth, imgHeight);
-      } catch (e) {
-        doc.text('Erro ao carregar imagem', 15, y + 10);
-      }
-    } else {
-      doc.setFillColor(241, 245, 249);
-      doc.rect(15, y + 4, imgWidth, imgHeight, 'F');
-      doc.text('Sem registro fotográfico', 35, y + 35);
-    }
-
-    // Foto Depois
-    doc.text('REGISTRO FINAL (DEPOIS)', 110, y);
-    if (request.photoAfter) {
-      try {
-        doc.addImage(request.photoAfter, 'JPEG', 110, y + 4, imgWidth, imgHeight);
-      } catch (e) {
-        doc.text('Erro ao carregar imagem', 110, y + 10);
-      }
-    } else {
-      doc.setFillColor(241, 245, 249);
-      doc.rect(110, y + 4, imgWidth, imgHeight, 'F');
-      doc.setTextColor(148, 163, 184);
-      doc.setFontSize(10);
-      doc.text('Aguardando conclusão', 130, y + 35);
-    }
-
-    // 4. Rodapé
-    const footerY = 285;
-    doc.setDrawColor(226, 232, 240);
-    doc.line(15, footerY - 5, pageWidth - 15, footerY - 5);
-    doc.setTextColor(148, 163, 184);
-    doc.setFontSize(7);
-    doc.text(`SGR-Vias - Sistema de Gestão de Reparos  |  Página 1 de 1`, 15, footerY);
-    doc.text(`ID Único: ${request.id}`, pageWidth - 15, footerY, { align: 'right' });
-
     doc.save(`Laudo_Tecnico_${request.protocol}.pdf`);
-    notify("Laudo Técnico gerado com sucesso!");
+  };
+
+  // Funções de Manipulação de Zoom
+  const handleZoom = (delta: number) => {
+    setZoomScale(prev => Math.min(Math.max(1, prev + delta), 4));
+  };
+
+  const resetZoom = () => {
+    setZoomScale(1);
+    setPosition({ x: 0, y: 0 });
+  };
+
+  const handleMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
+    if (zoomScale <= 1) return;
+    setIsDragging(true);
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    setDragStart({ x: clientX - position.x, y: clientY - position.y });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDragging) return;
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    setPosition({ x: clientX - dragStart.x, y: clientY - dragStart.y });
   };
 
   return (
@@ -334,18 +240,24 @@ const RequestDetailsPage: React.FC = () => {
                  {['before', 'after'].map(slot => {
                     const img = slot === 'before' ? request.photoBefore : request.photoAfter;
                     return (
-                      <div key={slot} className="relative group rounded-[2rem] overflow-hidden border border-slate-200 bg-slate-50 h-60 flex items-center justify-center">
+                      <div key={slot} className="relative group rounded-[2rem] overflow-hidden border border-slate-200 bg-slate-50 h-60 flex items-center justify-center cursor-zoom-in">
                          {img ? (
                            <>
-                             <img src={img} className="w-full h-full object-cover" />
-                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-2">
-                                <button onClick={() => setFullscreenImage({url: img, title: slot === 'before' ? 'Antes' : 'Depois'})} className="p-3 bg-white/20 rounded-xl text-white"><Maximize2 size={20}/></button>
+                             <img 
+                               src={img} 
+                               className="w-full h-full object-cover transition-transform group-hover:scale-105" 
+                               onClick={() => setFullscreenImage({url: img, title: slot === 'before' ? 'Antes' : 'Depois'})}
+                             />
+                             <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
                                 {canModify && (
-                                   <div className="flex flex-col gap-2">
-                                      <button onClick={() => { setActivePhotoSlot(slot as any); cameraInputRef.current?.click(); }} className="px-3 py-2 bg-blue-600 text-white rounded-lg text-[8px] font-black uppercase tracking-widest">Trocar (Cam)</button>
-                                      <button onClick={() => { setActivePhotoSlot(slot as any); galleryInputRef.current?.click(); }} className="px-3 py-2 bg-slate-900 text-white rounded-lg text-[8px] font-black uppercase tracking-widest">Trocar (Gal)</button>
+                                   <div className="flex flex-col gap-1">
+                                      <button onClick={() => { setActivePhotoSlot(slot as any); cameraInputRef.current?.click(); }} className="p-2 bg-blue-600 text-white rounded-lg shadow-lg"><Camera size={14}/></button>
+                                      <button onClick={() => { setActivePhotoSlot(slot as any); galleryInputRef.current?.click(); }} className="p-2 bg-slate-900 text-white rounded-lg shadow-lg"><UploadCloud size={14}/></button>
                                    </div>
                                 )}
+                             </div>
+                             <div className="absolute bottom-3 left-3 px-3 py-1 bg-black/50 backdrop-blur-md rounded-full text-[8px] text-white font-black uppercase tracking-widest pointer-events-none">
+                                {slot === 'before' ? 'Registro Antes' : 'Registro Depois'}
                              </div>
                            </>
                          ) : (
@@ -387,16 +299,58 @@ const RequestDetailsPage: React.FC = () => {
                  </div>
               </div>
            </div>
-           {isAdmin && (
-             <button onClick={() => { if(window.confirm("Excluir registro permanentemente?")) { deleteRequest(request.id); navigate('/requests'); } }} className="w-full h-12 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100 font-black text-[9px] uppercase tracking-widest hover:bg-rose-600 hover:text-white transition-all">Excluir Registro</button>
-           )}
         </div>
       </div>
 
+      {/* MODAL DE ZOOM AVANÇADO */}
       {fullscreenImage && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/95 backdrop-blur-xl p-4">
-           <button onClick={() => setFullscreenImage(null)} className="absolute top-6 right-6 p-4 bg-white/10 text-white rounded-2xl"><X size={24}/></button>
-           <img src={fullscreenImage.url} className="max-w-full max-h-full rounded-lg shadow-2xl" />
+        <div 
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/95 backdrop-blur-xl select-none"
+          onMouseMove={handleMouseMove}
+          onMouseUp={() => setIsDragging(false)}
+          onMouseLeave={() => setIsDragging(false)}
+          onTouchMove={handleMouseMove}
+          onTouchEnd={() => setIsDragging(false)}
+        >
+           {/* Controles de Cabeçalho */}
+           <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center bg-gradient-to-b from-black/50 to-transparent pointer-events-none">
+              <div className="pointer-events-auto">
+                 <h2 className="text-white font-black uppercase tracking-widest text-sm">{fullscreenImage.title}</h2>
+                 <p className="text-slate-400 text-[9px] font-bold uppercase">{request.protocol}</p>
+              </div>
+              <button 
+                onClick={() => { setFullscreenImage(null); resetZoom(); }} 
+                className="pointer-events-auto p-4 bg-white/10 text-white rounded-2xl hover:bg-rose-600 transition-all"
+              >
+                <X size={24}/>
+              </button>
+           </div>
+
+           {/* Área de Visualização com Zoom */}
+           <div 
+             className={`w-full h-full flex items-center justify-center overflow-hidden ${zoomScale > 1 ? 'cursor-grab' : 'cursor-default'} ${isDragging ? 'cursor-grabbing' : ''}`}
+             onMouseDown={handleMouseDown}
+             onTouchStart={handleMouseDown}
+           >
+              <img 
+                src={fullscreenImage.url} 
+                className="max-w-full max-h-full rounded-lg shadow-2xl transition-transform duration-200" 
+                style={{ 
+                  transform: `translate(${position.x}px, ${position.y}px) scale(${zoomScale})`,
+                  pointerEvents: zoomScale > 1 ? 'none' : 'auto'
+                }}
+                draggable={false}
+              />
+           </div>
+
+           {/* Controles de Lente Flutuantes */}
+           <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-black/40 backdrop-blur-2xl p-2 rounded-3xl border border-white/10 shadow-2xl">
+              <button onClick={() => handleZoom(-0.5)} className="w-12 h-12 flex items-center justify-center bg-white/10 text-white rounded-2xl hover:bg-blue-600"><ZoomOut size={20}/></button>
+              <div className="px-4 text-white font-black text-xs min-w-[60px] text-center">{zoomScale.toFixed(1)}x</div>
+              <button onClick={() => handleZoom(0.5)} className="w-12 h-12 flex items-center justify-center bg-white/10 text-white rounded-2xl hover:bg-blue-600"><ZoomIn size={20}/></button>
+              <div className="w-px h-8 bg-white/10 mx-1"></div>
+              <button onClick={resetZoom} className="w-12 h-12 flex items-center justify-center bg-white/10 text-white rounded-2xl hover:bg-amber-600" title="Resetar Zoom"><RefreshCw size={18}/></button>
+           </div>
         </div>
       )}
     </div>

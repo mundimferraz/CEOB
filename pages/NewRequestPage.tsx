@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, MapPin, Save, Loader2, Navigation as NavigationIcon, Crosshair, Check, UploadCloud, ImageIcon, Trash2 } from 'lucide-react';
+import { Camera, MapPin, Save, Loader2, Navigation as NavigationIcon, Crosshair, Check, UploadCloud, ImageIcon, Trash2, X, ZoomIn, ZoomOut, RefreshCw } from 'lucide-react';
 import { useApp } from '../App';
 import { RequestStatus, ZonalType, RepairRequest } from '../types';
 import { ZONALS_LIST } from '../constants';
@@ -42,6 +42,10 @@ const NewRequestPage: React.FC = () => {
 
   const [imagePreviewBefore, setImagePreviewBefore] = useState<string | null>(null);
   const [imagePreviewAfter, setImagePreviewAfter] = useState<string | null>(null);
+
+  // Estados de Zoom Prévia
+  const [zoomModal, setZoomModal] = useState<{url: string, title: string} | null>(null);
+  const [zoomScale, setZoomScale] = useState(1);
 
   useEffect(() => {
     if (!mapRef.current) {
@@ -279,11 +283,15 @@ const NewRequestPage: React.FC = () => {
             {['before', 'after'].map((slot) => (
               <div key={slot} className="space-y-3">
                 <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">{slot === 'before' ? 'Registro Antes' : 'Registro Depois'}</label>
-                <div className="relative rounded-[2rem] overflow-hidden border-2 border-slate-200 bg-slate-50 min-h-[220px] flex flex-col items-center justify-center">
+                <div className="relative rounded-[2rem] overflow-hidden border-2 border-slate-200 bg-slate-50 min-h-[220px] flex flex-col items-center justify-center cursor-pointer">
                   {(slot === 'before' ? isProcessingBefore : isProcessingAfter) ? (
                     <Loader2 className="animate-spin text-blue-600" size={24} />
                   ) : (slot === 'before' ? imagePreviewBefore : imagePreviewAfter) ? (
-                    <img src={slot === 'before' ? imagePreviewBefore! : imagePreviewAfter!} className="w-full h-full object-cover" />
+                    <img 
+                      src={slot === 'before' ? imagePreviewBefore! : imagePreviewAfter!} 
+                      className="w-full h-full object-cover" 
+                      onClick={() => setZoomModal({url: slot === 'before' ? imagePreviewBefore! : imagePreviewAfter!, title: slot === 'before' ? 'Prévia Antes' : 'Prévia Depois'})}
+                    />
                   ) : (
                     <div className="flex flex-col gap-2 w-full px-8">
                        <button type="button" onClick={() => triggerPhotoSelection(slot as any, 'camera')} className="w-full h-10 bg-blue-600 text-white rounded-xl font-black uppercase text-[9px] flex items-center justify-center gap-2"><Camera size={14} /> Câmera</button>
@@ -291,7 +299,7 @@ const NewRequestPage: React.FC = () => {
                     </div>
                   )}
                   {(slot === 'before' ? imagePreviewBefore : imagePreviewAfter) && (
-                    <button type="button" onClick={() => { slot === 'before' ? setImagePreviewBefore(null) : setImagePreviewAfter(null); setFormData(p => ({...p, [slot === 'before' ? 'photoBefore' : 'photoAfter']: ''})) }} className="absolute top-2 right-2 p-2 bg-rose-600 text-white rounded-full shadow-lg"><Trash2 size={14}/></button>
+                    <button type="button" onClick={() => { slot === 'before' ? setImagePreviewBefore(null) : setImagePreviewAfter(null); setFormData(p => ({...p, [slot === 'before' ? 'photoBefore' : 'photoAfter']: ''})) }} className="absolute top-2 right-2 p-2 bg-rose-600 text-white rounded-full shadow-lg z-10"><Trash2 size={14}/></button>
                   )}
                 </div>
               </div>
@@ -311,6 +319,32 @@ const NewRequestPage: React.FC = () => {
           </button>
         </div>
       </form>
+
+      {/* MODAL DE ZOOM PRÉVIA */}
+      {zoomModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/95 backdrop-blur-xl p-4">
+           <div className="absolute top-6 left-6 text-white">
+              <h2 className="font-black uppercase tracking-widest text-sm">{zoomModal.title}</h2>
+              <p className="text-slate-500 text-[8px] uppercase tracking-tighter">Clique fora para fechar</p>
+           </div>
+           <button onClick={() => { setZoomModal(null); setZoomScale(1); }} className="absolute top-6 right-6 p-4 bg-white/10 text-white rounded-2xl"><X size={24}/></button>
+           
+           <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+              <img 
+                src={zoomModal.url} 
+                className="max-w-full max-h-full rounded-lg shadow-2xl transition-transform duration-200" 
+                style={{ transform: `scale(${zoomScale})` }}
+              />
+              
+              <div className="absolute bottom-10 flex items-center gap-4 bg-black/40 backdrop-blur-xl p-2 rounded-3xl border border-white/10 shadow-2xl">
+                 <button type="button" onClick={() => setZoomScale(p => Math.max(1, p - 0.5))} className="w-12 h-12 flex items-center justify-center text-white bg-white/10 rounded-2xl"><ZoomOut size={20}/></button>
+                 <div className="px-4 text-white font-black text-xs">{zoomScale.toFixed(1)}x</div>
+                 <button type="button" onClick={() => setZoomScale(p => Math.min(4, p + 0.5))} className="w-12 h-12 flex items-center justify-center text-white bg-white/10 rounded-2xl"><ZoomIn size={20}/></button>
+                 <button type="button" onClick={() => setZoomScale(1)} className="w-12 h-12 flex items-center justify-center text-white bg-white/10 rounded-2xl"><RefreshCw size={18}/></button>
+              </div>
+           </div>
+        </div>
+      )}
     </div>
   );
 };
