@@ -8,7 +8,7 @@ import {
   Lock, User as UserIcon, Eye, EyeOff, Settings, 
   Briefcase, FileText, Navigation as NavIcon, Route as RouteIcon,
   Database, UserCog, UserCheck, MapPinned, ListChecks, RefreshCw,
-  Globe, Server, Shield, Activity, HardDrive, Crown
+  Globe, Server, Shield, Activity, HardDrive, Crown, ShieldAlert
 } from 'lucide-react';
 import { RepairRequest, User, ZonalType, RequestStatus, ZonalMetadata, AppRole, AuditAction, AuditEntity, VisitRoute } from './types';
 import { ROLE_CONFIG, DEFAULT_ROLE_CONFIG, INITIAL_ZONAL_METADATA } from './constants';
@@ -40,7 +40,7 @@ interface AppContextType {
   routes: VisitRoute[];
   currentUser: User | null;
   isAdmin: boolean; 
-  isRoot: boolean; // Flag para o usuário claudioasousa
+  isRoot: boolean;
   loading: boolean;
   syncing: boolean;
   canDo: (action: string) => boolean;
@@ -162,6 +162,29 @@ const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// Componente para rotas exclusivas de Administrador/Root
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAdmin, loading } = useApp();
+  const navigate = useNavigate();
+
+  if (loading) return null;
+  
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center bg-slate-50">
+        <div className="w-24 h-24 bg-rose-50 rounded-full flex items-center justify-center text-rose-500 mb-6 border border-rose-100 animate-pulse">
+           <ShieldAlert size={48} />
+        </div>
+        <h1 className="text-2xl font-black text-slate-900 mb-2 tracking-tight uppercase">Acesso Restrito</h1>
+        <p className="text-slate-500 max-w-sm mb-8 font-medium">Esta área é reservada exclusivamente para <strong>Administradores do Sistema</strong>.</p>
+        <button onClick={() => navigate('/')} className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs shadow-xl active:scale-95 transition-all">Voltar ao Dashboard</button>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+};
+
 const Navigation = () => {
   const location = useLocation();
   const { currentUser, logout, syncing, isAdmin, isRoot } = useApp();
@@ -226,7 +249,24 @@ const Navigation = () => {
               </p>
               {isAdmin && <p className="text-[8px] font-black text-emerald-500 uppercase mt-1">{isRoot ? 'Autoridade Root' : 'Acesso Administrativo'}</p>}
            </div>
-           <button onClick={logout} className="w-full flex items-center justify-center gap-3 h-12 bg-rose-900/10 text-rose-500 rounded-xl font-black uppercase text-[10px] hover:bg-rose-900/20 transition-all">Sair do Sistema</button>
+           
+           <div className="grid grid-cols-2 gap-2">
+              <Link 
+                to="/profile/password" 
+                onClick={closeMobileMenu}
+                className="flex items-center justify-center gap-2 h-10 bg-slate-800 text-slate-400 rounded-xl font-black uppercase text-[8px] hover:bg-blue-600 hover:text-white transition-all border border-slate-700"
+              >
+                <Lock size={12} />
+                Senha
+              </Link>
+              <button 
+                onClick={logout} 
+                className="flex items-center justify-center gap-2 h-10 bg-rose-900/10 text-rose-500 rounded-xl font-black uppercase text-[8px] hover:bg-rose-900/20 transition-all border border-rose-900/20"
+              >
+                <LogOut size={12} />
+                Sair
+              </button>
+           </div>
         </div>
       </aside>
     </>
@@ -247,7 +287,6 @@ const App = () => {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-  // Lógica de administrador e Root centralizada
   const isRoot = currentUser?.name === 'claudioasousa';
   const isAdmin = currentUser?.role === AppRole.ADMIN || isRoot;
 
@@ -375,9 +414,11 @@ const App = () => {
                       <Route path="/new" element={<NewRequestPage />} />
                       <Route path="/routes" element={<RouteListPage />} />
                       <Route path="/routes/planner" element={<RoutePlannerPage />} />
-                      <Route path="/org" element={<OrgSetupPage />} />
-                      <Route path="/audit" element={<AuditLogPage />} />
                       <Route path="/profile/password" element={<ChangePasswordPage />} />
+                      
+                      {/* Rotas Protegidas de Gestão Administrativa */}
+                      <Route path="/org" element={<AdminRoute><OrgSetupPage /></AdminRoute>} />
+                      <Route path="/audit" element={<AdminRoute><AuditLogPage /></AdminRoute>} />
                     </Routes>
                   </main>
                 </div>
