@@ -8,7 +8,7 @@ import {
   Lock, User as UserIcon, Eye, EyeOff, Settings, 
   Briefcase, FileText, Navigation as NavIcon, Route as RouteIcon,
   Database, UserCog, UserCheck, MapPinned, ListChecks, RefreshCw,
-  Globe, Server, Shield, Activity
+  Globe, Server, Shield, Activity, HardDrive
 } from 'lucide-react';
 import { RepairRequest, User, ZonalType, RequestStatus, ZonalMetadata, AppRole, AuditAction, AuditEntity, VisitRoute } from './types';
 import { ROLE_CONFIG, DEFAULT_ROLE_CONFIG, INITIAL_ZONAL_METADATA } from './constants';
@@ -87,13 +87,6 @@ const LoadingScreen = ({ progress, status }: { progress: number, status: string 
             style={{ width: `${progress}%` }}
           />
         </div>
-        <div className="flex justify-between text-[9px] font-black text-slate-600 uppercase tracking-widest">
-          <span>{progress}% Concluído</span>
-          <span className="flex items-center gap-1">
-            <Server size={10} className="text-blue-600" />
-            Sincronizando
-          </span>
-        </div>
       </div>
     </div>
   </div>
@@ -134,7 +127,7 @@ const LoginPage = () => {
                 <ShieldCheck size={32} className="text-white" />
              </div>
              <h1 className="text-2xl font-black text-white tracking-tight uppercase italic">SGR-Vias</h1>
-             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1">Acesso Governamental</p>
+             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1">Plataforma de Zeladoria Urbana</p>
           </div>
           <form onSubmit={onSubmit} className="space-y-5">
             <input 
@@ -151,7 +144,7 @@ const LoginPage = () => {
               </button>
             </div>
             <button disabled={loading} className="w-full h-16 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-2xl transition-all">
-              {loading ? <Loader2 className="animate-spin mx-auto" size={20} /> : "Entrar no Sistema"}
+              {loading ? <Loader2 className="animate-spin mx-auto" size={20} /> : "Acessar Sistema"}
             </button>
           </form>
         </div>
@@ -173,7 +166,9 @@ const Navigation = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
-  const isAdmin = currentUser?.role === AppRole.ADMIN || currentUser?.name === 'claudioasousa';
+  
+  // VERIFICAÇÃO ROOT/ADMIN COMPLETA
+  const isRootOrAdmin = currentUser?.role === AppRole.ADMIN || currentUser?.name === 'claudioasousa';
 
   const NavItem = ({ to, icon: Icon, label }: { to: string, icon: any, label: string }) => (
     <Link 
@@ -202,28 +197,32 @@ const Navigation = () => {
           <h1 className="font-black text-white text-lg tracking-tight uppercase italic">SGR-Vias</h1>
         </div>
 
-        <nav className="flex-1 px-4 py-8 space-y-1.5 overflow-y-auto">
-          <p className="px-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] mb-4">Geral</p>
+        <nav className="flex-1 px-4 py-8 space-y-1 overflow-y-auto">
+          <p className="px-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] mb-3">Principal</p>
           <NavItem to="/" icon={LayoutDashboard} label="Dashboard" />
-          <NavItem to="/new" icon={PlusCircle} label="Nova Vistoria" />
-          <NavItem to="/requests" icon={ClipboardList} label="Relatórios" />
-          <NavItem to="/map" icon={MapIcon} label="Mapa Live" />
-          <NavItem to="/routes" icon={RouteIcon} label="Roteiros" />
+          
+          <div className="pt-6 pb-2">
+            <p className="px-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] mb-3">Operações</p>
+            <NavItem to="/new" icon={PlusCircle} label="Nova Vistoria" />
+            <NavItem to="/requests" icon={ClipboardList} label="Inventário PDF" />
+            <NavItem to="/map" icon={MapIcon} label="Mapa Interativo" />
+            <NavItem to="/routes" icon={RouteIcon} label="Roteiros de Visita" />
+          </div>
 
-          {isAdmin && (
-            <>
-              <div className="pt-8 pb-4">
-                <p className="px-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] mb-4">Administração</p>
-                <NavItem to="/org" icon={UserCog} label="Equipe & Unidades" />
-                <NavItem to="/audit" icon={Activity} label="Auditoria" />
-              </>
-            )}
+          {isRootOrAdmin && (
+            <div className="pt-6 pb-2">
+              <p className="px-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] mb-3">Gestão de Equipe</p>
+              <NavItem to="/org" icon={UserCog} label="Equipe & Unidades" />
+              <NavItem to="/audit" icon={Activity} label="Trilha de Auditoria" />
+            </div>
+          )}
         </nav>
 
-        <div className="p-6 border-t border-slate-900 space-y-2">
-           <div className="px-4 py-3 bg-white/5 rounded-xl border border-white/5 mb-4">
-              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Logado como:</p>
+        <div className="p-6 border-t border-slate-900 space-y-3">
+           <div className="px-4 py-3 bg-white/5 rounded-xl border border-white/5">
+              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Operador Logado:</p>
               <p className="text-[11px] font-black text-white uppercase truncate">{currentUser?.name}</p>
+              {isRootOrAdmin && <p className="text-[8px] font-black text-emerald-500 uppercase mt-1">Acesso Total</p>}
            </div>
            <button onClick={logout} className="w-full flex items-center justify-center gap-3 h-12 bg-rose-900/10 text-rose-500 rounded-xl font-black uppercase text-[10px] hover:bg-rose-900/20 transition-all">Sair do Sistema</button>
         </div>
@@ -261,8 +260,8 @@ const App = () => {
   const initData = async () => {
     setLoading(true);
     try {
-      setLoadStatus('Sincronizando ambiente...');
-      setLoadProgress(20);
+      setLoadStatus('Sincronizando registros...');
+      setLoadProgress(30);
       
       const [reqs, usrs, zns, rts] = await Promise.all([
         dbApi.getRequests(),
@@ -280,7 +279,7 @@ const App = () => {
       setLoadProgress(100);
       setTimeout(() => setLoading(false), 500);
     } catch (e) {
-      setLoadStatus('Modo Offline Ativado');
+      setLoadStatus('Erro na sincronização remota');
       setTimeout(() => setLoading(false), 1500);
     }
   };
@@ -305,12 +304,14 @@ const App = () => {
 
   const canDo = useCallback((action: string) => {
     if (!currentUser) return false;
-    const isAdmin = currentUser.role === AppRole.ADMIN || currentUser.name === 'claudioasousa';
-    if (isAdmin) return true;
+    // BYPASS ROOT PARA TUDO
+    const isRootOrAdmin = currentUser.role === AppRole.ADMIN || currentUser.name === 'claudioasousa';
+    if (isRootOrAdmin) return true;
+
     switch (action) {
       case 'create_request': return currentUser.role !== AppRole.VIEWER;
       case 'edit_request': return currentUser.role !== AppRole.VIEWER;
-      case 'view_audit': return isAdmin;
+      case 'view_audit': return isRootOrAdmin;
       case 'manage_routes': return currentUser.role !== AppRole.VIEWER;
       default: return false;
     }
@@ -318,7 +319,7 @@ const App = () => {
 
   const addRequest = async (req: RepairRequest) => {
     setRequests(prev => [req, ...prev]);
-    try { await dbApi.createRequest(req); notify("Vistoria salva."); } catch (e) { notify("Salvo localmente.", "info"); }
+    try { await dbApi.createRequest(req); notify("Vistoria salva."); } catch (e) { notify("Erro ao salvar no servidor.", "error"); }
   };
 
   const updateRequest = async (req: RepairRequest) => {
