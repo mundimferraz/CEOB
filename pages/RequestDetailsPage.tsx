@@ -177,68 +177,171 @@ const RequestDetailsPage: React.FC = () => {
   const generatePDF = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 20;
+    const contentWidth = pageWidth - (margin * 2);
     
+    // Configurações Globais
+    doc.setFont('helvetica');
+
+    // Cabeçalho Sofisticado
     doc.setFillColor(15, 23, 42);
     doc.rect(0, 0, pageWidth, 40, 'F');
+    
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(18);
+    doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text('LAUDO TÉCNICO DE INSPEÇÃO - SGR-VIAS', 20, 20);
+    doc.text('LAUDO TÉCNICO DE INSPEÇÃO', margin, 20);
+    
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Protocolo: ${request.protocol} | Documento SEI: ${request.seiNumber}`, 20, 28);
-    doc.text(`Data do Relatório: ${new Date().toLocaleDateString('pt-BR')}`, 20, 33);
-    doc.setTextColor(30, 41, 59);
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('1. LOCALIZAÇÃO E IDENTIFICAÇÃO', 20, 55);
-    doc.setDrawColor(226, 232, 240);
-    doc.line(20, 58, pageWidth - 20, 58);
+    doc.text('SISTEMA DE GESTÃO DE REPAROS EM VIAS PÚBLICAS', margin, 26);
+    
     doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Endereço: ${request.location.address}`, 20, 68, { maxWidth: pageWidth - 40 });
-    doc.text(`Coordenadas: ${request.location.latitude.toFixed(6)}, ${request.location.longitude.toFixed(6)}`, 20, 78);
-    doc.text(`Unidade Zonal: ${getZonalName(request.zonal)}`, 20, 83);
-    doc.text(`Status Atual: ${request.status}`, 20, 88);
     doc.setFont('helvetica', 'bold');
-    doc.text('2. EQUIPE TÉCNICA', 20, 105);
-    doc.line(20, 108, pageWidth - 20, 108);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Engenheiro Responsável: ${engineer?.name || 'Não designado'}`, 20, 118);
-    doc.text(`Técnico de Campo: ${tech?.name || 'Não designado'}`, 20, 123);
-    doc.setFont('helvetica', 'bold');
-    doc.text('3. DESCRITIVO / PARECER TÉCNICO', 20, 140);
-    doc.line(20, 143, pageWidth - 20, 143);
-    doc.setFont('helvetica', 'italic');
-    doc.text(request.description, 20, 153, { maxWidth: pageWidth - 40, align: 'justify' });
+    doc.text(`PROTOCOLO: ${request.protocol}`, pageWidth - margin, 20, { align: 'right' });
+    doc.text(`STATUS: ${request.status.toUpperCase()}`, pageWidth - margin, 26, { align: 'right' });
 
-    if (request.photoBefore || request.photoAfter) {
+    let y = 55;
+
+    // Seção 1: Identificação do Objeto
+    doc.setTextColor(15, 23, 42);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('1. IDENTIFICAÇÃO E LOCALIZAÇÃO', margin, y);
+    doc.setDrawColor(226, 232, 240);
+    doc.line(margin, y + 2, pageWidth - margin, y + 2);
+
+    y += 10;
+    doc.setFontSize(9);
+    doc.setTextColor(100, 116, 139);
+    doc.text('ENDEREÇO DO LOGRADOURO', margin, y);
+    doc.text('COORDENADAS GEOGRÁFICAS', margin + (contentWidth * 0.6), y);
+    
+    y += 5;
+    doc.setTextColor(30, 41, 59);
+    doc.setFont('helvetica', 'bold');
+    const addrLines = doc.splitTextToSize(request.location.address, contentWidth * 0.55);
+    doc.text(addrLines, margin, y);
+    doc.text(`${request.location.latitude.toFixed(6)}, ${request.location.longitude.toFixed(6)}`, margin + (contentWidth * 0.6), y);
+    
+    y += (addrLines.length * 5) + 8;
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text('PROCESSO SEI', margin, y);
+    doc.text('CONTRATO', margin + (contentWidth * 0.3), y);
+    doc.text('UNIDADE EXECUTORA', margin + (contentWidth * 0.6), y);
+    
+    y += 5;
+    doc.setTextColor(30, 41, 59);
+    doc.setFont('helvetica', 'bold');
+    doc.text(request.seiNumber || 'N/A', margin, y);
+    doc.text(request.contract || 'N/A', margin + (contentWidth * 0.3), y);
+    doc.text(getZonalName(request.zonal), margin + (contentWidth * 0.6), y);
+
+    y += 15;
+
+    // Seção 2: Equipe Técnica
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(15, 23, 42);
+    doc.text('2. RESPONSABILIDADE TÉCNICA', margin, y);
+    doc.line(margin, y + 2, pageWidth - margin, y + 2);
+
+    y += 10;
+    doc.setFontSize(9);
+    doc.setTextColor(100, 116, 139);
+    doc.text('ENGENHEIRO TITULAR', margin, y);
+    doc.text('VISTORIADOR DE CAMPO', margin + (contentWidth * 0.5), y);
+    
+    y += 5;
+    doc.setTextColor(30, 41, 59);
+    doc.setFont('helvetica', 'bold');
+    doc.text(engineer?.name || 'Não designado', margin, y);
+    doc.text(tech?.name || 'Não designado', margin + (contentWidth * 0.5), y);
+
+    y += 15;
+
+    // Seção 3: Descritivo
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(15, 23, 42);
+    doc.text('3. DESCRITIVO E PARECER TÉCNICO', margin, y);
+    doc.line(margin, y + 2, pageWidth - margin, y + 2);
+
+    y += 10;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(51, 65, 85);
+    const descLines = doc.splitTextToSize(request.description, contentWidth);
+    doc.text(descLines, margin, y, { align: 'justify' });
+
+    y += (descLines.length * 5) + 15;
+
+    // Seção 4: Evidências Fotográficas (Ajustadas)
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(15, 23, 42);
+    doc.text('4. EVIDÊNCIAS FOTOGRÁFICAS DO LOCAL', margin, y);
+    doc.line(margin, y + 2, pageWidth - margin, y + 2);
+
+    y += 10;
+    
+    const imgBoxWidth = (contentWidth / 2) - 5;
+    const imgHeight = 55; // Altura otimizada para não quebrar a página
+
+    // Verifica se precisa de nova página para as imagens
+    if (y + imgHeight > 270) {
       doc.addPage();
-      doc.setFillColor(15, 23, 42);
-      doc.rect(0, 0, pageWidth, 20, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('ANEXO FOTOGRÁFICO', 20, 13);
-      let photoY = 40;
-      if (request.photoBefore) {
-        doc.setTextColor(30, 41, 59);
-        doc.text('EVIDÊNCIA INICIAL (ANTES)', 20, photoY);
-        try { doc.addImage(request.photoBefore, 'JPEG', 20, photoY + 5, pageWidth - 40, 90); photoY += 105; } catch (e) { photoY += 20; }
-      }
-      if (request.photoAfter) {
-        doc.text('EVIDÊNCIA FINAL (DEPOIS)', 20, photoY);
-        try { doc.addImage(request.photoAfter, 'JPEG', 20, photoY + 5, pageWidth - 40, 90); } catch (e) { }
-      }
+      y = 20;
     }
+
+    // Imagem Antes
+    if (request.photoBefore) {
+      doc.setFillColor(248, 250, 252);
+      doc.rect(margin, y, imgBoxWidth, imgHeight, 'F');
+      try {
+        doc.addImage(request.photoBefore, 'JPEG', margin, y, imgBoxWidth, imgHeight);
+      } catch (e) {}
+      doc.setFontSize(7);
+      doc.setTextColor(100, 116, 139);
+      doc.text('REGISTRO INICIAL (VISTORIA)', margin, y + imgHeight + 4);
+    } else {
+      doc.setDrawColor(226, 232, 240);
+      doc.rect(margin, y, imgBoxWidth, imgHeight);
+      doc.setFontSize(8);
+      doc.text('SEM IMAGEM INICIAL', margin + (imgBoxWidth/2), y + (imgHeight/2), { align: 'center' });
+    }
+
+    // Imagem Depois
+    if (request.photoAfter) {
+      doc.setFillColor(248, 250, 252);
+      doc.rect(margin + imgBoxWidth + 10, y, imgBoxWidth, imgHeight, 'F');
+      try {
+        doc.addImage(request.photoAfter, 'JPEG', margin + imgBoxWidth + 10, y, imgBoxWidth, imgHeight);
+      } catch (e) {}
+      doc.setFontSize(7);
+      doc.setTextColor(100, 116, 139);
+      doc.text('REGISTRO FINAL (CONCLUÍDO)', margin + imgBoxWidth + 10, y + imgHeight + 4);
+    } else {
+      doc.setDrawColor(226, 232, 240);
+      doc.rect(margin + imgBoxWidth + 10, y, imgBoxWidth, imgHeight);
+      doc.setFontSize(8);
+      doc.text('AGUARDANDO CONCLUSÃO', margin + imgBoxWidth + 10 + (imgBoxWidth/2), y + (imgHeight/2), { align: 'center' });
+    }
+
+    // Rodapé em todas as páginas
     const totalPages = doc.internal.pages.length - 1;
     for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
-        doc.setFontSize(8);
+        doc.setFontSize(7);
         doc.setTextColor(148, 163, 184);
-        doc.text(`SGR-Vias - Página ${i} de ${totalPages}`, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
+        doc.line(margin, doc.internal.pageSize.getHeight() - 15, pageWidth - margin, doc.internal.pageSize.getHeight() - 15);
+        doc.text(`Documento gerado eletronicamente via SGR-Vias em ${new Date().toLocaleString('pt-BR')}`, margin, doc.internal.pageSize.getHeight() - 10);
+        doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin, doc.internal.pageSize.getHeight() - 10, { align: 'right' });
     }
-    doc.save(`Laudo_${request.protocol.replace('.', '_')}.pdf`);
+    
+    doc.save(`Laudo_Tecnico_${request.protocol.replace('.', '_')}.pdf`);
+    notify("Laudo técnico gerado!");
   };
 
   // Funções de Zoom
@@ -305,12 +408,45 @@ const RequestDetailsPage: React.FC = () => {
           <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden p-6 md:p-8 space-y-8">
             
             {isEditingCoords ? (
-              <div className="space-y-4">
+              <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Reposicionamento Geográfico</h3>
-                  <div className="text-[10px] font-bold text-blue-600">Arraste o pino para o novo local</div>
+                  <div className="text-[10px] font-bold text-blue-600">Arraste o pino ou digite os valores</div>
                 </div>
                 <div id="edit-map-container" className="h-64 w-full rounded-2xl border border-slate-200 shadow-inner overflow-hidden"></div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Latitude</label>
+                    <input 
+                      type="number" 
+                      step="0.000001"
+                      value={editedLat}
+                      onChange={e => {
+                        const val = parseFloat(e.target.value);
+                        setEditedLat(val);
+                        if (markerRef.current) markerRef.current.setLatLng([val, editedLng]);
+                        if (mapRef.current) mapRef.current.panTo([val, editedLng]);
+                      }}
+                      className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Longitude</label>
+                    <input 
+                      type="number" 
+                      step="0.000001"
+                      value={editedLng}
+                      onChange={e => {
+                        const val = parseFloat(e.target.value);
+                        setEditedLng(val);
+                        if (markerRef.current) markerRef.current.setLatLng([editedLat, val]);
+                        if (mapRef.current) mapRef.current.panTo([editedLat, val]);
+                      }}
+                      className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
+                    />
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
