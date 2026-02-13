@@ -40,7 +40,6 @@ const RequestDetailsPage: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [activePhotoSlot, setActivePhotoSlot] = useState<'before' | 'after' | null>(null);
   const [fullscreenImage, setFullscreenImage] = useState<{url: string, title: string} | null>(null);
-  const [zoomLevel, setZoomLevel] = useState(1);
 
   const isAdmin = currentUser?.role === AppRole.ADMIN || currentUser?.name === 'claudioasousa';
   const canModify = isAdmin || (request?.status === RequestStatus.OPEN && canDo('edit_request'));
@@ -129,33 +128,144 @@ const RequestDetailsPage: React.FC = () => {
 
   const generatePDF = () => {
     const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // 1. Cabeçalho Azul Escuro (Slate-950)
     doc.setFillColor(15, 23, 42);
-    doc.rect(0, 0, 210, 40, 'F');
+    doc.rect(0, 0, pageWidth, 35, 'F');
+    
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(14);
-    doc.text('LAUDO TÉCNICO SGR-VIAS', 20, 20);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text('LAUDO TÉCNICO DE INSPEÇÃO', 15, 18);
+    
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.text(`Protocolo: ${request.protocol} | Status: ${request.status}`, 20, 28);
+    doc.text('SISTEMA DE GESTÃO DE REPAROS EM VIAS - SGR-VIAS', 15, 25);
     
-    doc.setTextColor(15, 23, 42);
+    // Dados à Direita no Cabeçalho
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
-    doc.text('DETALHES DA LOCALIZAÇÃO:', 20, 55);
-    doc.text(request.location.address, 20, 62, { maxWidth: 170 });
+    doc.text(`PROTOCOLO: ${request.protocol}`, pageWidth - 15, 18, { align: 'right' });
+    doc.text(`STATUS: ${request.status.toUpperCase()}`, pageWidth - 15, 25, { align: 'right' });
+
+    // 2. Barra de Metadados (Cinza)
+    doc.setFillColor(30, 41, 59);
+    doc.rect(0, 35, pageWidth, 10, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    const emissionDate = new Date().toLocaleDateString('pt-BR');
+    doc.text(`Documento SEI: ${request.seiNumber || 'N/A'}  |  Contrato: ${request.contract || 'N/A'}  |  Emissão: ${emissionDate}`, 15, 41.5);
+
+    let y = 60;
+
+    // 3. Seções do Laudo
+    const renderSectionTitle = (num: string, title: string, posY: number) => {
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text(`${num}. ${title}`, 15, posY);
+      doc.setDrawColor(226, 232, 240);
+      doc.line(15, posY + 2, pageWidth - 15, posY + 2);
+      return posY + 12;
+    };
+
+    // SEÇÃO 1: DADOS DE LOCALIZAÇÃO
+    y = renderSectionTitle('1', 'DADOS DE LOCALIZAÇÃO', y);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Endereço:', 15, y);
+    doc.setFont('helvetica', 'normal');
+    const splitAddress = doc.splitTextToSize(request.location.address, 160);
+    doc.text(splitAddress, 40, y);
     
-    doc.text('DESCRIÇÃO TÉCNICA:', 20, 85);
-    doc.text(request.description, 20, 92, { maxWidth: 170 });
+    y += (splitAddress.length * 5) + 2;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Coordenadas:', 15, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${request.location.latitude.toFixed(6)}, ${request.location.longitude.toFixed(6)}`, 40, y);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.text('Unidade:', 100, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(getZonalName(request.zonal), 120, y);
 
+    // SEÇÃO 2: RESPONSABILIDADE TÉCNICA
+    y += 15;
+    y = renderSectionTitle('2', 'RESPONSABILIDADE TÉCNICA', y);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Eng. Responsável:', 15, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(engineer?.name || '---', 45, y);
+    
+    y += 7;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Vistoriador:', 15, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(tech?.name || '---', 45, y);
+
+    // SEÇÃO 3: DESCRITIVO TÉCNICO E PARECER
+    y += 15;
+    y = renderSectionTitle('3', 'DESCRITIVO TÉCNICO E PARECER', y);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    const splitDesc = doc.splitTextToSize(request.description || 'Nenhum parecer técnico registrado.', 180);
+    doc.text(splitDesc, 15, y);
+
+    // SEÇÃO 4: EVIDÊNCIAS FOTOGRÁFICAS
+    y += (splitDesc.length * 5) + 15;
+    y = renderSectionTitle('4', 'EVIDÊNCIAS FOTOGRÁFICAS', y);
+    
+    const imgWidth = 85;
+    const imgHeight = 65;
+
+    // Foto Antes
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(100, 116, 139);
+    doc.text('REGISTRO INICIAL (ANTES)', 15, y);
+    
     if (request.photoBefore) {
-        doc.text('EVIDÊNCIA ANTES:', 20, 130);
-        try { doc.addImage(request.photoBefore, 'JPEG', 20, 135, 80, 60); } catch(e) {}
+      try {
+        doc.addImage(request.photoBefore, 'JPEG', 15, y + 4, imgWidth, imgHeight);
+      } catch (e) {
+        doc.text('Erro ao carregar imagem', 15, y + 10);
+      }
+    } else {
+      doc.setFillColor(241, 245, 249);
+      doc.rect(15, y + 4, imgWidth, imgHeight, 'F');
+      doc.text('Sem registro fotográfico', 35, y + 35);
     }
 
+    // Foto Depois
+    doc.text('REGISTRO FINAL (DEPOIS)', 110, y);
     if (request.photoAfter) {
-        doc.text('EVIDÊNCIA DEPOIS:', 110, 130);
-        try { doc.addImage(request.photoAfter, 'JPEG', 110, 135, 80, 60); } catch(e) {}
+      try {
+        doc.addImage(request.photoAfter, 'JPEG', 110, y + 4, imgWidth, imgHeight);
+      } catch (e) {
+        doc.text('Erro ao carregar imagem', 110, y + 10);
+      }
+    } else {
+      doc.setFillColor(241, 245, 249);
+      doc.rect(110, y + 4, imgWidth, imgHeight, 'F');
+      doc.setTextColor(148, 163, 184);
+      doc.setFontSize(10);
+      doc.text('Aguardando conclusão', 130, y + 35);
     }
 
-    doc.save(`Laudo_${request.protocol}.pdf`);
+    // 4. Rodapé
+    const footerY = 285;
+    doc.setDrawColor(226, 232, 240);
+    doc.line(15, footerY - 5, pageWidth - 15, footerY - 5);
+    doc.setTextColor(148, 163, 184);
+    doc.setFontSize(7);
+    doc.text(`SGR-Vias - Sistema de Gestão de Reparos  |  Página 1 de 1`, 15, footerY);
+    doc.text(`ID Único: ${request.id}`, pageWidth - 15, footerY, { align: 'right' });
+
+    doc.save(`Laudo_Tecnico_${request.protocol}.pdf`);
+    notify("Laudo Técnico gerado com sucesso!");
   };
 
   return (
