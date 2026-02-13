@@ -6,12 +6,13 @@ import { dbApi } from '../services/api';
 import { 
   History, Search, Filter, Calendar, ShieldCheck, User as UserIcon, 
   AlertCircle, FileText, ChevronRight, Loader2, RotateCw, Database, 
-  X, Eye, Terminal, Fingerprint, Clock, ExternalLink, UserCheck, SearchCode
+  X, Eye, Terminal, Fingerprint, Clock, ExternalLink, UserCheck, SearchCode,
+  ShieldAlert
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const AuditLogPage: React.FC = () => {
-  const { canDo, notify } = useApp();
+  const { canDo, notify, isAdmin } = useApp();
   const navigate = useNavigate();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,10 +37,10 @@ const AuditLogPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (canDo('view_audit')) {
+    if (isAdmin) {
       fetchLogs();
     }
-  }, []);
+  }, [isAdmin]);
 
   const filteredLogs = useMemo(() => {
     return logs.filter(log => {
@@ -87,14 +88,15 @@ const AuditLogPage: React.FC = () => {
     setSelectedLog(null);
   };
 
-  if (!canDo('view_audit')) {
+  if (!isAdmin) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] p-8 text-center bg-white m-4 md:m-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
         <div className="w-24 h-24 bg-rose-50 rounded-full flex items-center justify-center text-rose-500 mb-6 border border-rose-100">
-           <AlertCircle size={48} />
+           <ShieldAlert size={48} />
         </div>
         <h1 className="text-2xl font-black text-slate-900 mb-2 tracking-tight uppercase">Acesso Negado</h1>
-        <p className="text-slate-500 max-w-sm mb-8 font-medium">Você não possui nível de acesso <strong>Administrador Central</strong> para visualizar os logs de auditoria.</p>
+        <p className="text-slate-500 max-w-sm mb-8 font-medium">Você não possui privilégios administrativos para visualizar a trilha de auditoria do sistema.</p>
+        <button onClick={() => navigate('/')} className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs shadow-xl active:scale-95 transition-all">Voltar ao Painel</button>
       </div>
     );
   }
@@ -109,7 +111,7 @@ const AuditLogPage: React.FC = () => {
   };
 
   return (
-    <div className="p-4 md:p-8 space-y-8 pb-24">
+    <div className="p-4 md:p-8 space-y-8 pb-24 animate-in fade-in duration-500">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1.5">
@@ -229,17 +231,16 @@ const AuditLogPage: React.FC = () => {
             <div className="py-20 text-center bg-white rounded-[2.5rem] border border-slate-100 border-dashed">
                <History size={48} className="mx-auto text-slate-200 mb-4" />
                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nenhum log encontrado para os filtros atuais</p>
-               <p className="text-[9px] text-slate-400 mt-2 font-bold uppercase">Realize uma ação (criar vistoria, editar usuário) para gerar logs.</p>
+               <p className="text-[9px] text-slate-400 mt-2 font-bold uppercase">Realize uma ação para gerar logs de conformidade.</p>
             </div>
           )}
         </div>
       )}
 
-      {/* MODAL DE INSPEÇÃO PROFUNDA */}
+      {/* MODAL DE INSPEÇÃO */}
       {selectedLog && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-300 border border-white/20">
-            {/* Header do Modal */}
             <div className={`p-8 border-b flex justify-between items-center ${getActionColor(selectedLog.action as AuditAction)} bg-opacity-10`}>
               <div className="flex items-center gap-4">
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-xl border ${getActionColor(selectedLog.action as AuditAction)}`}>
@@ -249,8 +250,6 @@ const AuditLogPage: React.FC = () => {
                   <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Inspeção de Auditoria</h2>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">REGISTRO #{selectedLog.id}</span>
-                    <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{selectedLog.entity_type}</span>
                   </div>
                 </div>
               </div>
@@ -263,12 +262,11 @@ const AuditLogPage: React.FC = () => {
             </div>
 
             <div className="p-8 space-y-8 max-h-[70vh] overflow-y-auto scrollbar-thin">
-              {/* Seção Executor */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                        <UserCheck size={14} className="text-blue-600" />
-                       Executor da Alteração
+                       Executor
                     </p>
                     <div className="flex items-center gap-4">
                        <div className="w-12 h-12 bg-slate-900 text-white rounded-xl flex items-center justify-center font-black text-lg">
@@ -276,7 +274,6 @@ const AuditLogPage: React.FC = () => {
                        </div>
                        <div>
                           <p className="font-black text-slate-900 uppercase tracking-tight">{selectedLog.user_name}</p>
-                          <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">RF: {selectedLog.details?.rf || 'Interno'}</p>
                        </div>
                     </div>
                  </div>
@@ -284,27 +281,25 @@ const AuditLogPage: React.FC = () => {
                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                        <Clock size={14} className="text-emerald-600" />
-                       Cronologia do Evento
+                       Cronologia
                     </p>
                     <div className="space-y-1">
-                       <p className="font-black text-slate-900 uppercase tracking-tight">
-                         {new Date(selectedLog.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
-                       </p>
                        <p className="text-2xl font-black text-emerald-600 tracking-tighter">
                          {new Date(selectedLog.created_at).toLocaleTimeString('pt-BR')}
+                       </p>
+                       <p className="font-black text-slate-900 uppercase tracking-tight text-[10px]">
+                         {new Date(selectedLog.created_at).toLocaleDateString('pt-BR')}
                        </p>
                     </div>
                  </div>
               </div>
 
-              {/* Seção de Dados Brutos (Metadados) */}
               <div className="space-y-3">
                  <div className="flex items-center justify-between px-1">
                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                      <Terminal size={14} className="text-slate-900" />
-                     Diferencial de Dados (JSON)
+                     Dados Técnicos (JSON)
                    </p>
-                   <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full uppercase">Imutável</span>
                  </div>
                  <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800 shadow-2xl overflow-x-auto">
                     <pre className="text-[11px] font-mono text-emerald-400 leading-relaxed">
@@ -312,34 +307,6 @@ const AuditLogPage: React.FC = () => {
                     </pre>
                  </div>
               </div>
-
-              {/* Banner de Ação de Contexto Reestruturado */}
-              {selectedLog.action !== AuditAction.DELETE && (
-                <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 rounded-3xl text-white shadow-xl shadow-blue-200 flex items-center justify-between group overflow-hidden relative border border-white/10">
-                   <div className="absolute right-0 top-0 translate-x-1/4 -translate-y-1/4 opacity-10 group-hover:scale-110 transition-transform">
-                      <SearchCode size={140} />
-                   </div>
-                   <div className="relative z-10">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-1 opacity-80">Conformidade e Revisão</p>
-                      <h4 className="font-black text-lg uppercase tracking-tight flex items-center gap-2">
-                        Ver {selectedLog.entity_type} <ArrowRight size={18} className="opacity-50" />
-                      </h4>
-                      <p className="text-[9px] font-bold opacity-60 uppercase mt-1">Acessar estado atual do objeto auditado</p>
-                   </div>
-                   <button 
-                    onClick={(e) => navigateToEntity(e, selectedLog)}
-                    className="relative z-10 flex items-center gap-2 px-6 py-3 bg-white text-blue-600 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-slate-50 hover:scale-105 transition-all active:scale-95"
-                   >
-                     Acessar Ficha
-                     <ExternalLink size={14} />
-                   </button>
-                </div>
-              )}
-            </div>
-
-            {/* Footer do Modal */}
-            <div className="p-8 border-t border-slate-100 flex justify-center bg-slate-50/50">
-               <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">Sistema de Gestão de Reparos em Vias - SGR-Vias</p>
             </div>
           </div>
         </div>
@@ -347,10 +314,5 @@ const AuditLogPage: React.FC = () => {
     </div>
   );
 };
-
-// Ícone Auxiliar para o banner
-const ArrowRight = ({ size, className }: { size: number, className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-);
 
 export default AuditLogPage;

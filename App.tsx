@@ -8,7 +8,7 @@ import {
   Lock, User as UserIcon, Eye, EyeOff, Settings, 
   Briefcase, FileText, Navigation as NavIcon, Route as RouteIcon,
   Database, UserCog, UserCheck, MapPinned, ListChecks, RefreshCw,
-  Globe, Server, Shield, Activity, HardDrive
+  Globe, Server, Shield, Activity, HardDrive, Crown
 } from 'lucide-react';
 import { RepairRequest, User, ZonalType, RequestStatus, ZonalMetadata, AppRole, AuditAction, AuditEntity, VisitRoute } from './types';
 import { ROLE_CONFIG, DEFAULT_ROLE_CONFIG, INITIAL_ZONAL_METADATA } from './constants';
@@ -39,6 +39,8 @@ interface AppContextType {
   zonals: ZonalMetadata[];
   routes: VisitRoute[];
   currentUser: User | null;
+  isAdmin: boolean; 
+  isRoot: boolean; // Flag para o usuário claudioasousa
   loading: boolean;
   syncing: boolean;
   canDo: (action: string) => boolean;
@@ -162,14 +164,11 @@ const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
 
 const Navigation = () => {
   const location = useLocation();
-  const { currentUser, logout, syncing } = useApp();
+  const { currentUser, logout, syncing, isAdmin, isRoot } = useApp();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
   
-  // VERIFICAÇÃO ROOT/ADMIN COMPLETA
-  const isRootOrAdmin = currentUser?.role === AppRole.ADMIN || currentUser?.name === 'claudioasousa';
-
   const NavItem = ({ to, icon: Icon, label }: { to: string, icon: any, label: string }) => (
     <Link 
       to={to} 
@@ -209,7 +208,7 @@ const Navigation = () => {
             <NavItem to="/routes" icon={RouteIcon} label="Roteiros de Visita" />
           </div>
 
-          {isRootOrAdmin && (
+          {isAdmin && (
             <div className="pt-6 pb-2">
               <p className="px-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] mb-3">Gestão de Equipe</p>
               <NavItem to="/org" icon={UserCog} label="Equipe & Unidades" />
@@ -221,8 +220,11 @@ const Navigation = () => {
         <div className="p-6 border-t border-slate-900 space-y-3">
            <div className="px-4 py-3 bg-white/5 rounded-xl border border-white/5">
               <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Operador Logado:</p>
-              <p className="text-[11px] font-black text-white uppercase truncate">{currentUser?.name}</p>
-              {isRootOrAdmin && <p className="text-[8px] font-black text-emerald-500 uppercase mt-1">Acesso Total</p>}
+              <p className="text-[11px] font-black text-white uppercase truncate flex items-center gap-2">
+                {isRoot && <Crown size={12} className="text-amber-400" />}
+                {currentUser?.name}
+              </p>
+              {isAdmin && <p className="text-[8px] font-black text-emerald-500 uppercase mt-1">{isRoot ? 'Autoridade Root' : 'Acesso Administrativo'}</p>}
            </div>
            <button onClick={logout} className="w-full flex items-center justify-center gap-3 h-12 bg-rose-900/10 text-rose-500 rounded-xl font-black uppercase text-[10px] hover:bg-rose-900/20 transition-all">Sair do Sistema</button>
         </div>
@@ -244,6 +246,10 @@ const App = () => {
   const [syncing, setSyncing] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  // Lógica de administrador e Root centralizada
+  const isRoot = currentUser?.name === 'claudioasousa';
+  const isAdmin = currentUser?.role === AppRole.ADMIN || isRoot;
 
   const notify = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
     const id = Date.now().toString();
@@ -304,15 +310,15 @@ const App = () => {
 
   const canDo = useCallback((action: string) => {
     if (!currentUser) return false;
-    // BYPASS ROOT PARA TUDO
-    const isRootOrAdmin = currentUser.role === AppRole.ADMIN || currentUser.name === 'claudioasousa';
-    if (isRootOrAdmin) return true;
+    const isAdminUser = currentUser.role === AppRole.ADMIN || currentUser.name === 'claudioasousa';
+    if (isAdminUser) return true;
 
     switch (action) {
       case 'create_request': return currentUser.role !== AppRole.VIEWER;
       case 'edit_request': return currentUser.role !== AppRole.VIEWER;
-      case 'view_audit': return isRootOrAdmin;
+      case 'view_audit': return isAdminUser;
       case 'manage_routes': return currentUser.role !== AppRole.VIEWER;
+      case 'manage_team': return isAdminUser;
       default: return false;
     }
   }, [currentUser]);
@@ -347,7 +353,7 @@ const App = () => {
 
   return (
     <AppContext.Provider value={{ 
-      requests, users, zonals, routes, currentUser, loading, syncing, canDo, handleLogin, logout,
+      requests, users, zonals, routes, currentUser, isAdmin, isRoot, loading, syncing, canDo, handleLogin, logout,
       addRequest, updateRequest, deleteRequest, refreshRequests, refreshUsers, refreshRoutes,
       addUser, updateUser, deleteUser, addRoute, deleteRoute, updateZonal, getZonalName, getRoleLabel, notify
     }}>
