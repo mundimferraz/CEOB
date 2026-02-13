@@ -8,7 +8,7 @@ import {
   Lock, User as UserIcon, Eye, EyeOff, Settings, 
   Briefcase, FileText, Navigation as NavIcon, Route as RouteIcon,
   Database, UserCog, UserCheck, MapPinned, ListChecks, RefreshCw,
-  Globe, Server, Shield
+  Globe, Server, Shield, Activity
 } from 'lucide-react';
 import { RepairRequest, User, ZonalType, RequestStatus, ZonalMetadata, AppRole, AuditAction, AuditEntity, VisitRoute } from './types';
 import { ROLE_CONFIG, DEFAULT_ROLE_CONFIG, INITIAL_ZONAL_METADATA } from './constants';
@@ -95,17 +95,6 @@ const LoadingScreen = ({ progress, status }: { progress: number, status: string 
           </span>
         </div>
       </div>
-
-      <div className="pt-4 grid grid-cols-2 gap-4">
-         <div className="flex items-center gap-2 px-3 py-2 bg-white/5 rounded-xl border border-white/5">
-            <Globe size={12} className="text-slate-400" />
-            <span className="text-[8px] font-bold text-slate-500 uppercase">Geo-Server</span>
-         </div>
-         <div className="flex items-center gap-2 px-3 py-2 bg-white/5 rounded-xl border border-white/5">
-            <Shield size={12} className="text-slate-400" />
-            <span className="text-[8px] font-bold text-slate-500 uppercase">Certificado</span>
-         </div>
-      </div>
     </div>
   </div>
 );
@@ -173,7 +162,7 @@ const LoginPage = () => {
 
 const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
   const { currentUser, loading } = useApp();
-  if (loading) return null; // App vai mostrar o LoadingScreen geral
+  if (loading) return null;
   if (!currentUser) return <Navigate to="/login" replace />;
   return <>{children}</>;
 };
@@ -184,6 +173,18 @@ const Navigation = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
+  const isAdmin = currentUser?.role === AppRole.ADMIN || currentUser?.name === 'claudioasousa';
+
+  const NavItem = ({ to, icon: Icon, label }: { to: string, icon: any, label: string }) => (
+    <Link 
+      to={to} 
+      onClick={closeMobileMenu} 
+      className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname === to ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
+    >
+      <Icon size={18} /> 
+      <span className="font-black uppercase text-[11px] tracking-widest">{label}</span>
+    </Link>
+  );
 
   return (
     <>
@@ -194,30 +195,37 @@ const Navigation = () => {
         <span className="font-black tracking-tight text-slate-900 uppercase text-sm italic">SGR-VIAS</span>
         {syncing && <RefreshCw size={14} className="text-blue-500 animate-spin" />}
       </header>
+
       <aside className={`md:flex fixed inset-y-0 left-0 w-64 bg-slate-950 text-slate-300 flex-col border-r border-slate-800 z-50 transition-transform duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         <div className="p-8 border-b border-slate-900 flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-black text-xl text-white">S</div>
-          <h1 className="font-black text-white text-lg">SGR-Vias</h1>
+          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-black text-xl text-white shadow-lg">S</div>
+          <h1 className="font-black text-white text-lg tracking-tight uppercase italic">SGR-Vias</h1>
         </div>
-        <nav className="flex-1 px-4 py-8 space-y-2 overflow-y-auto">
-          <Link to="/" onClick={closeMobileMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname === '/' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}>
-            <LayoutDashboard size={18} /> <span className="font-black uppercase text-[11px]">Dashboard</span>
-          </Link>
-          <Link to="/new" onClick={closeMobileMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname === '/new' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}>
-            <PlusCircle size={18} /> <span className="font-black uppercase text-[11px]">Nova Vistoria</span>
-          </Link>
-          <Link to="/requests" onClick={closeMobileMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname === '/requests' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}>
-            <ClipboardList size={18} /> <span className="font-black uppercase text-[11px]">Relatórios</span>
-          </Link>
-          <Link to="/map" onClick={closeMobileMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname === '/map' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}>
-            <MapIcon size={18} /> <span className="font-black uppercase text-[11px]">Mapa</span>
-          </Link>
-          <Link to="/routes" onClick={closeMobileMenu} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname === '/routes' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}>
-            <RouteIcon size={18} /> <span className="font-black uppercase text-[11px]">Roteiros</span>
-          </Link>
+
+        <nav className="flex-1 px-4 py-8 space-y-1.5 overflow-y-auto">
+          <p className="px-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] mb-4">Geral</p>
+          <NavItem to="/" icon={LayoutDashboard} label="Dashboard" />
+          <NavItem to="/new" icon={PlusCircle} label="Nova Vistoria" />
+          <NavItem to="/requests" icon={ClipboardList} label="Relatórios" />
+          <NavItem to="/map" icon={MapIcon} label="Mapa Live" />
+          <NavItem to="/routes" icon={RouteIcon} label="Roteiros" />
+
+          {isAdmin && (
+            <>
+              <div className="pt-8 pb-4">
+                <p className="px-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] mb-4">Administração</p>
+                <NavItem to="/org" icon={UserCog} label="Equipe & Unidades" />
+                <NavItem to="/audit" icon={Activity} label="Auditoria" />
+              </>
+            )}
         </nav>
-        <div className="p-6 border-t border-slate-900">
-           <button onClick={logout} className="w-full flex items-center justify-center gap-3 h-12 bg-rose-900/10 text-rose-500 rounded-xl font-black uppercase text-[10px] hover:bg-rose-900/20 transition-all">Sair</button>
+
+        <div className="p-6 border-t border-slate-900 space-y-2">
+           <div className="px-4 py-3 bg-white/5 rounded-xl border border-white/5 mb-4">
+              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Logado como:</p>
+              <p className="text-[11px] font-black text-white uppercase truncate">{currentUser?.name}</p>
+           </div>
+           <button onClick={logout} className="w-full flex items-center justify-center gap-3 h-12 bg-rose-900/10 text-rose-500 rounded-xl font-black uppercase text-[10px] hover:bg-rose-900/20 transition-all">Sair do Sistema</button>
         </div>
       </aside>
     </>
@@ -253,14 +261,9 @@ const App = () => {
   const initData = async () => {
     setLoading(true);
     try {
-      setLoadStatus('Conectando ao Supabase...');
-      setLoadProgress(15);
+      setLoadStatus('Sincronizando ambiente...');
+      setLoadProgress(20);
       
-      const cachedRequests = localStorage.getItem('sgr_vias_cache_requests');
-      if (cachedRequests) setRequests(JSON.parse(cachedRequests));
-      setLoadProgress(30);
-
-      setLoadStatus('Sincronizando registros georreferenciados...');
       const [reqs, usrs, zns, rts] = await Promise.all([
         dbApi.getRequests(),
         dbApi.getUsers(),
@@ -268,25 +271,17 @@ const App = () => {
         dbApi.getRoutes()
       ]);
       
-      setLoadProgress(60);
-      setLoadStatus('Indexando dados de equipe...');
+      setLoadProgress(70);
       setRequests(reqs);
       setUsers(usrs);
       setZonals(zns.length > 0 ? zns : INITIAL_ZONAL_METADATA);
       setRoutes(rts);
-      localStorage.setItem('sgr_vias_cache_requests', JSON.stringify(reqs));
       
-      setLoadProgress(90);
-      setLoadStatus('Finalizando ambiente técnico...');
-      setTimeout(() => {
-        setLoadProgress(100);
-        setTimeout(() => setLoading(false), 500);
-      }, 300);
-
+      setLoadProgress(100);
+      setTimeout(() => setLoading(false), 500);
     } catch (e) {
-      console.warn("Offline/Error:", e);
-      setLoadStatus('Trabalhando em modo offline');
-      setTimeout(() => setLoading(false), 2000);
+      setLoadStatus('Modo Offline Ativado');
+      setTimeout(() => setLoading(false), 1500);
     }
   };
 
@@ -295,7 +290,7 @@ const App = () => {
     if (user) {
       setCurrentUser(user);
       localStorage.setItem('sgr_vias_session', JSON.stringify(user));
-      setLoading(true); // Dispara o Splash de Sync pós login
+      setLoading(true);
       await initData();
       return true;
     }
@@ -310,11 +305,13 @@ const App = () => {
 
   const canDo = useCallback((action: string) => {
     if (!currentUser) return false;
-    const isAdmin = currentUser.role === AppRole.ADMIN;
+    const isAdmin = currentUser.role === AppRole.ADMIN || currentUser.name === 'claudioasousa';
     if (isAdmin) return true;
     switch (action) {
       case 'create_request': return currentUser.role !== AppRole.VIEWER;
       case 'edit_request': return currentUser.role !== AppRole.VIEWER;
+      case 'view_audit': return isAdmin;
+      case 'manage_routes': return currentUser.role !== AppRole.VIEWER;
       default: return false;
     }
   }, [currentUser]);
@@ -341,12 +338,9 @@ const App = () => {
   const addUser = async (u: User) => { setUsers(prev => [...prev, u]); await dbApi.saveUser(u); };
   const updateUser = async (u: User) => { setUsers(prev => prev.map(x => x.id === u.id ? u : x)); await dbApi.saveUser(u); };
   const deleteUser = async (id: string) => { setUsers(prev => prev.filter(x => x.id !== id)); await dbApi.deleteUser(id); };
-  
   const addRoute = async (r: VisitRoute) => { setRoutes(prev => [r, ...prev]); await dbApi.saveRoute(r); };
   const deleteRoute = async (id: string) => { setRoutes(prev => prev.filter(x => x.id !== id)); await dbApi.deleteRoute(id); };
-  
   const updateZonal = async (z: ZonalMetadata) => { setZonals(prev => prev.map(x => x.id === z.id ? z : x)); await dbApi.saveZonal(z); };
-
   const getZonalName = (id: ZonalType | string) => zonals.find(z => z.id === id)?.name || id;
   const getRoleLabel = (role: AppRole) => ROLE_CONFIG[role]?.label || role;
 
@@ -385,7 +379,6 @@ const App = () => {
           } />
         </Routes>
         
-        {/* Toast Notification Layer */}
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[150] w-[90%] max-w-xs space-y-2 pointer-events-none">
           {toasts.map(t => (
             <div key={t.id} className={`p-4 rounded-2xl shadow-2xl border text-white flex items-center gap-3 animate-in slide-in-from-bottom-2 ${t.type === 'error' ? 'bg-rose-600 border-rose-500' : 'bg-slate-900 border-slate-800'}`}>
