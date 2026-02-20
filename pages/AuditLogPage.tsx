@@ -12,7 +12,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 
 const AuditLogPage: React.FC = () => {
-  const { canDo, notify, isAdmin } = useApp();
+  const { canDo, notify, isAdmin, isViewer } = useApp();
   const navigate = useNavigate();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,10 +37,10 @@ const AuditLogPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (isAdmin) {
+    if (isAdmin || isViewer) {
       fetchLogs();
     }
-  }, [isAdmin]);
+  }, [isAdmin, isViewer]);
 
   const filteredLogs = useMemo(() => {
     return logs.filter(log => {
@@ -88,14 +88,14 @@ const AuditLogPage: React.FC = () => {
     setSelectedLog(null);
   };
 
-  if (!isAdmin) {
+  if (!isAdmin && !isViewer) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] p-8 text-center bg-white m-4 md:m-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
         <div className="w-24 h-24 bg-rose-50 rounded-full flex items-center justify-center text-rose-500 mb-6 border border-rose-100">
            <ShieldAlert size={48} />
         </div>
         <h1 className="text-2xl font-black text-slate-900 mb-2 tracking-tight uppercase">Acesso Negado</h1>
-        <p className="text-slate-500 max-w-sm mb-8 font-medium">Você não possui privilégios administrativos para visualizar a trilha de auditoria do sistema.</p>
+        <p className="text-slate-500 max-w-sm mb-8 font-medium">Você não possui privilégios suficientes para visualizar a trilha de auditoria do sistema.</p>
         <button onClick={() => navigate('/')} className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs shadow-xl active:scale-95 transition-all">Voltar ao Painel</button>
       </div>
     );
@@ -209,7 +209,7 @@ const AuditLogPage: React.FC = () => {
                     
                     {/* Botões de Ação na Lista */}
                     <div className="flex gap-2">
-                      {log.action !== AuditAction.DELETE && (
+                      {log.action !== AuditAction.DELETE && isAdmin && (
                         <button 
                           onClick={(e) => navigateToEntity(e, log)}
                           className="p-3 bg-blue-600 text-white rounded-xl opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-blue-700 flex items-center gap-2"

@@ -12,7 +12,7 @@ import { RequestStatus, VisitRoute, LocationData, RepairRequest } from '../types
 import { STATUS_COLORS } from '../constants';
 
 const RoutePlannerPage: React.FC = () => {
-  const { requests, users, addRoute, notify, getZonalName, routes } = useApp();
+  const { requests, users, addRoute, notify, getZonalName, routes, isViewer } = useApp();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('edit');
@@ -208,14 +208,21 @@ const RoutePlannerPage: React.FC = () => {
             </div>
 
             <div className="pt-4 border-t border-slate-100">
-               <button 
-                type="submit" 
-                disabled={isSaving}
-                className="w-full h-16 bg-blue-600 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-2xl hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-               >
-                 {isSaving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
-                 {editId ? 'Atualizar Itinerário' : 'Criar Roteiro'}
-               </button>
+               {!isViewer && (
+                 <button 
+                  type="submit" 
+                  disabled={isSaving}
+                  className="w-full h-16 bg-blue-600 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-2xl hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                 >
+                   {isSaving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
+                   {editId ? 'Atualizar Itinerário' : 'Criar Roteiro'}
+                 </button>
+               )}
+               {isViewer && (
+                 <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-center">
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Modo de Visualização</p>
+                 </div>
+               )}
             </div>
           </form>
         </div>

@@ -8,8 +8,15 @@ import { ZONALS_LIST } from '../constants';
 import { addWatermarkToImage } from '../services/imageUtils';
 
 const NewRequestPage: React.FC = () => {
-  const { addRequest, users, currentUser, getZonalName, notify } = useApp();
+  const { addRequest, users, currentUser, getZonalName, notify, isViewer } = useApp();
   const navigate = useNavigate();
+  
+  useEffect(() => {
+    if (isViewer) {
+      notify("Você não tem permissão para criar vistorias.", "error");
+      navigate('/requests');
+    }
+  }, [isViewer, navigate, notify]);
   
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);

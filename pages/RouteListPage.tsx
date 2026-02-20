@@ -178,20 +178,24 @@ const RouteListPage: React.FC = () => {
                       <p className="text-[9px] text-blue-400 font-bold uppercase tracking-widest">Encarregado</p>
                     </div>
                     <div className="ml-auto flex items-center gap-1">
-                      <button 
-                        onClick={() => navigate(`/routes/planner?edit=${route.id}`)}
-                        className="p-2 text-slate-500 hover:text-blue-400 transition-colors"
-                        title="Editar Itinerário"
-                      >
-                        <Edit2 size={16} />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(route.id, route.name)}
-                        className="p-2 text-slate-500 hover:text-rose-500 transition-colors"
-                        title="Excluir Roteiro"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      {canDo('manage_routes') && (
+                        <>
+                          <button 
+                            onClick={() => navigate(`/routes/planner?edit=${route.id}`)}
+                            className="p-2 text-slate-500 hover:text-blue-400 transition-colors"
+                            title="Editar Itinerário"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(route.id, route.name)}
+                            className="p-2 text-slate-500 hover:text-rose-500 transition-colors"
+                            title="Excluir Roteiro"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-end justify-between">

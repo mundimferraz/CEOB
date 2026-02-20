@@ -15,7 +15,7 @@ import { addWatermarkToImage } from '../services/imageUtils';
 const RequestDetailsPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { requests, updateRequest, deleteRequest, users, zonals, currentUser, getZonalName, notify, canDo } = useApp();
+  const { requests, updateRequest, deleteRequest, users, zonals, currentUser, getZonalName, notify, canDo, isAdmin } = useApp();
   
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -47,7 +47,6 @@ const RequestDetailsPage: React.FC = () => {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
-  const isAdmin = currentUser?.role === AppRole.ADMIN || currentUser?.name === 'claudioasousa';
   const canModify = isAdmin || (request?.status === RequestStatus.OPEN && canDo('edit_request'));
 
   useEffect(() => {
@@ -409,7 +408,7 @@ const RequestDetailsPage: React.FC = () => {
                  </div>
               </div>
            </div>
-           {isAdmin && (
+            {isAdmin && (
              <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-4">
                <h3 className="text-xs font-black uppercase tracking-tight">Administração</h3>
                <div>
@@ -420,7 +419,9 @@ const RequestDetailsPage: React.FC = () => {
                   <label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">Contrato</label>
                   {isEditing ? <input className="w-full h-10 px-3 bg-slate-50 border rounded-lg text-xs font-bold" value={editedContract} onChange={e => setEditedContract(e.target.value)} /> : <p className="text-xs font-bold">{request.contract}</p>}
                </div>
-               <button onClick={() => { if(window.confirm("Excluir registro permanentemente?")) { deleteRequest(request.id); navigate('/requests'); } }} className="w-full h-12 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100 font-black text-[9px] uppercase tracking-widest hover:bg-rose-600 hover:text-white transition-all">Excluir Registro</button>
+               {canDo('delete_request') && (
+                 <button onClick={() => { if(window.confirm("Excluir registro permanentemente?")) { deleteRequest(request.id); navigate('/requests'); } }} className="w-full h-12 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100 font-black text-[9px] uppercase tracking-widest hover:bg-rose-600 hover:text-white transition-all">Excluir Registro</button>
+               )}
              </div>
            )}
         </div>

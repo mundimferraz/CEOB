@@ -309,7 +309,9 @@ const RequestListPage: React.FC = () => {
             const isDeleting = deletingId === req.id;
             return (
               <Link key={req.id} to={`/requests/${req.id}`} className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm hover:border-blue-400 hover:shadow-xl hover:-translate-y-1 transition-all active:scale-[0.98] flex gap-4 relative group overflow-hidden">
-                <button onClick={(e) => handleQuickDelete(e, req.id, req.protocol)} disabled={isDeleting} className="absolute top-3 right-3 w-9 h-9 flex items-center justify-center bg-rose-50 text-rose-600 rounded-xl border border-rose-100 shadow-sm transition-all hover:bg-rose-600 hover:text-white active:scale-90 z-20" title="Excluir Vistoria">{isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}</button>
+                {canDo('delete_request') && (
+                  <button onClick={(e) => handleQuickDelete(e, req.id, req.protocol)} disabled={isDeleting} className="absolute top-3 right-3 w-9 h-9 flex items-center justify-center bg-rose-50 text-rose-600 rounded-xl border border-rose-100 shadow-sm transition-all hover:bg-rose-600 hover:text-white active:scale-90 z-20" title="Excluir Vistoria">{isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}</button>
+                )}
                 <div className="w-24 h-24 md:w-32 md:h-32 rounded-2xl bg-slate-100 flex-shrink-0 overflow-hidden border border-slate-100 shadow-inner">{req.photoBefore ? (<img src={req.photoBefore} alt="Miniatura" className="w-full h-full object-cover" />) : (<div className="w-full h-full flex flex-col items-center justify-center text-slate-300"><ImageIcon size={24} /><span className="text-[8px] font-black uppercase mt-1 text-center px-2">Sem Imagem</span></div>)}</div>
                 <div className="flex-1 flex flex-col justify-between overflow-hidden pr-10">
                   <div>

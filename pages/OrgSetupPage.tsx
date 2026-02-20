@@ -15,7 +15,7 @@ const OrgSetupPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { 
-    users, zonals, currentUser, isAdmin, isRoot,
+    users, zonals, currentUser, isAdmin, isRoot, isViewer,
     addUser, updateUser, deleteUser,
     updateZonal, deleteZonal, notify 
   } = useApp();
@@ -37,14 +37,14 @@ const OrgSetupPage: React.FC = () => {
   }, [location.search]);
 
   // Bloqueio robusto de acesso
-  if (!isAdmin) {
+  if (!isAdmin && !isViewer) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] p-8 text-center bg-white m-4 md:m-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
         <div className="w-24 h-24 bg-rose-50 rounded-full flex items-center justify-center text-rose-500 mb-6 border border-rose-100 animate-pulse">
            <ShieldAlert size={48} />
         </div>
         <h1 className="text-2xl font-black text-slate-900 mb-2 tracking-tight uppercase">Acesso Negado</h1>
-        <p className="text-slate-500 max-w-sm mb-8 font-medium">Você não possui nível de acesso <strong>Administrativo</strong> para gerenciar equipes ou unidades zonais.</p>
+        <p className="text-slate-500 max-w-sm mb-8 font-medium">Você não possui nível de acesso suficiente para gerenciar equipes ou unidades zonais.</p>
         <button onClick={() => navigate('/')} className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs shadow-xl active:scale-95 transition-all">Voltar ao Início</button>
       </div>
     );
@@ -141,7 +141,9 @@ const OrgSetupPage: React.FC = () => {
         <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-6 border-b flex flex-col md:flex-row gap-4 justify-between items-center bg-slate-50">
              <input type="text" placeholder="Filtrar por nome..." className="w-full max-w-sm h-11 px-4 bg-white border border-slate-200 rounded-xl outline-none" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-             <button onClick={() => { setEditingUser(null); setIsUserModalOpen(true); }} className="px-6 h-11 bg-blue-600 text-white rounded-xl font-black uppercase text-[10px] flex items-center gap-2 shadow-lg hover:bg-blue-700 transition-all"><UserPlus size={16}/> Novo Usuário</button>
+             {isAdmin && (
+               <button onClick={() => { setEditingUser(null); setIsUserModalOpen(true); }} className="px-6 h-11 bg-blue-600 text-white rounded-xl font-black uppercase text-[10px] flex items-center gap-2 shadow-lg hover:bg-blue-700 transition-all"><UserPlus size={16}/> Novo Usuário</button>
+             )}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
@@ -177,11 +179,17 @@ const OrgSetupPage: React.FC = () => {
                          </span>
                       </td>
                       <td className="px-8 py-4 text-right">
-                         <button onClick={() => { setEditingUser(user); setIsUserModalOpen(true); }} className="p-2 text-slate-400 hover:text-blue-600 transition-colors"><Edit2 size={16}/></button>
-                         {(!isUserRoot || isRoot) && (
-                            <button onClick={() => handleDeleteUser(user.id, user.name)} className="p-2 text-slate-400 hover:text-rose-600 transition-colors">
-                              <Trash2 size={16}/>
-                            </button>
+                         {isAdmin ? (
+                           <>
+                             <button onClick={() => { setEditingUser(user); setIsUserModalOpen(true); }} className="p-2 text-slate-400 hover:text-blue-600 transition-colors"><Edit2 size={16}/></button>
+                             {(!isUserRoot || isRoot) && (
+                                <button onClick={() => handleDeleteUser(user.id, user.name)} className="p-2 text-slate-400 hover:text-rose-600 transition-colors">
+                                  <Trash2 size={16}/>
+                                </button>
+                             )}
+                           </>
+                         ) : (
+                           <span className="text-[10px] font-black text-slate-300 uppercase">Somente Leitura</span>
                          )}
                       </td>
                     </tr>
@@ -193,23 +201,27 @@ const OrgSetupPage: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="flex justify-end">
-            <button 
-              onClick={() => { setEditingZonal(null); setIsZonalModalOpen(true); }} 
-              className="px-6 h-11 bg-blue-600 text-white rounded-xl font-black uppercase text-[10px] flex items-center gap-2 shadow-lg hover:bg-blue-700 transition-all"
-            >
-              <Plus size={16}/> Nova Unidade
-            </button>
-          </div>
+          {isAdmin && (
+            <div className="flex justify-end">
+              <button 
+                onClick={() => { setEditingZonal(null); setIsZonalModalOpen(true); }} 
+                className="px-6 h-11 bg-blue-600 text-white rounded-xl font-black uppercase text-[10px] flex items-center gap-2 shadow-lg hover:bg-blue-700 transition-all"
+              >
+                <Plus size={16}/> Nova Unidade
+              </button>
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {zonals.map(z => (
               <div key={z.id} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-4 hover:border-blue-300 transition-all group">
                   <div className="flex items-center justify-between">
                     <h3 className="font-black text-sm uppercase italic">{z.name}</h3>
-                    <div className="flex gap-2">
-                      <button onClick={() => { setEditingZonal(z); setIsZonalModalOpen(true); }} className="text-slate-400 hover:text-blue-600 transition-colors"><Edit2 size={16}/></button>
-                      <button onClick={() => handleDeleteZonal(z.id, z.name)} className="text-slate-400 hover:text-rose-600 transition-colors"><Trash2 size={16}/></button>
-                    </div>
+                    {isAdmin && (
+                      <div className="flex gap-2">
+                        <button onClick={() => { setEditingZonal(z); setIsZonalModalOpen(true); }} className="text-slate-400 hover:text-blue-600 transition-colors"><Edit2 size={16}/></button>
+                        <button onClick={() => handleDeleteZonal(z.id, z.name)} className="text-slate-400 hover:text-rose-600 transition-colors"><Trash2 size={16}/></button>
+                      </div>
+                    )}
                   </div>
                   <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
                     <p className="text-[8px] font-black text-slate-400 uppercase mb-2">Responsável Técnico</p>

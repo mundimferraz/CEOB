@@ -41,6 +41,7 @@ interface AppContextType {
   currentUser: User | null;
   isAdmin: boolean; 
   isRoot: boolean;
+  isViewer: boolean;
   loading: boolean;
   syncing: boolean;
   canDo: (action: string) => boolean;
@@ -165,19 +166,19 @@ const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
 
 // Componente para rotas exclusivas de Administrador/Root
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAdmin, loading } = useApp();
+  const { isAdmin, isViewer, loading } = useApp();
   const navigate = useNavigate();
 
   if (loading) return null;
   
-  if (!isAdmin) {
+  if (!isAdmin && !isViewer) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center bg-slate-50">
         <div className="w-24 h-24 bg-rose-50 rounded-full flex items-center justify-center text-rose-500 mb-6 border border-rose-100 animate-pulse">
            <ShieldAlert size={48} />
         </div>
         <h1 className="text-2xl font-black text-slate-900 mb-2 tracking-tight uppercase">Acesso Restrito</h1>
-        <p className="text-slate-500 max-w-sm mb-8 font-medium">Esta área é reservada exclusivamente para <strong>Administradores do Sistema</strong>.</p>
+        <p className="text-slate-500 max-w-sm mb-8 font-medium">Esta área é reservada exclusivamente para <strong>Administradores ou Visualizadores Autorizados</strong>.</p>
         <button onClick={() => navigate('/')} className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs shadow-xl active:scale-95 transition-all">Voltar ao Dashboard</button>
       </div>
     );
@@ -232,7 +233,7 @@ const Navigation = () => {
             <NavItem to="/routes" icon={RouteIcon} label="Roteiros de Visita" />
           </div>
 
-          {isAdmin && (
+          { (isAdmin || isViewer) && (
             <div className="pt-6 pb-2">
               <p className="px-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] mb-3">Gestão de Equipe</p>
               <NavItem to="/org" icon={UserCog} label="Equipe & Unidades" />
@@ -290,6 +291,7 @@ const App = () => {
 
   const isRoot = currentUser?.name === 'claudioasousa';
   const isAdmin = currentUser?.role === AppRole.ADMIN || isRoot;
+  const isViewer = currentUser?.role === AppRole.VIEWER;
 
   const notify = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
     const id = Date.now().toString();
@@ -351,14 +353,18 @@ const App = () => {
   const canDo = useCallback((action: string) => {
     if (!currentUser) return false;
     const isAdminUser = currentUser.role === AppRole.ADMIN || currentUser.name === 'claudioasousa';
+    const isViewerUser = currentUser.role === AppRole.VIEWER;
+    
     if (isAdminUser) return true;
 
     switch (action) {
-      case 'create_request': return currentUser.role !== AppRole.VIEWER;
-      case 'edit_request': return currentUser.role !== AppRole.VIEWER;
-      case 'view_audit': return isAdminUser;
-      case 'manage_routes': return currentUser.role !== AppRole.VIEWER;
-      case 'manage_team': return isAdminUser;
+      case 'create_request': return !isViewerUser;
+      case 'edit_request': return !isViewerUser;
+      case 'delete_request': return isAdminUser;
+      case 'view_audit': return isAdminUser || isViewerUser;
+      case 'manage_routes': return !isViewerUser;
+      case 'manage_team': return isAdminUser || isViewerUser;
+      case 'edit_team': return isAdminUser;
       default: return false;
     }
   }, [currentUser]);
@@ -394,7 +400,7 @@ const App = () => {
 
   return (
     <AppContext.Provider value={{ 
-      requests, users, zonals, routes, currentUser, isAdmin, isRoot, loading, syncing, canDo, handleLogin, logout,
+      requests, users, zonals, routes, currentUser, isAdmin, isRoot, isViewer, loading, syncing, canDo, handleLogin, logout,
       addRequest, updateRequest, deleteRequest, refreshRequests, refreshUsers, refreshRoutes,
       addUser, updateUser, deleteUser, addRoute, deleteRoute, updateZonal, deleteZonal, getZonalName, getRoleLabel, notify
     }}>
