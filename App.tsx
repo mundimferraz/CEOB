@@ -189,7 +189,7 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 
 const Navigation = () => {
   const location = useLocation();
-  const { currentUser, logout, syncing, isAdmin, isRoot } = useApp();
+  const { currentUser, logout, syncing, isAdmin, isRoot, isViewer } = useApp();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
