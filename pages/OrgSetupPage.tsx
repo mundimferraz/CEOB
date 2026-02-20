@@ -17,7 +17,7 @@ const OrgSetupPage: React.FC = () => {
   const { 
     users, zonals, currentUser, isAdmin, isRoot,
     addUser, updateUser, deleteUser,
-    updateZonal, notify 
+    updateZonal, deleteZonal, notify 
   } = useApp();
   
   const [activeTab, setActiveTab] = useState<'zonals' | 'personnel'>('personnel');
@@ -115,6 +115,13 @@ const OrgSetupPage: React.FC = () => {
     }
   };
 
+  const handleDeleteZonal = async (id: string, name: string) => {
+    if (window.confirm(`Excluir unidade "${name}" permanentemente?`)) {
+      await deleteZonal(id);
+      notify("Unidade removida.");
+    }
+  };
+
   const filteredUsers = users.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
@@ -185,19 +192,32 @@ const OrgSetupPage: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-           {zonals.map(z => (
-             <div key={z.id} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-4 hover:border-blue-300 transition-all">
-                <div className="flex items-center justify-between">
-                   <h3 className="font-black text-sm uppercase italic">{z.name}</h3>
-                   <button onClick={() => { setEditingZonal(z); setIsZonalModalOpen(true); }} className="text-slate-400 hover:text-blue-600"><Edit2 size={16}/></button>
-                </div>
-                <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                   <p className="text-[8px] font-black text-slate-400 uppercase mb-2">Responsável Técnico</p>
-                   <p className="text-xs font-bold text-slate-900">{users.find(u => u.id === z.managerId)?.name || 'Nenhum'}</p>
-                </div>
-             </div>
-           ))}
+        <div className="space-y-6">
+          <div className="flex justify-end">
+            <button 
+              onClick={() => { setEditingZonal(null); setIsZonalModalOpen(true); }} 
+              className="px-6 h-11 bg-blue-600 text-white rounded-xl font-black uppercase text-[10px] flex items-center gap-2 shadow-lg hover:bg-blue-700 transition-all"
+            >
+              <Plus size={16}/> Nova Unidade
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {zonals.map(z => (
+              <div key={z.id} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-4 hover:border-blue-300 transition-all group">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-black text-sm uppercase italic">{z.name}</h3>
+                    <div className="flex gap-2">
+                      <button onClick={() => { setEditingZonal(z); setIsZonalModalOpen(true); }} className="text-slate-400 hover:text-blue-600 transition-colors"><Edit2 size={16}/></button>
+                      <button onClick={() => handleDeleteZonal(z.id, z.name)} className="text-slate-400 hover:text-rose-600 transition-colors"><Trash2 size={16}/></button>
+                    </div>
+                  </div>
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                    <p className="text-[8px] font-black text-slate-400 uppercase mb-2">Responsável Técnico</p>
+                    <p className="text-xs font-bold text-slate-900">{users.find(u => u.id === z.managerId)?.name || 'Nenhum'}</p>
+                  </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -250,6 +270,56 @@ const OrgSetupPage: React.FC = () => {
               <button type="submit" disabled={isSubmitting} className="w-full h-14 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] flex items-center justify-center gap-2 shadow-xl hover:bg-blue-700 active:scale-95 transition-all">
                  {isSubmitting ? <Loader2 className="animate-spin" size={18}/> : <Save size={18}/>}
                  Salvar Cadastro
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL UNIDADE ZONAL */}
+      {isZonalModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="p-8 border-b flex justify-between items-center bg-slate-50">
+              <h2 className="text-xl font-black uppercase italic">
+                {editingZonal ? 'Editar Unidade' : 'Nova Unidade'}
+              </h2>
+              <button onClick={() => setIsZonalModalOpen(false)} className="text-slate-400 hover:text-rose-500 transition-colors"><X size={24}/></button>
+            </div>
+            <form onSubmit={handleSaveZonal} className="p-8 space-y-4">
+              <div>
+                <label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">Nome da Unidade *</label>
+                <input 
+                  required 
+                  name="name" 
+                  defaultValue={editingZonal?.name} 
+                  placeholder="Ex: Zonal Norte, Zonal Sul..."
+                  className="w-full h-11 px-4 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-600/10" 
+                />
+              </div>
+              <div>
+                <label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">Responsável Técnico</label>
+                <select 
+                  name="managerId" 
+                  defaultValue={editingZonal?.managerId} 
+                  className="w-full h-11 px-4 border border-slate-200 rounded-xl outline-none font-bold text-xs"
+                >
+                  <option value="">Selecione um responsável</option>
+                  {users.map(u => <option key={u.id} value={u.id}>{u.name} ({ROLE_CONFIG[u.role]?.label})</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">Descrição / Observações</label>
+                <textarea 
+                  name="description" 
+                  defaultValue={editingZonal?.description} 
+                  rows={3}
+                  className="w-full p-4 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-600/10 resize-none"
+                />
+              </div>
+              <button type="submit" disabled={isSubmitting} className="w-full h-14 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] flex items-center justify-center gap-2 shadow-xl hover:bg-blue-700 active:scale-95 transition-all">
+                 {isSubmitting ? <Loader2 className="animate-spin" size={18}/> : <Save size={18}/>}
+                 Salvar Unidade
               </button>
             </form>
           </div>

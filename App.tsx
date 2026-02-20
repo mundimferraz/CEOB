@@ -58,6 +58,7 @@ interface AppContextType {
   addRoute: (route: VisitRoute) => Promise<void>;
   deleteRoute: (id: string) => Promise<void>;
   updateZonal: (zonal: ZonalMetadata) => Promise<void>;
+  deleteZonal: (id: string) => Promise<void>;
   getZonalName: (id: ZonalType | string) => string;
   getRoleLabel: (role: AppRole) => string;
   notify: (message: string, type?: 'success' | 'error' | 'info') => void;
@@ -387,6 +388,7 @@ const App = () => {
   const addRoute = async (r: VisitRoute) => { setRoutes(prev => [r, ...prev]); await dbApi.saveRoute(r); };
   const deleteRoute = async (id: string) => { setRoutes(prev => prev.filter(x => x.id !== id)); await dbApi.deleteRoute(id); };
   const updateZonal = async (z: ZonalMetadata) => { setZonals(prev => prev.map(x => x.id === z.id ? z : x)); await dbApi.saveZonal(z); };
+  const deleteZonal = async (id: string) => { setZonals(prev => prev.filter(x => x.id !== id)); await dbApi.deleteZonal(id); };
   const getZonalName = (id: ZonalType | string) => zonals.find(z => z.id === id)?.name || id;
   const getRoleLabel = (role: AppRole) => ROLE_CONFIG[role]?.label || role;
 
@@ -394,7 +396,7 @@ const App = () => {
     <AppContext.Provider value={{ 
       requests, users, zonals, routes, currentUser, isAdmin, isRoot, loading, syncing, canDo, handleLogin, logout,
       addRequest, updateRequest, deleteRequest, refreshRequests, refreshUsers, refreshRoutes,
-      addUser, updateUser, deleteUser, addRoute, deleteRoute, updateZonal, getZonalName, getRoleLabel, notify
+      addUser, updateUser, deleteUser, addRoute, deleteRoute, updateZonal, deleteZonal, getZonalName, getRoleLabel, notify
     }}>
       {loading && <LoadingScreen progress={loadProgress} status={loadStatus} />}
       <HashRouter>
