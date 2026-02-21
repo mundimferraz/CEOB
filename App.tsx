@@ -9,7 +9,7 @@ import {
   Briefcase, FileText, Navigation as NavIcon, Route as RouteIcon,
   Database, UserCog, UserCheck, MapPinned, ListChecks, RefreshCw,
   Globe, Server, Shield, Activity, HardDrive, Crown, ShieldAlert,
-  BookOpen
+  BookOpen, Presentation as PresentationIcon
 } from 'lucide-react';
 import { RepairRequest, User, ZonalType, RequestStatus, ZonalMetadata, AppRole, AuditAction, AuditEntity, VisitRoute } from './types';
 import { ROLE_CONFIG, DEFAULT_ROLE_CONFIG, INITIAL_ZONAL_METADATA } from './constants';
@@ -24,6 +24,7 @@ import ChangePasswordPage from './pages/ChangePasswordPage';
 import RouteListPage from './pages/RouteListPage';
 import RoutePlannerPage from './pages/RoutePlannerPage';
 import ManualPage from './pages/ManualPage';
+import PresentationPage from './pages/PresentationPage';
 import { dbApi } from './services/api';
 
 // --- CONTEXTO DA APLICAÇÃO ---
@@ -234,6 +235,7 @@ const Navigation = () => {
             <NavItem to="/map" icon={MapIcon} label="Mapa Interativo" />
             <NavItem to="/routes" icon={RouteIcon} label="Roteiros de Visita" />
             <NavItem to="/manual" icon={BookOpen} label="Manual do Usuário" />
+            <NavItem to="/presentation" icon={PresentationIcon} label="Apresentação Investidores" />
           </div>
 
           { (isAdmin || isViewer) && (
@@ -426,6 +428,7 @@ const App = () => {
                       <Route path="/routes" element={<RouteListPage />} />
                       <Route path="/routes/planner" element={<RoutePlannerPage />} />
                       <Route path="/manual" element={<ManualPage />} />
+                      <Route path="/presentation" element={<PresentationPage />} />
                       <Route path="/profile/password" element={<ChangePasswordPage />} />
                       
                       {/* Rotas Protegidas de Gestão Administrativa */}
