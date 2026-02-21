@@ -18,6 +18,7 @@ const RequestListPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [zonalFilter, setZonalFilter] = useState<string>('all');
+  const [techFilter, setTechFilter] = useState<string>('all');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -34,10 +35,11 @@ const RequestListPage: React.FC = () => {
       
       const matchesStatus = statusFilter === 'all' || req.status === statusFilter;
       const matchesZonal = zonalFilter === 'all' || req.zonal === zonalFilter;
+      const matchesTech = techFilter === 'all' || req.technicianId === techFilter;
 
-      return matchesSearch && matchesStatus && matchesZonal;
+      return matchesSearch && matchesStatus && matchesZonal && matchesTech;
     });
-  }, [requests, searchTerm, statusFilter, zonalFilter, currentUser]);
+  }, [requests, searchTerm, statusFilter, zonalFilter, techFilter, currentUser]);
 
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
@@ -103,7 +105,13 @@ const RequestListPage: React.FC = () => {
       doc.text('SGR-VIAS - SISTEMA DE GESTÃO DE REPAROS', 15, 24);
       
       const now = new Date().toLocaleString('pt-BR');
-      doc.text(`GERADO EM: ${now}  |  REGISTROS FILTRADOS: ${filteredRequests.length}`, 15, 29);
+      const activeFilters = [];
+      if (statusFilter !== 'all') activeFilters.push(`Status: ${statusFilter}`);
+      if (zonalFilter !== 'all') activeFilters.push(`Unidade: ${getZonalName(zonalFilter)}`);
+      if (techFilter !== 'all') activeFilters.push(`Vistoriador: ${users.find(u => u.id === techFilter)?.name}`);
+      
+      const filterStr = activeFilters.length > 0 ? `FILTROS: ${activeFilters.join(' | ')}` : 'FILTRO: GERAL';
+      doc.text(`GERADO EM: ${now}  |  ${filterStr}  |  TOTAL: ${filteredRequests.length}`, 15, 29);
       
       // Cabeçalho da Tabela
       let headY = 48;
@@ -301,10 +309,20 @@ const RequestListPage: React.FC = () => {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input type="text" placeholder="Buscar por protocolo ou endereço..." className="w-full h-12 pl-12 pr-4 bg-slate-50 border-transparent focus:bg-white focus:border-blue-500 rounded-xl outline-none transition-all text-slate-900 font-medium" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
         </div>
-        <div className="flex gap-2">
-          <select className="flex-1 md:w-44 h-12 px-4 bg-slate-50 border-transparent rounded-xl focus:bg-white focus:border-blue-500 outline-none font-semibold text-slate-700 appearance-none text-sm" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+        <div className="flex flex-col md:flex-row gap-2 flex-wrap">
+          <select className="flex-1 md:w-40 h-12 px-4 bg-slate-50 border-transparent rounded-xl focus:bg-white focus:border-blue-500 outline-none font-semibold text-slate-700 appearance-none text-sm" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
             <option value="all">Status: Todos</option>
             {Object.values(RequestStatus).map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          
+          <select className="flex-1 md:w-40 h-12 px-4 bg-slate-50 border-transparent rounded-xl focus:bg-white focus:border-blue-500 outline-none font-semibold text-slate-700 appearance-none text-sm" value={zonalFilter} onChange={e => setZonalFilter(e.target.value)}>
+            <option value="all">Unidade: Todas</option>
+            {zonals.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
+          </select>
+
+          <select className="flex-1 md:w-40 h-12 px-4 bg-slate-50 border-transparent rounded-xl focus:bg-white focus:border-blue-500 outline-none font-semibold text-slate-700 appearance-none text-sm" value={techFilter} onChange={e => setTechFilter(e.target.value)}>
+            <option value="all">Vistoriador: Todos</option>
+            {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
           </select>
         </div>
       </div>
