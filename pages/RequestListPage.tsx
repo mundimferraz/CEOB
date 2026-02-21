@@ -80,11 +80,15 @@ const RequestListPage: React.FC = () => {
   };
 
   const generatePDFReport = async () => {
-    const doc = new jsPDF();
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    });
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     
-    const renderHeader = (pageNum: number, totalPages: number) => {
+    const renderHeader = (pageNum: number) => {
       // Cabeçalho institucional azul escuro
       doc.setFillColor(15, 23, 42);
       doc.rect(0, 0, pageWidth, 35, 'F');
@@ -110,10 +114,10 @@ const RequestListPage: React.FC = () => {
       doc.setFontSize(8);
       doc.setFont('helvetica', 'bold');
       doc.text('PROTOCOLO', 15, headY);
-      doc.text('FOTO', 45, headY);
-      doc.text('STATUS', 70, headY);
-      doc.text('UNIDADE ZONAL', 100, headY);
-      doc.text('ENDEREÇO E LOCALIZAÇÃO', 140, headY);
+      doc.text('FOTO', 50, headY);
+      doc.text('STATUS', 85, headY);
+      doc.text('UNIDADE ZONAL', 120, headY);
+      doc.text('ENDEREÇO E LOCALIZAÇÃO', 170, headY);
       
       // Rodapé
       doc.setTextColor(148, 163, 184);
@@ -125,16 +129,22 @@ const RequestListPage: React.FC = () => {
     let y = 62;
     let currentPage = 1;
     
-    renderHeader(currentPage, 0); // O total será ajustado no final se necessário
+    renderHeader(currentPage);
 
     for (let i = 0; i < filteredRequests.length; i++) {
       const req = filteredRequests[i];
       
-      // Checar quebra de página (25mm por linha aprox com foto)
-      if (y > 265) {
+      // Preparar texto do endereço para calcular altura
+      const address = req.location.address || 'Endereço não informado';
+      const splitAddress = doc.splitTextToSize(address, 110);
+      const textHeight = splitAddress.length * 4;
+      const rowHeight = Math.max(18, textHeight + 8);
+
+      // Checar quebra de página
+      if (y + rowHeight > pageHeight - 20) {
         doc.addPage();
         currentPage++;
-        renderHeader(currentPage, 0);
+        renderHeader(currentPage);
         y = 62;
       }
 
@@ -146,33 +156,31 @@ const RequestListPage: React.FC = () => {
       // Foto ou "S/ Foto"
       if (req.photoBefore) {
         try {
-          doc.addImage(req.photoBefore, 'JPEG', 45, y - 6, 15, 12);
+          doc.addImage(req.photoBefore, 'JPEG', 50, y - 6, 20, 15);
         } catch (e) {
           doc.setFont('helvetica', 'normal');
           doc.setTextColor(148, 163, 184);
-          doc.text('ERRO IMG', 45, y);
+          doc.text('ERRO IMG', 50, y);
         }
       } else {
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(148, 163, 184);
-        doc.text('S/ FOTO', 45, y);
+        doc.text('S/ FOTO', 50, y);
       }
 
       doc.setTextColor(15, 23, 42);
       doc.setFont('helvetica', 'normal');
-      doc.text(req.status, 70, y);
-      doc.text(getZonalName(req.zonal), 100, y);
+      doc.text(req.status, 85, y);
+      doc.text(getZonalName(req.zonal), 120, y);
       
       // Endereço com Wrap
-      const address = req.location.address;
-      const splitAddress = doc.splitTextToSize(address, 55);
-      doc.text(splitAddress, 140, y);
+      doc.text(splitAddress, 170, y);
 
       // Linha separadora
       doc.setDrawColor(241, 245, 249);
-      doc.line(10, y + 8, pageWidth - 10, y + 8);
+      doc.line(10, y + (rowHeight - 10), pageWidth - 10, y + (rowHeight - 10));
       
-      y += 18; // Espaçamento entre registros
+      y += rowHeight; 
     }
 
     doc.save(`Relatorio_Consolidado_SGRVias_${Date.now()}.pdf`);
