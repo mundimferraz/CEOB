@@ -86,6 +86,16 @@ const RequestDetailsPage: React.FC = () => {
     return () => { if (!isEditing && mapRef.current) { mapRef.current.remove(); mapRef.current = null; } };
   }, [isEditing]);
 
+  useEffect(() => {
+    if (isEditing && mapRef.current && markerRef.current) {
+      const currentPos = markerRef.current.getLatLng();
+      if (currentPos.lat !== editedLat || currentPos.lng !== editedLng) {
+        markerRef.current.setLatLng([editedLat, editedLng]);
+        mapRef.current.panTo([editedLat, editedLng]);
+      }
+    }
+  }, [editedLat, editedLng, isEditing]);
+
   if (!request) return <div className="p-12 text-center font-bold text-slate-400">Não encontrado</div>;
 
   const handleUpdate = async () => {
@@ -337,7 +347,32 @@ const RequestDetailsPage: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                  <div className="bg-slate-900 p-4 rounded-2xl text-white">
                     <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-1">GPS</p>
-                    <p className="text-xs font-bold">{request.location.latitude.toFixed(6)}, {request.location.longitude.toFixed(6)}</p>
+                    {isEditing ? (
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <p className="text-[7px] text-slate-400 uppercase mb-0.5">Lat</p>
+                          <input 
+                            type="number" 
+                            step="any"
+                            className="w-full bg-transparent text-xs font-bold outline-none border-b border-slate-700 focus:border-emerald-400" 
+                            value={editedLat} 
+                            onChange={e => setEditedLat(parseFloat(e.target.value) || 0)} 
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-[7px] text-slate-400 uppercase mb-0.5">Lng</p>
+                          <input 
+                            type="number" 
+                            step="any"
+                            className="w-full bg-transparent text-xs font-bold outline-none border-b border-slate-700 focus:border-emerald-400" 
+                            value={editedLng} 
+                            onChange={e => setEditedLng(parseFloat(e.target.value) || 0)} 
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs font-bold">{request.location.latitude.toFixed(6)}, {request.location.longitude.toFixed(6)}</p>
+                    )}
                  </div>
                  <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
                     <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-1">Endereço</p>
