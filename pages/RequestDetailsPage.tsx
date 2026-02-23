@@ -35,6 +35,8 @@ const RequestDetailsPage: React.FC = () => {
   const [editedLat, setEditedLat] = useState<number>(0);
   const [editedLng, setEditedLng] = useState<number>(0);
   const [editedTechId, setEditedTechId] = useState('');
+  const [editedStatus, setEditedStatus] = useState<RequestStatus>(RequestStatus.OPEN);
+  const [editedZonal, setEditedZonal] = useState('');
 
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -47,7 +49,7 @@ const RequestDetailsPage: React.FC = () => {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
-  const canModify = isAdmin || (request?.status === RequestStatus.OPEN && canDo('edit_request'));
+  const canModify = isAdmin || canDo('edit_request');
 
   useEffect(() => {
     if (request) {
@@ -59,6 +61,8 @@ const RequestDetailsPage: React.FC = () => {
       setEditedLat(request.location.latitude);
       setEditedLng(request.location.longitude);
       setEditedTechId(request.technicianId || '');
+      setEditedStatus(request.status);
+      setEditedZonal(request.zonal);
     }
   }, [request]);
 
@@ -94,6 +98,8 @@ const RequestDetailsPage: React.FC = () => {
         contract: editedContract,
         description: editedDescription,
         technicianId: editedTechId,
+        status: editedStatus,
+        zonal: editedZonal,
         location: { ...request.location, latitude: editedLat, longitude: editedLng, address: editedAddress }
       });
       setIsEditing(false);
@@ -291,7 +297,13 @@ const RequestDetailsPage: React.FC = () => {
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
            <div className="flex items-center gap-2 mb-2">
-              <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border ${STATUS_COLORS[request.status]}`}>{request.status}</span>
+              {isEditing ? (
+                <select className="px-2 py-0.5 rounded text-[9px] font-black uppercase border outline-none bg-white" value={editedStatus} onChange={e => setEditedStatus(e.target.value as RequestStatus)}>
+                  {Object.values(RequestStatus).map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              ) : (
+                <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border ${STATUS_COLORS[request.status]}`}>{request.status}</span>
+              )}
               {isEditing && <span className="bg-amber-600 text-white px-2 py-0.5 rounded text-[9px] font-black uppercase">Modo Edição</span>}
            </div>
            {isEditing ? (
@@ -358,7 +370,7 @@ const RequestDetailsPage: React.FC = () => {
                                onClick={() => setFullscreenImage({url: img, title: slot === 'before' ? 'Antes' : 'Depois'})}
                              />
                              <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                                {isEditing && isAdmin && (
+                                {isEditing && canModify && (
                                    <div className="flex flex-col gap-1">
                                       <button onClick={() => { setActivePhotoSlot(slot as any); cameraInputRef.current?.click(); }} className="p-2 bg-blue-600 text-white rounded-lg shadow-lg"><Camera size={14}/></button>
                                       <button onClick={() => { setActivePhotoSlot(slot as any); galleryInputRef.current?.click(); }} className="p-2 bg-slate-900 text-white rounded-lg shadow-lg"><UploadCloud size={14}/></button>
@@ -372,7 +384,7 @@ const RequestDetailsPage: React.FC = () => {
                          ) : (
                            <div className="flex flex-col gap-2 w-full px-8">
                               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center mb-2">{slot === 'before' ? 'S/ Foto Antes' : 'S/ Foto Depois'}</p>
-                              {isEditing && isAdmin && (
+                              {isEditing && canModify && (
                                 <>
                                   <button onClick={() => { setActivePhotoSlot(slot as any); cameraInputRef.current?.click(); }} className="h-9 bg-blue-600 text-white rounded-xl text-[8px] font-black uppercase flex items-center justify-center gap-2"><Camera size={14}/> Câmera</button>
                                   <button onClick={() => { setActivePhotoSlot(slot as any); galleryInputRef.current?.click(); }} className="h-9 bg-slate-900 text-white rounded-xl text-[8px] font-black uppercase flex items-center justify-center gap-2"><UploadCloud size={14}/> Galeria</button>
@@ -392,12 +404,22 @@ const RequestDetailsPage: React.FC = () => {
               <h3 className="text-xs font-black uppercase tracking-tight">Responsabilidade</h3>
               <div className="space-y-3">
                  <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100/50">
+                    <p className="text-[8px] font-black text-blue-500 uppercase mb-1">Unidade Zonal</p>
+                    {isEditing && canModify ? (
+                      <select className="w-full bg-transparent text-xs font-black outline-none border-b border-blue-200" value={editedZonal} onChange={e => setEditedZonal(e.target.value)}>
+                        {zonals.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
+                      </select>
+                    ) : (
+                      <p className="text-xs font-black text-slate-900">{getZonalName(request.zonal)}</p>
+                    )}
+                  </div>
+                  <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100/50">
                     <p className="text-[8px] font-black text-blue-500 uppercase mb-1">Engenheiro Titular</p>
                     <p className="text-xs font-black text-slate-900">{engineer?.name || 'Não designado'}</p>
                  </div>
                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                     <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Vistoriador</p>
-                    {isEditing && isAdmin ? (
+                    {isEditing && canModify ? (
                       <select className="w-full bg-transparent text-xs font-black outline-none border-b border-slate-200" value={editedTechId} onChange={e => setEditedTechId(e.target.value)}>
                         <option value="">Não atribuído</option>
                         {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
@@ -408,7 +430,7 @@ const RequestDetailsPage: React.FC = () => {
                  </div>
               </div>
            </div>
-            {isAdmin && (
+            {canModify && (
              <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-4">
                <h3 className="text-xs font-black uppercase tracking-tight">Administração</h3>
                <div>
