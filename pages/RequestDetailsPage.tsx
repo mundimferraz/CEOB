@@ -26,6 +26,7 @@ const RequestDetailsPage: React.FC = () => {
   const tech = users.find(u => u.id === request?.technicianId);
   const zonalMeta = zonals.find(z => z.id === request?.zonal);
   const engineer = users.find(u => u.id === zonalMeta?.managerId);
+  const assistant = users.find(u => u.id === zonalMeta?.assistantId);
 
   const [editedAddress, setEditedAddress] = useState('');
   const [editedProtocol, setEditedProtocol] = useState('');
@@ -451,6 +452,10 @@ const RequestDetailsPage: React.FC = () => {
                   <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100/50">
                     <p className="text-[8px] font-black text-blue-500 uppercase mb-1">Engenheiro Titular</p>
                     <p className="text-xs font-black text-slate-900">{engineer?.name || 'Não designado'}</p>
+                  </div>
+                  <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100/50">
+                    <p className="text-[8px] font-black text-blue-500 uppercase mb-1">Assistente Técnico</p>
+                    <p className="text-xs font-black text-slate-900">{assistant?.name || 'Não designado'}</p>
                  </div>
                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                     <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Vistoriador</p>

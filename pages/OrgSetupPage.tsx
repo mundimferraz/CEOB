@@ -223,9 +223,15 @@ const OrgSetupPage: React.FC = () => {
                       </div>
                     )}
                   </div>
-                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                    <p className="text-[8px] font-black text-slate-400 uppercase mb-2">Responsável Técnico</p>
-                    <p className="text-xs font-bold text-slate-900">{users.find(u => u.id === z.managerId)?.name || 'Nenhum'}</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                      <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Responsável</p>
+                      <p className="text-[10px] font-bold text-slate-900 truncate">{users.find(u => u.id === z.managerId)?.name || 'Nenhum'}</p>
+                    </div>
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                      <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Assistente</p>
+                      <p className="text-[10px] font-bold text-slate-900 truncate">{users.find(u => u.id === z.assistantId)?.name || 'Nenhum'}</p>
+                    </div>
                   </div>
               </div>
             ))}
@@ -309,16 +315,29 @@ const OrgSetupPage: React.FC = () => {
                   className="w-full h-11 px-4 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-600/10" 
                 />
               </div>
-              <div>
-                <label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">Responsável Técnico</label>
-                <select 
-                  name="managerId" 
-                  defaultValue={editingZonal?.managerId} 
-                  className="w-full h-11 px-4 border border-slate-200 rounded-xl outline-none font-bold text-xs"
-                >
-                  <option value="">Selecione um responsável</option>
-                  {users.map(u => <option key={u.id} value={u.id}>{u.name} ({ROLE_CONFIG[u.role]?.label})</option>)}
-                </select>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">Responsável Técnico</label>
+                  <select 
+                    name="managerId" 
+                    defaultValue={editingZonal?.managerId} 
+                    className="w-full h-11 px-4 border border-slate-200 rounded-xl outline-none font-bold text-xs"
+                  >
+                    <option value="">Selecione um responsável</option>
+                    {users.map(u => <option key={u.id} value={u.id}>{u.name} ({ROLE_CONFIG[u.role]?.label})</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">Assistente Técnico</label>
+                  <select 
+                    name="assistantId" 
+                    defaultValue={editingZonal?.assistantId} 
+                    className="w-full h-11 px-4 border border-slate-200 rounded-xl outline-none font-bold text-xs"
+                  >
+                    <option value="">Selecione um assistente</option>
+                    {users.map(u => <option key={u.id} value={u.id}>{u.name} ({ROLE_CONFIG[u.role]?.label})</option>)}
+                  </select>
+                </div>
               </div>
               <div>
                 <label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">Descrição / Observações</label>
